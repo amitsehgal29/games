@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2D5A27"/>
+      <stop offset="100%" stop-color="#1E3E18"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="100" fill="url(#bg)"/>
+  <!-- Tea cup body -->
+  <ellipse cx="256" cy="340" rx="140" ry="110" fill="none" stroke="#FFF" stroke-width="20" opacity="0.9"/>
+  <!-- Cup rim -->
+  <path d="M116 280 Q256 240 396 280" fill="none" stroke="#FFF" stroke-width="18" stroke-linecap="round" opacity="0.9"/>
+  <!-- Cup bottom -->
+  <path d="M156 420 Q256 450 356 420" fill="none" stroke="#FFF" stroke-width="16" stroke-linecap="round" opacity="0.8"/>
+  <!-- Steam / leaf symbol -->
+  <path d="M220 200 Q240 150 256 120 Q272 150 292 200" fill="none" stroke="#D4A050" stroke-width="14" stroke-linecap="round" opacity="0.8"/>
+  <line x1="256" y1="120" x2="256" y2="80" stroke="#D4A050" stroke-width="12" stroke-linecap="round" opacity="0.8"/>
+  <!-- Small leaf -->
+  <ellipse cx="300" cy="150" rx="30" ry="12" fill="none" stroke="#6BCB77" stroke-width="10" transform="rotate(-30 300 150)" opacity="0.7"/>
+  <!-- Memory card icon: small rectangle in bottom right -->
+  <rect x="340" y="340" width="80" height="100" rx="12" fill="none" stroke="#FFF" stroke-width="12" opacity="0.5"/>
+  <circle cx="380" cy="390" r="16" fill="#FFF" opacity="0.3"/>
+</svg>
