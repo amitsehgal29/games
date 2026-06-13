@@ -12,10 +12,12 @@ Thumbs.db
 # Claude local settings (API keys, personal prefs)
 .claude/settings.local.json
 
-# Claude skills and agents (installed via npx skills add)
+# Marketplace skills and agents (installed via npx skills add)
 .agents/
-skills-lock.json
+.claude/
 
-# Marketplace skills (symlinked) — keep project-crafted ones
-.claude/skills/*
+# Keep project-crafted skills
+!.claude/skills/
 !.claude/skills/master-game-ui/
+!.claude/skills/master-game-ui/*
+skills-lock.json
