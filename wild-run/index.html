@@ -61,7 +61,7 @@
 
   const FUEL_MAX     = 100;
   const FUEL_DRAIN   = 3.0;
-  const FUEL_PICKUP  = 18;
+  const FUEL_PICKUP  = 60;
 
   const OBSTACLE_MIN_GAP = 0.50;
   const COLLECTIBLE_CHANCE = 0.19;
@@ -172,7 +172,11 @@
         if (AC) audioCtx = new AC();
       } catch(e) { audioCtx = null; }
     }
-    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    // Mobile browsers require resume() from a user gesture — return promise
+    if (audioCtx && audioCtx.state === 'suspended') {
+      return audioCtx.resume();
+    }
+    return Promise.resolve();
   }
 
   function playTone(freq, endFreq, duration, type, vol, rampDown) {
@@ -307,8 +311,10 @@
     if (muted) {
       stopEngine();
     } else {
-      initAudio();
-      if (state === 'playing') startEngine();
+      initAudio().then(() => {
+        sfxClick();
+        if (!muted && state === 'playing') startEngine();
+      });
     }
   }
 
@@ -1278,10 +1284,10 @@
   // ═══════════════════════════════════════
   const OBSTACLE_TYPES = ['deer', 'bear', 'sheep'];
 
-  // Returns set of lanes occupied near the spawn zone (top of screen)
+  // Returns set of lanes occupied ahead of the player (top 65% of screen)
   function getBusyLanes() {
     const busy = new Set();
-    const zone = canvas.height * 0.25;
+    const zone = canvas.height * 0.65;
     for (const o of obstacles) {
       if (o.y < zone) o.lanes.forEach(l => busy.add(l));
     }
@@ -1298,9 +1304,9 @@
       if (!busy.has(i)) free.push(i);
     }
     if (free.length > 0) return free[randInt(0, free.length - 1)];
-    // All lanes busy — pick the one with fewest items near spawn
+    // All lanes busy — pick the one with fewest items ahead of player
     const counts = Array(LANES).fill(0);
-    const zone = canvas.height * 0.25;
+    const zone = canvas.height * 0.65;
     for (const o of obstacles) {
       if (o.y < zone) o.lanes.forEach(l => counts[l]++);
     }
@@ -1942,13 +1948,13 @@
     }
 
     // ── Spawn obstacles ──
-    // Gentle continuous difficulty: +1 obstacle every 1000m, gap shrinks slowly
-    const maxObs = 1 + Math.floor(distance / 1000);
+    // Gentle continuous difficulty: +1 obstacle every 1000m, never block all lanes
+    const maxObs = Math.min(1 + Math.floor(distance / 1000), LANES - 1);
     const gapDist = GAP_DIST_BASE / (1 + distance / 800);
 
     if (distance - lastObstacleDist > gapDist && obstacles.length < maxObs) {
       // Check which lanes are blocked near the spawn zone (top of screen)
-      const nearSpawn = obstacles.filter(o => o.y < canvas.height * 0.25);
+      const nearSpawn = obstacles.filter(o => o.y < canvas.height * 0.65);
       const blockedLanes = new Set();
       nearSpawn.forEach(o => o.lanes.forEach(l => blockedLanes.add(l)));
 
@@ -2199,8 +2205,6 @@
     if (canvas._muteBtn) {
       const b = canvas._muteBtn;
       if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) {
-        initAudio();
-        sfxClick();
         toggleMute();
         return;
       }
@@ -2219,8 +2223,9 @@
   function startGame() {
     resetGame();
     state = 'playing';
-    initAudio();
-    if (!muted) startEngine();
+    initAudio().then(() => {
+      if (!muted) startEngine();
+    });
     lastFrameTime = performance.now();
   }
 
