@@ -146,8 +146,8 @@
   let treesL = [];
   let treesR = [];
   let frameCount = 0;
-  let highScore = parseInt(localStorage.getItem('wildrun_hs')) || 0;
-  let highDist  = parseInt(localStorage.getItem('wildrun_hd')) || 0;
+  let highScore = parseInt(safeLS('wildrun_hs')) || 0;
+  let highDist  = parseInt(safeLS('wildrun_hd')) || 0;
   let lastObstacleDist = 0;
   let nitroActive = false;
   let nitroFuel = 0;
@@ -155,6 +155,7 @@
   let nearMissTimer = 0;
   let lastFrameTime = performance.now();
   let laneSwitchCooldown = 0;
+  let lastDt = 0.016;              // stored for render-only consumers (clouds)
 
   // Audio
   let audioCtx = null;
@@ -167,9 +168,12 @@
   // ═══════════════════════════════════════
   function initAudio() {
     if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      try {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (AC) audioCtx = new AC();
+      } catch(e) { audioCtx = null; }
     }
-    if (audioCtx.state === 'suspended') audioCtx.resume();
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
   }
 
   function playTone(freq, endFreq, duration, type, vol, rampDown) {
@@ -300,7 +304,7 @@
 
   function toggleMute() {
     muted = !muted;
-    localStorage.setItem('wildrun_muted', muted ? '1' : '0');
+    safeLS('wildrun_muted', muted ? '1' : '0');
     if (muted) {
       stopEngine();
     } else {
@@ -316,6 +320,11 @@
   function randInt(min, max) { return Math.floor(rand(min, max + 1)); }
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
   function lerp(a, b, t) { return a + (b - a) * t; }
+  function safeLS(key, val) {
+    try { if (val !== undefined) safeLS(key, val); else return safeLS(key); }
+    catch(e) { return val !== undefined ? null : null; }
+  }
+
   function scaleX(x) { return x * (canvas.width / GAME_W); }
   function scaleY(y) { return y * (canvas.width / GAME_W); }
   function scaleV(v) { return v * (canvas.width / GAME_W); }
@@ -560,10 +569,6 @@
   }
 
   function drawTree(tree, scrollSpeed) {
-    tree.y += scrollSpeed * 0.14;
-    if (tree.y > canvas.height + 80) tree.y = -80;
-    if (tree.y < -80) tree.y = canvas.height + 80;
-
     const x = scaleX(tree.x), y = tree.y, s = scaleV(tree.size);
     const sway = Math.sin(frameCount * 0.018 + tree.sway) * s * 0.06;
 
@@ -958,81 +963,6 @@
     ctx.restore();
   }
 
-  function drawLog(x, y, w, h) {
-    ctx.save();
-
-    // Strong shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.38)';
-    ctx.beginPath();
-    ctx.ellipse(x + w * 0.02, y + h * 0.32, w / 2, h / 2.6, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Main body — rich dark wood, high contrast
-    const grad = ctx.createLinearGradient(x, y - h / 2, x, y + h / 2);
-    grad.addColorStop(0, '#C49A6C');
-    grad.addColorStop(0.15, '#8B5A3C');
-    grad.addColorStop(0.45, '#5C3620');
-    grad.addColorStop(0.8, '#3A1E0E');
-    grad.addColorStop(1, '#1A0A04');
-    ctx.fillStyle = grad;
-    roundRect(x - w / 2, y - h / 2, w, h, h / 3);
-    ctx.fill();
-
-    // Warning band — bright orange, signals danger
-    const bx = x;
-    const bw = w * 0.12;
-    ctx.fillStyle = '#FF6D00';
-    ctx.globalAlpha = 0.7;
-    roundRect(bx - bw, y - h / 2 + 3, bw * 2, h - 6, h / 5);
-    ctx.fill();
-    ctx.globalAlpha = 0.95;
-    ctx.fillStyle = '#FF9100';
-    roundRect(bx - bw * 0.5, y - h / 2 + 4, bw, h - 8, h / 8);
-    ctx.fill();
-    ctx.globalAlpha = 1;
-
-    // Bark texture lines (skip band area)
-    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
-    ctx.lineWidth = 1.2;
-    for (let i = 0; i < 6; i++) {
-      const lx = x - w / 2 + (w / 7) * (i + 0.5);
-      if (Math.abs(lx - bx) < bw * 1.8) continue;
-      ctx.beginPath();
-      ctx.moveTo(lx + Math.sin(i * 2.5) * 2.5, y - h / 2 + 3);
-      ctx.quadraticCurveTo(lx + Math.sin(i * 1.8 + 0.4) * 3, y, lx + Math.sin(i * 3.1 + 1) * 2, y + h / 2 - 3);
-      ctx.stroke();
-    }
-
-    // End grain with growth rings — bright pop
-    [-w / 2 + 2, w / 2 - 2].forEach(ex => {
-      const eg = ctx.createRadialGradient(x + ex, y, h * 0.04, x + ex, y, h / 2.3);
-      eg.addColorStop(0, '#D4B896');
-      eg.addColorStop(0.25, '#C49A6C');
-      eg.addColorStop(0.7, '#6B4030');
-      eg.addColorStop(1, '#3A1E0E');
-      ctx.fillStyle = eg;
-      ctx.beginPath();
-      ctx.arc(x + ex, y, h / 2.2, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Growth rings
-      ctx.strokeStyle = 'rgba(160,130,100,0.25)';
-      ctx.lineWidth = 0.6;
-      for (let ri = 1; ri <= 4; ri++) {
-        ctx.beginPath();
-        ctx.arc(x + ex, y, (h / 2.4) * (ri / 4.5), 0, Math.PI * 2);
-        ctx.stroke();
-      }
-    });
-
-    // Top edge highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    roundRect(x - w / 2 + 3, y - h / 2, w - 6, h * 0.1, h / 4);
-    ctx.fill();
-
-    ctx.restore();
-  }
-
   function drawDeer(x, y, s) {
     ctx.save();
     // Shadow
@@ -1109,37 +1039,6 @@
     ctx.fill();
 
     ctx.restore();
-  }
-
-  function drawPuddle(x, y, w, h) {
-    // Mud rim
-    ctx.fillStyle = 'rgba(0,0,0,0.12)';
-    ctx.beginPath();
-    ctx.ellipse(x + w * 0.05, y + h * 0.2, w / 1.8, h / 1.9, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Water
-    const grad = ctx.createRadialGradient(x - w * 0.08, y - h * 0.08, w * 0.05, x, y, w / 1.5);
-    grad.addColorStop(0, C.puddle2);
-    grad.addColorStop(0.7, C.puddle1);
-    grad.addColorStop(1, C.puddleRim);
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.ellipse(x, y, w / 2, h / 2, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Reflection highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    ctx.beginPath();
-    ctx.ellipse(x - w * 0.02, y - h * 0.05, w * 0.28, h * 0.2, -0.2, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Small ripple
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-    ctx.lineWidth = 0.5;
-    ctx.beginPath();
-    ctx.ellipse(x - w * 0.05, y - h * 0.08, w * 0.2, h * 0.12, 0, 0, Math.PI * 2);
-    ctx.stroke();
   }
 
   // ═══════════════════════════════════════
@@ -1422,13 +1321,16 @@
 
     switch (type) {
       case 'deer':
-        w = rand(35, 50);  // medium
+        w = rand(35, 50);
+        r = w * 0.35;
         break;
       case 'bear':
-        w = rand(44, 60);  // large, slow-looking
+        w = rand(44, 60);
+        r = w * 0.38;
         break;
       case 'sheep':
-        w = rand(38, 52);  // fluffy, medium-large
+        w = rand(38, 52);
+        r = w * 0.36;
         break;
     }
 
@@ -1870,11 +1772,11 @@
     if (score > highScore) {
       newBest = true;
       highScore = score;
-      localStorage.setItem('wildrun_hs', highScore);
+      safeLS('wildrun_hs', highScore);
     }
     if (distance > highDist) {
       highDist = Math.floor(distance);
-      localStorage.setItem('wildrun_hd', highDist);
+      safeLS('wildrun_hd', highDist);
     }
 
     if (newBest) {
@@ -1945,7 +1847,8 @@
 
   function update(dt) {
     if (state !== 'playing') return;
-    const dtC = Math.min(dt, 0.1);
+    const dtC = Math.max(0, Math.min(dt, 0.1));
+    lastDt = dtC;
 
     // Speed scaling
     const speedLevel = Math.floor(distance / DIST_PER_STEP);
@@ -2008,8 +1911,8 @@
     else if (distance < 1500) maxObs = MAX_OBSTACLES_MID;
     else maxObs = MAX_OBSTACLES_LATE;
 
-    const gapSec = OBSTACLE_MIN_GAP * (BASE_SPEED / speed);
-    if (distance - lastObstacleDist > speed * gapSec * 1.2 && obstacles.length < maxObs) {
+    const gapDist = OBSTACLE_MIN_GAP * BASE_SPEED * 1.2 / Math.sqrt(speed / BASE_SPEED);
+    if (distance - lastObstacleDist > gapDist && obstacles.length < maxObs) {
       // Check which lanes are blocked near the spawn zone (top of screen)
       const nearSpawn = obstacles.filter(o => o.y < canvas.height * 0.25);
       const blockedLanes = new Set();
@@ -2060,11 +1963,11 @@
       if (Math.hypot(cx - sx, cy - sy) < scaleV(38)) {
         if (c.type === 'fruit') {
           score += 100;
-          spawnCollectFX(cx, cy, '#FF6B35');
+          spawnCollectFX(c.x, cy, '#FF6B35');
           sfxPickup();
         } else {
           fuel = clamp(fuel + FUEL_PICKUP, 0, FUEL_MAX);
-          spawnCollectFX(cx, cy, '#D9442F');
+          spawnCollectFX(c.x, cy, '#D9442F');
           sfxFuelPickup();
         }
         collectibles.splice(i, 1);
@@ -2073,10 +1976,10 @@
 
     // ── Effects ──
     // Normal dust trail
-    if (Math.random() < 45 * dtC) spawnDust(scaleX(displayX), playerY + scaleV(24), 2);
+    if (Math.random() < 45 * dtC) spawnDust(displayX, playerY + scaleV(24), 2);
     // Extra dust burst during lane switch
     if (switchDustTimer > 0 && Math.random() < 60 * dtC) {
-      spawnDust(scaleX(displayX), playerY + scaleV(10), 3);
+      spawnDust(displayX, playerY + scaleV(10), 3);
     }
     if (nearMissTimer > 0) nearMissTimer -= dtC;
     if (shakeTimer > 0) shakeTimer -= dtC;
@@ -2098,8 +2001,8 @@
     state = 'over';
     stopEngine();
     sfxCrash();
-    if (score > highScore) { highScore = score; localStorage.setItem('wildrun_hs', highScore); }
-    if (distance > highDist) { highDist = Math.floor(distance); localStorage.setItem('wildrun_hd', highDist); }
+    if (score > highScore) { highScore = score; safeLS('wildrun_hs', highScore); }
+    if (distance > highDist) { highDist = Math.floor(distance); safeLS('wildrun_hd', highDist); }
     shakeTimer = 0.35;
   }
 
@@ -2116,7 +2019,7 @@
     }
 
     drawSky();
-    drawClouds(0.016);
+    drawClouds(lastDt);
     drawMountains();
     drawBirds();
 
@@ -2252,6 +2155,7 @@
     }
   }, { passive: false });
   canvas.addEventListener('touchend', e => { e.preventDefault(); boostOff(); }, { passive: false });
+  canvas.addEventListener('touchcancel', e => { e.preventDefault(); boostOff(); }, { passive: false });
 
   canvas.addEventListener('click', e => {
     const rect = canvas.getBoundingClientRect();
@@ -2291,7 +2195,7 @@
   // ═══════════════════════════════════════
   function init() {
     // Restore mute preference
-    const savedMute = localStorage.getItem('wildrun_muted');
+    const savedMute = safeLS('wildrun_muted');
     if (savedMute !== null) muted = savedMute === '1';
 
     resize();
