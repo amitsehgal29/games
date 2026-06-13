@@ -106,12 +106,11 @@
 
   // ── State ──
   let state = 'title';
-  let level = 1, lives = 3, maxLives = 3, gridSize = 3;
+  let level = 1, gridCols = 3, gridRows = 4;
   let arrows = [];
   let animArrow = null, animProgress = 0;
   let highLevel = parseInt(safeLS('arrowescape_lv')) || 1;
   let elapsedTime = 0, lastFrameTime = performance.now();
-  let hintTimer = 0;
 
   // Audio
   let audioCtx = null, muted = true;
@@ -149,49 +148,53 @@
     muted = !muted; safeLS('arrowescape_muted', muted?'1':'0'); initAudio();
   }
 
-  // ── Grid ──
+  // ── Grid — vertical rectangle ──
   function getGridBounds() {
-    const gridW = scaleX(320);
+    const gridW = scaleX(300);
+    const cellSize = gridW / gridCols;
+    const gridH = cellSize * gridRows;
     const bx = (canvas.width - gridW) / 2;
-    const by = canvas.height * 0.22;
-    return { bx, by, gridW, cellSize: gridW / gridSize };
+    const by = Math.max(scaleV(20), (canvas.height - gridH) / 2 - scaleV(20));
+    return { bx, by, gridW, gridH, cellSize };
   }
 
   function cellFromPoint(px, py) {
     const { bx, by, cellSize } = getGridBounds();
     const col = Math.floor((px - bx) / cellSize);
     const row = Math.floor((py - by) / cellSize);
-    if (col >= 0 && col < gridSize && row >= 0 && row < gridSize) return { row, col };
+    if (col >= 0 && col < gridCols && row >= 0 && row < gridRows) return { row, col };
     return null;
   }
 
   function hasClearPath(row, col, dir, excludeIdx) {
     const d = DIRS[dir]; let r = row + d.dy, c = col + d.dx;
-    while (r >= 0 && r < gridSize && c >= 0 && c < gridSize) {
+    while (r >= 0 && r < gridRows && c >= 0 && c < gridCols) {
       if (arrows.findIndex((a, i) => i !== excludeIdx && a.alive && a.row === r && a.col === c) >= 0) return false;
       r += d.dy; c += d.dx;
     }
     return true;
   }
 
-  function generateLevel(size, numArrows) {
-    for (let attempt = 0; attempt < 200; attempt++) {
+  function generateLevel(cols, rows, numArrows) {
+    const totalCells = cols * rows;
+    for (let attempt = 0; attempt < 300; attempt++) {
       const test = [], used = new Set();
       for (let i = 0; i < numArrows; i++) {
         let r, c, k;
-        do { r = randInt(0, size-1); c = randInt(0, size-1); k = `${r},${c}`; }
-        while (used.has(k) && used.size < size*size);
-        if (used.size >= size*size) break;
+        do { r = randInt(0, rows-1); c = randInt(0, cols-1); k = `${r},${c}`; }
+        while (used.has(k) && used.size < totalCells);
+        if (used.size >= totalCells) break;
         used.add(k);
         test.push({ row: r, col: c, dir: DIR_KEYS[randInt(0,3)], alive: true });
       }
+      // Validate
       const sim = test.map(a=>({...a}));
       let valid = true;
       for (let step = 0; step < sim.length; step++) {
         const safe = sim.filter((a,i) => {
           if (!a.alive) return false;
           const d = DIRS[a.dir]; let rr = a.row+d.dy, cc = a.col+d.dx;
-          while (rr>=0&&rr<size&&cc>=0&&cc<size) {
+          while (rr>=0 && rr<rows && cc>=0 && cc<cols) {
             if (sim.find(s=>s!==a&&s.alive&&s.row===rr&&s.col===cc)) return false;
             rr+=d.dy; cc+=d.dx;
           }
@@ -207,11 +210,12 @@
 
   function startLevel(lvl) {
     level = lvl;
-    gridSize = clamp(3 + Math.floor((lvl-1)/2), 3, 7);
-    const numArrows = clamp(3 + lvl, 3, gridSize*gridSize - 1);
-    arrows = generateLevel(gridSize, numArrows);
-    lives = maxLives; state = 'playing';
-    animArrow = null; hintTimer = 0;
+    gridCols = clamp(3 + Math.floor((lvl-1)/5), 3, 5);
+    gridRows = clamp(4 + Math.floor((lvl-1)/2), 4, 9);
+    const numArrows = clamp(4 + lvl, 4, gridCols*gridRows - 1);
+    arrows = generateLevel(gridCols, gridRows, numArrows);
+    state = 'playing';
+    animArrow = null;
   }
 
   // ── Drawing ──
@@ -233,19 +237,19 @@
   }
 
   function drawGrid() {
-    const { bx, by, gridW, cellSize } = getGridBounds();
+    const { bx, by, gridW, gridH, cellSize } = getGridBounds();
 
     // Grid background
     ctx.fillStyle = C.surface;
     ctx.strokeStyle = C.border;
     ctx.lineWidth = scaleV(1.5);
-    roundRect(bx - scaleV(4), by - scaleV(4), gridW + scaleV(8), gridW + scaleV(8), scaleV(12));
+    roundRect(bx - scaleV(4), by - scaleV(4), gridW + scaleV(8), gridH + scaleV(8), scaleV(12));
     ctx.fill();
     ctx.stroke();
 
     // Cells
-    for (let row = 0; row < gridSize; row++) {
-      for (let col = 0; col < gridSize; col++) {
+    for (let row = 0; row < gridRows; row++) {
+      for (let col = 0; col < gridCols; col++) {
         const cx = bx + col * cellSize, cy = by + row * cellSize;
         const inset = cellSize * 0.08;
         ctx.fillStyle = (row + col) % 2 === 0 ? C.cellEven : C.cellOdd;
@@ -302,33 +306,24 @@
     ctx.restore();
   }
 
-  function drawHearts() {
-    const hx = scaleX(20), hy = scaleV(58), hs = scaleV(10);
-    for (let i = 0; i < maxLives; i++) {
-      const x = hx + i * (hs * 2.8);
-      ctx.fillStyle = i < lives ? C.heartFull : C.heartEmpty;
-      ctx.beginPath();
-      const r = hs * 0.5;
-      ctx.arc(x - r, hy - r*0.3, r, Math.PI, 0);
-      ctx.arc(x + r, hy - r*0.3, r, Math.PI, 0);
-      ctx.lineTo(x, hy + hs*0.8); ctx.closePath(); ctx.fill();
-    }
-  }
-
   function drawHUD() {
-    // Level badge
+    // Level badge — top right
     const badgeX = scaleX(GAME_W - 20);
     ctx.fillStyle = C.surface;
     ctx.strokeStyle = C.borderGlow;
     ctx.lineWidth = scaleV(1);
-    roundRect(badgeX - scaleX(50), scaleV(8), scaleX(50), scaleV(28), scaleV(14));
+    roundRect(badgeX - scaleX(60), scaleV(8), scaleX(60), scaleV(28), scaleV(14));
     ctx.fill(); ctx.stroke();
     ctx.fillStyle = C.text;
-    ctx.font = `700 ${scaleV(13)}px 'Outfit', system-ui, sans-serif`;
+    ctx.font = `700 ${scaleV(12)}px 'Outfit', system-ui, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(`Lv ${level}`, badgeX - scaleX(25), scaleV(22));
+    ctx.fillText(`Lv ${level}`, badgeX - scaleX(30), scaleV(22));
 
-    drawHearts();
+    // Grid size — top left
+    ctx.fillStyle = C.textDim;
+    ctx.font = `600 ${scaleV(11)}px 'Outfit', system-ui, sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText(`${gridCols}×${gridRows}`, scaleX(18), scaleV(22));
   }
 
   function drawTitleScreen() {
@@ -368,7 +363,7 @@
     ctx.fillStyle = C.textDim;
     ctx.font = `500 ${scaleV(10.5)}px 'Outfit', system-ui, sans-serif`;
     ctx.fillText('Tap arrows to slide them off the grid', cx, cardY + scaleV(44));
-    ctx.fillText('Hit another arrow → lose a life', cx, cardY + scaleV(60));
+    ctx.fillText('Hit another arrow → restart level', cx, cardY + scaleV(60));
 
     // Start button
     const btnW = scaleX(190), btnH = scaleV(52);
@@ -418,30 +413,6 @@
     canvas._nextBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
   }
 
-  function drawGameOver() {
-    ctx.fillStyle = C.overlay; ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    const cx = canvas.width/2, cy = canvas.height*0.33;
-    ctx.fillStyle = C.btnDanger;
-    ctx.font = `900 ${scaleV(32)}px 'Outfit', system-ui, sans-serif`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('GAME OVER', cx, cy);
-
-    ctx.fillStyle = C.textDim;
-    ctx.font = `500 ${scaleV(15)}px 'Outfit', system-ui, sans-serif`;
-    ctx.fillText(`Reached Level ${level}`, cx, cy + scaleV(38));
-
-    const btnW = scaleX(190), btnH = scaleV(52);
-    const btnX = cx - btnW/2, btnY = cy + scaleV(68);
-    const bg = ctx.createLinearGradient(btnX, btnY, btnX, btnY+btnH);
-    bg.addColorStop(0, C.accent); bg.addColorStop(1, '#5A52D5');
-    ctx.fillStyle = bg; roundRect(btnX, btnY, btnW, btnH, btnH/2); ctx.fill();
-    ctx.fillStyle = '#FFF';
-    ctx.font = `800 ${scaleV(18)}px 'Outfit', system-ui, sans-serif`;
-    ctx.fillText('RETRY', cx, btnY + btnH/2);
-    canvas._restartBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
-  }
-
   function drawMuteButton() {
     const r = scaleV(18), x = scaleX(GAME_W - 20) - r, y = scaleV(85);
     canvas._muteBtn = { x: x-r, y: y-r, w: r*2, h: r*2 };
@@ -464,12 +435,11 @@
     initAudio(); sfxTap();
 
     if (!hasClearPath(row, col, arrow.dir, idx)) {
-      sfxInvalid(); lives--;
-      if (lives <= 0) {
-        state = 'over'; sfxLose();
-        if (level > highLevel) { highLevel = level; safeLS('arrowescape_lv', String(highLevel)); }
-      }
+      // Wrong tap — restart level immediately
+      sfxInvalid(); sfxLose();
       arrow.shakeTimer = 0.3;
+      setTimeout(() => startLevel(level), 400);
+      state = 'animating'; // block further taps during shake
       return;
     }
 
@@ -529,7 +499,6 @@
 
     if (state === 'playing' || state === 'animating') drawHUD();
     if (state === 'title') drawTitleScreen();
-    if (state === 'over') drawGameOver();
     if (state === 'levelComplete') drawLevelComplete();
     drawMuteButton();
   }
@@ -556,10 +525,6 @@
         const b = canvas._startBtn;
         if (tx>=b.x && tx<=b.x+b.w && ty>=b.y && ty<=b.y+b.h) { startLevel(1); return; }
       }
-      if (state === 'over' && canvas._restartBtn) {
-        const b = canvas._restartBtn;
-        if (tx>=b.x && tx<=b.x+b.w && ty>=b.y && ty<=b.y+b.h) { startLevel(1); return; }
-      }
       if (state === 'levelComplete' && canvas._nextBtn) {
         const b = canvas._nextBtn;
         if (tx>=b.x && tx<=b.x+b.w && ty>=b.y && ty<=b.y+b.h) { startLevel(level+1); return; }
@@ -581,10 +546,6 @@
     }
     if (state==='title' && canvas._startBtn) {
       const b = canvas._startBtn;
-      if (mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h) { startLevel(1); return; }
-    }
-    if (state==='over' && canvas._restartBtn) {
-      const b = canvas._restartBtn;
       if (mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h) { startLevel(1); return; }
     }
     if (state==='levelComplete' && canvas._nextBtn) {
