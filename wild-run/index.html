@@ -194,26 +194,41 @@
 
   // Prime audio on iOS — silent switch mutes Web Audio unless a buffer is played
   function primeAudioIOS() {
-    if (!audioCtx || muted) return;
+    if (!audioCtx || muted || audioCtx.state === 'closed') return;
     try {
-      const buf = audioCtx.createBuffer(1, 1, 22050);
+      // Longer silent buffer (0.1s) to properly warm up iOS audio hardware
+      const len = Math.floor(audioCtx.sampleRate * 0.1);
+      const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
       const src = audioCtx.createBufferSource();
       src.buffer = buf;
       src.connect(audioCtx.destination);
       src.start(0);
-      src.stop(audioCtx.currentTime + 0.001);
+      src.stop(audioCtx.currentTime + 0.1);
     } catch(e) { /* ignore */ }
   }
+
+  let audioWarmedUp = false;
 
   // Call on any first user interaction to unlock audio on mobile
   function unlockAudio() {
     if (!audioCtx) initAudio();
     else if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
-    primeAudioIOS();
+    // Aggressive warm-up: burst multiple buffers to prime iOS audio immediately
+    if (!audioWarmedUp && audioCtx && !muted) {
+      audioWarmedUp = true;
+      primeAudioIOS();
+      setTimeout(() => primeAudioIOS(), 30);
+      setTimeout(() => primeAudioIOS(), 80);
+      setTimeout(() => primeAudioIOS(), 150);
+      setTimeout(() => { audioWarmedUp = false; }, 5000); // re-arm for next session
+    } else {
+      primeAudioIOS();
+    }
   }
 
   function playTone(freq, endFreq, duration, type, vol, rampDown) {
     if (muted || !audioCtx) return;
+    if (audioCtx.state === 'suspended') { unlockAudio(); }
     const t = audioCtx.currentTime;
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
@@ -230,6 +245,7 @@
 
   function playNoise(duration, vol, lowFreq, highFreq) {
     if (muted || !audioCtx) return;
+    if (audioCtx.state === 'suspended') { unlockAudio(); }
     const t = audioCtx.currentTime;
     const bufferSize = Math.floor(audioCtx.sampleRate * duration);
     const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
@@ -348,7 +364,7 @@
     } else {
       unlockAudio();
       sfxClick();
-      if (state === 'playing') setTimeout(() => { if (!muted) startEngine(); }, 150);
+      if (state === 'playing') startEngine();
     }
   }
 
@@ -2206,8 +2222,7 @@
     resetGame();
     state = 'playing';
     unlockAudio();
-    // Delay engine start slightly — mobile browsers need time to resume AudioContext
-    if (!muted) setTimeout(() => { if (state === 'playing' && !muted) startEngine(); }, 150);
+    if (!muted) startEngine();
     lastFrameTime = performance.now();
   }
 
