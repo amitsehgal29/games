@@ -1490,8 +1490,8 @@
     }
   }
 
-  function drawStarIcon(x, y, s) {
-    ctx.fillStyle = '#FFD700';
+  function drawStarIcon(x, y, s, color) {
+    ctx.fillStyle = color || '#FFD700';
     ctx.beginPath();
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2 - Math.PI / 2;
@@ -1840,16 +1840,24 @@
     const prevHigh = highScore;
     const newBest = score > prevHigh;
 
+    // Star rating
+    const starY = statsY + scaleV(58);
+    const starCount = score >= 800 ? 3 : score >= 400 ? 2 : 1;
+    for (let i = 0; i < 3; i++) {
+      const sx = cx + (i - 1) * scaleV(38);
+      drawStarIcon(sx, starY, scaleV(7), i < starCount ? '#FFD700' : 'rgba(255,255,255,0.15)');
+    }
+
     if (newBest) {
       ctx.fillStyle = '#FFD93D';
       ctx.font = `bold ${scaleV(17)}px 'Fredoka One', system-ui, sans-serif`;
-      drawStarIcon(cx - scaleV(80), statsY + scaleV(65), scaleV(9));
-      ctx.fillText('New High Score!', cx, statsY + scaleV(65));
-      drawStarIcon(cx + scaleV(80), statsY + scaleV(65), scaleV(9));
+      drawStarIcon(cx - scaleV(80), starY + scaleV(22), scaleV(9));
+      ctx.fillText('New High Score!', cx, starY + scaleV(22));
+      drawStarIcon(cx + scaleV(80), starY + scaleV(22), scaleV(9));
     }
 
-    const btnW = scaleX(200), btnH = scaleV(58);
-    const btnY = statsY + scaleV(90);
+    const btnW = scaleX(200), btnH = scaleV(48);
+    const btnY = starY + scaleV(42);
     const btnGrad = ctx.createLinearGradient(cx, btnY, cx, btnY + btnH);
     btnGrad.addColorStop(0, '#5CB860');
     btnGrad.addColorStop(1, '#3D8B40');
@@ -1869,6 +1877,17 @@
     ctx.fillText('PLAY AGAIN', cx, btnY + btnH / 2);
 
     canvas._restartBtn = { x: cx - btnW / 2, y: btnY, w: btnW, h: btnH };
+
+    // Menu button
+    const menuBtnY = btnY + btnH + scaleV(10);
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    roundRect(cx - btnW / 2, menuBtnY, btnW, btnH, btnH / 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = scaleV(1.5);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.font = `700 ${scaleV(15)}px 'Fredoka One', system-ui, sans-serif`;
+    ctx.fillText('MENU', cx, menuBtnY + btnH / 2);
+    canvas._menuBtn = { x: cx - btnW / 2, y: menuBtnY, w: btnW, h: btnH };
   }
 
   function drawMuteButton() {
@@ -2243,7 +2262,13 @@
       touchStartY = t.clientY;
       boostSwipeActive = false;
 
-      if (state === 'title' || state === 'over') { startGame(); return; }
+      if (state === 'title' || state === 'over') {
+        if (state === 'over' && canvas._menuBtn) {
+          const b = canvas._menuBtn;
+          if (tx >= b.x && tx <= b.x + b.w && ty >= b.y && ty <= b.y + b.h) { state = 'title'; return; }
+        }
+        startGame(); return;
+      }
       if (state === 'playing') {
         if (steerApplied) continue;
         steerApplied = true;
@@ -2281,9 +2306,15 @@
       const b = canvas._startBtn;
       if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) startGame();
     }
-    if (state === 'over' && canvas._restartBtn) {
-      const b = canvas._restartBtn;
-      if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) startGame();
+    if (state === 'over') {
+      if (canvas._restartBtn) {
+        const b = canvas._restartBtn;
+        if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) { startGame(); return; }
+      }
+      if (canvas._menuBtn) {
+        const b = canvas._menuBtn;
+        if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) { state = 'title'; return; }
+      }
     }
   });
 
