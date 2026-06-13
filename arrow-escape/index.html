@@ -84,25 +84,41 @@
     arrowBase: '#1E2440',
     arrowBorder: 'rgba(255,255,255,0.2)',
     dirColors: { up: '#FF6B6B', down: '#4ECDC4', left: '#FFD93D', right: '#6BCB77' },
-    safeGlow: 'rgba(108,203,119,0.5)',
-    dangerGlow: 'rgba(255,107,107,0.5)',
-    heartFull: '#FF4757', heartEmpty: 'rgba(255,255,255,0.12)',
     text: '#FFFFFF', textDim: 'rgba(255,255,255,0.6)', textMuted: 'rgba(255,255,255,0.35)',
     accent: '#6C63FF', accentGlow: 'rgba(108,99,255,0.4)',
     overlay: 'rgba(10,14,26,0.85)',
-    btnPrimary: '#6C63FF',
     btnSuccess: '#2ED573',
     btnDanger: '#FF4757',
   };
 
   // ── Directions ──
   const DIRS = {
-    up:    { dx: 0, dy: -1, symbol: '↑', angle: -Math.PI/2 },
-    down:  { dx: 0, dy: 1,  symbol: '↓', angle: Math.PI/2 },
-    left:  { dx: -1, dy: 0, symbol: '←', angle: Math.PI },
-    right: { dx: 1, dy: 0,  symbol: '→', angle: 0 },
+    up:    { dx: 0, dy: -1, angle: -Math.PI/2 },
+    down:  { dx: 0, dy: 1,  angle: Math.PI/2 },
+    left:  { dx: -1, dy: 0, angle: Math.PI },
+    right: { dx: 1, dy: 0,  angle: 0 },
   };
   const DIR_KEYS = Object.keys(DIRS);
+
+  // Custom-drawn arrow shape for each direction
+  function drawArrowShape(cx, cy, s, angle, color) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    // Arrow pointing right (rotated for each direction)
+    ctx.moveTo(-s * 0.75, -s * 0.35);
+    ctx.lineTo(s * 0.05, -s * 0.35);
+    ctx.lineTo(s * 0.05, -s * 0.7);
+    ctx.lineTo(s * 0.85, 0);
+    ctx.lineTo(s * 0.05, s * 0.7);
+    ctx.lineTo(s * 0.05, s * 0.35);
+    ctx.lineTo(-s * 0.75, s * 0.35);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
 
   // ── State ──
   let state = 'title';
@@ -288,18 +304,16 @@
     ctx.lineWidth = scaleV(2.5);
     ctx.beginPath(); ctx.arc(x, y, s, 0, Math.PI*2); ctx.stroke();
 
-    // Direction arrow
-    ctx.fillStyle = dirColor;
-    ctx.font = `900 ${s * 1.3}px 'Outfit', system-ui, sans-serif`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(DIRS[a.dir].symbol, x, y);
+    // Direction arrow — custom drawn
+    drawArrowShape(x, y, s * 0.75, DIRS[a.dir].angle, dirColor);
 
-    // Safe indicator — glowing border
+    // Safe indicator — pulsing dashed ring
     if (state === 'playing' && a.alive && hasClearPath(a.row, a.col, a.dir, idx)) {
-      ctx.strokeStyle = C.safeGlow;
-      ctx.lineWidth = scaleV(3);
+      const pulse = 0.5 + Math.sin(elapsedTime * 4) * 0.3;
+      ctx.strokeStyle = `rgba(108,203,119,${0.35 + pulse * 0.25})`;
+      ctx.lineWidth = scaleV(2.5 + pulse);
       ctx.setLineDash([scaleV(4), scaleV(3)]);
-      ctx.beginPath(); ctx.arc(cx, cy, s + scaleV(6), 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx, cy, s + scaleV(5), 0, Math.PI*2); ctx.stroke();
       ctx.setLineDash([]);
     }
 
@@ -307,23 +321,52 @@
   }
 
   function drawHUD() {
+    const hudY = scaleV(8), hudH = scaleV(36);
+    const alive = arrows.filter(a => a.alive).length;
+    const total = arrows.length;
+
+    // HUD bar background
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    roundRect(scaleX(8), hudY, scaleX(GAME_W - 16), hudH, scaleV(10));
+    ctx.fill();
+
     // Level badge — top right
     const badgeX = scaleX(GAME_W - 20);
     ctx.fillStyle = C.surface;
     ctx.strokeStyle = C.borderGlow;
     ctx.lineWidth = scaleV(1);
-    roundRect(badgeX - scaleX(60), scaleV(8), scaleX(60), scaleV(28), scaleV(14));
+    roundRect(badgeX - scaleX(55), hudY + scaleV(4), scaleX(55), scaleV(28), scaleV(14));
     ctx.fill(); ctx.stroke();
     ctx.fillStyle = C.text;
     ctx.font = `700 ${scaleV(12)}px 'Outfit', system-ui, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(`Lv ${level}`, badgeX - scaleX(30), scaleV(22));
+    ctx.fillText(`Lv ${level}`, badgeX - scaleX(27.5), hudY + hudH/2);
 
     // Grid size — top left
     ctx.fillStyle = C.textDim;
     ctx.font = `600 ${scaleV(11)}px 'Outfit', system-ui, sans-serif`;
-    ctx.textAlign = 'left';
-    ctx.fillText(`${gridCols}×${gridRows}`, scaleX(18), scaleV(22));
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(`${gridCols}×${gridRows}`, scaleX(18), hudY + hudH/2);
+
+    // Arrow progress gauge — center
+    const gaugeW = scaleX(80), gaugeH = scaleV(8);
+    const gaugeX = scaleX(GAME_W / 2) - gaugeW / 2 + scaleX(20);
+    const gaugeY = hudY + hudH/2 - gaugeH/2;
+    const pct = total > 0 ? alive / total : 0;
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    roundRect(gaugeX, gaugeY, gaugeW, gaugeH, gaugeH/2);
+    ctx.fill();
+    const gaugeColor = pct > 0.5 ? '#6BCB77' : pct > 0.25 ? '#FFD93D' : '#FF6B6B';
+    const gg = ctx.createLinearGradient(gaugeX, 0, gaugeX + gaugeW, 0);
+    gg.addColorStop(0, gaugeColor);
+    gg.addColorStop(1, pct > 0.5 ? '#4ECDC4' : gaugeColor);
+    ctx.fillStyle = gg;
+    roundRect(gaugeX, gaugeY, gaugeW * pct, gaugeH, gaugeH/2);
+    ctx.fill();
+    // Shine
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    roundRect(gaugeX, gaugeY, gaugeW * pct, gaugeH/2, gaugeH/2);
+    ctx.fill();
   }
 
   function drawTitleScreen() {
@@ -336,6 +379,17 @@
     ctx.beginPath(); ctx.arc(cx, cy + scaleV(10), scaleV(90), 0, Math.PI*2); ctx.stroke();
     ctx.strokeStyle = 'rgba(108,99,255,0.06)';
     ctx.beginPath(); ctx.arc(cx, cy + scaleV(10), scaleV(120), 0, Math.PI*2); ctx.stroke();
+
+    // Floating particles
+    for (let i = 0; i < 20; i++) {
+      const seed = i * 47.3;
+      const px = cx + Math.sin(elapsedTime * 0.6 + seed) * scaleV(110);
+      const py = cy + scaleV(15) + Math.cos(elapsedTime * 0.8 + seed * 2) * scaleV(100);
+      const alpha = 0.15 + Math.sin(elapsedTime * 1.2 + seed) * 0.1;
+      const size = 1.5 + Math.abs(Math.sin(seed * 3.7)) * 2;
+      ctx.fillStyle = `rgba(108,99,255,${alpha})`;
+      ctx.beginPath(); ctx.arc(px, py, scaleV(size), 0, Math.PI * 2); ctx.fill();
+    }
 
     // Title
     const tg = ctx.createLinearGradient(cx, cy - scaleV(30), cx, cy + scaleV(30));
@@ -389,8 +443,33 @@
     canvas._startBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
   }
 
+  // Celebration particles for level complete
+  let celebParticles = [];
+  function spawnCelebParticles() {
+    celebParticles = [];
+    for (let i = 0; i < 30; i++) {
+      const angle = rand(0, Math.PI * 2);
+      const speed = rand(2, 6);
+      celebParticles.push({
+        x: canvas.width/2, y: canvas.height * 0.4,
+        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 2,
+        life: 0.8 + rand(0, 0.6), maxLife: 1.4,
+        size: rand(3, 7),
+        color: ['#FF6B6B','#4ECDC4','#FFD93D','#6BCB77','#6C63FF'][randInt(0, 4)],
+      });
+    }
+  }
+
   function drawLevelComplete() {
     ctx.fillStyle = C.overlay; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Celebration particles
+    celebParticles.forEach(p => {
+      ctx.globalAlpha = clamp(p.life / p.maxLife, 0, 1);
+      ctx.fillStyle = p.color;
+      ctx.beginPath(); ctx.arc(p.x, p.y, scaleV(p.size), 0, Math.PI*2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
 
     const cx = canvas.width/2, cy = canvas.height*0.33;
     ctx.fillStyle = '#2ED573';
@@ -398,18 +477,37 @@
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('CLEARED!', cx, cy);
 
+    // Star rating based on level
+    const starCount = level <= 3 ? 3 : level <= 6 ? 2 : 1;
+    const starY = cy + scaleV(40);
+    for (let i = 0; i < 3; i++) {
+      ctx.fillStyle = i < starCount ? '#FFD93D' : 'rgba(255,255,255,0.1)';
+      ctx.font = `${scaleV(24)}px 'Outfit', system-ui, sans-serif`;
+      ctx.fillText('★', cx + (i - 1) * scaleV(32), starY);
+    }
+
     ctx.fillStyle = C.text;
     ctx.font = `600 ${scaleV(16)}px 'Outfit', system-ui, sans-serif`;
-    ctx.fillText(`Level ${level} complete`, cx, cy + scaleV(38));
+    ctx.fillText(`Level ${level} complete`, cx, starY + scaleV(32));
+
+    // New high level
+    if (level >= highLevel && highLevel > 1) {
+      ctx.fillStyle = '#FFD93D';
+      ctx.font = `700 ${scaleV(13)}px 'Outfit', system-ui, sans-serif`;
+      ctx.fillText('★ New High Level! ★', cx, starY + scaleV(54));
+    }
 
     const btnW = scaleX(190), btnH = scaleV(52);
-    const btnX = cx - btnW/2, btnY = cy + scaleV(70);
+    const btnX = cx - btnW/2, btnY = starY + scaleV(68);
+    const pulse = 1 + Math.sin(elapsedTime * 3) * 0.03;
+    ctx.shadowColor = 'rgba(46,213,115,0.4)'; ctx.shadowBlur = scaleV(18) * pulse;
     const bg = ctx.createLinearGradient(btnX, btnY, btnX, btnY+btnH);
     bg.addColorStop(0, C.btnSuccess); bg.addColorStop(1, '#1FA855');
     ctx.fillStyle = bg; roundRect(btnX, btnY, btnW, btnH, btnH/2); ctx.fill();
+    ctx.shadowBlur = 0;
     ctx.fillStyle = '#FFF';
     ctx.font = `800 ${scaleV(18)}px 'Outfit', system-ui, sans-serif`;
-    ctx.fillText('NEXT', cx, btnY + btnH/2);
+    ctx.fillText('NEXT LEVEL', cx, btnY + btnH/2);
     canvas._nextBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
   }
 
@@ -464,6 +562,7 @@
     sfxSlide(); arrow.alive = false;
 
     if (arrows.every(a => !a.alive)) {
+      spawnCelebParticles();
       setTimeout(() => {
         state = 'levelComplete'; sfxWin();
         if (level >= highLevel) { highLevel = level+1; safeLS('arrowescape_lv', String(highLevel)); }
@@ -488,6 +587,12 @@
       animArrow.opacity = clamp(1 - animProgress*1.2, 0, 1);
     }
     arrows.forEach(a => { if (a.shakeTimer > 0) a.shakeTimer -= dtC; });
+    // Celebration particles
+    for (let i = celebParticles.length - 1; i >= 0; i--) {
+      const p = celebParticles[i];
+      p.life -= dtC; p.x += p.vx; p.y += p.vy; p.vy += 0.5;
+      if (p.life <= 0) celebParticles.splice(i, 1);
+    }
   }
 
   function render() {
@@ -501,20 +606,23 @@
         drawArrow(a, i);
     });
 
-    // Shake red flash
+    // Shake red flash (deterministic — no Math.random in render)
     ctx.save();
-    arrows.forEach(a => {
+    arrows.forEach((a, i) => {
       if (a.shakeTimer > 0) {
         const { bx, by, cellSize } = getGridBounds();
-        const cx = bx + a.col*cellSize + cellSize/2 + (Math.random()-0.5)*a.shakeTimer*8;
-        const cy = by + a.row*cellSize + cellSize/2 + (Math.random()-0.5)*a.shakeTimer*8;
+        const seed = i * 73 + Math.floor(elapsedTime * 120);
+        const sx = ((seed * 13) % 100 - 50) / 50 * a.shakeTimer * 8;
+        const sy = ((seed * 37) % 100 - 50) / 50 * a.shakeTimer * 8;
+        const cx = bx + a.col*cellSize + cellSize/2 + sx;
+        const cy = by + a.row*cellSize + cellSize/2 + sy;
         ctx.fillStyle = `rgba(255,71,87,${a.shakeTimer*0.4})`;
         ctx.beginPath(); ctx.arc(cx, cy, cellSize*0.38, 0, Math.PI*2); ctx.fill();
       }
     });
     ctx.restore();
 
-    if (state === 'playing' || state === 'animating') drawHUD();
+    if (state === 'playing' || state === 'animating' || state === 'levelComplete') drawHUD();
     if (state === 'title') drawTitleScreen();
     if (state === 'levelComplete') drawLevelComplete();
     drawMuteButton();
