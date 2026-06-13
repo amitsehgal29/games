@@ -185,10 +185,12 @@ Getting audio to play instantly on mobile requires aggressive warm-up.
 
 ### Custom Drawn Icons
 - **Fruit**: orange circle, radial gradient, green leaf with vein, highlight spot
-- **Fuel nozzle**: red pistol-grip gas pump handle, metal spout, trigger guard, hose
+- **Fuel pump**: simple rounded-rect red body, dark top cap, tiny display dot, hose line with tip — not a nozzle close-up. Consistent size across HUD, pickup, and instructions card
 - **Speaker**: rectangle body + triangle cone, arc waves (unmuted) or red X (muted)
-- **Star**: 4-point sparkle, gold fill, white center
+- **Star**: 4-point or 8-point sparkle, gold fill, white center dot
 - **Play triangle**: filled right-pointing triangle
+- **Pause**: two vertical rounded rectangles (⏸) inside a circle
+- **Home**: simple house — rectangle body + triangle roof, small door
 
 ### Obstacle Design
 - Use **faces/heads** not full bodies — instantly recognizable at speed
@@ -197,6 +199,39 @@ Getting audio to play instantly on mobile requires aggressive warm-up.
   - Bear: round dark face, small ears, lighter muzzle, small eyes
   - Sheep: fluffy white cloud-like face, black floppy ears, dark snout
 - Strong shadows underneath for depth against the road
+
+### Pause Button (ALL games)
+- Every game must have a **pause button** visible during gameplay
+- Position: below the mute button (y offset +60px from mute)
+- Icon: two vertical rounded rectangles (⏸) inside a circle
+- P toggles pause. Escape toggles pause (don't quit to title)
+- Pause freezes timer, engine, and game logic. Render continues for overlay
+- Pause overlay: "PAUSED" title + RESUME button + MENU button
+- RESUME button uses game's theme color (orange for nature, purple for neon, green for matcha)
+- MENU button returns to the game's own title screen (`state = 'title'`)
+
+### Home Button (ALL games)
+- Every game must have a **home button** on the title screen
+- Position: top-left corner, mirror of mute button position
+- Icon: simple house shape — rectangle body + triangle roof
+- Navigates to `../index.html` (the repo landing page)
+
+### Landing Page
+- iOS-style app icon grid, not cards
+- 76px rounded-square icons with gradient backgrounds, glossy top highlight
+- App name labels below icons. Press-scale animation on tap
+- Refined dark background (`#0D0D14`) with subtle radial gradients
+- No status bar, search pill, or dock — just the grid
+- 3 columns on mobile, 4 on wider screens. Max-width 380-460px centered
+
+### Matching Game Patterns
+- **Flip animation**: vertical scaleY squash with lift (`sin(progress * π) * liftAmount`)
+- **Flip direction**: `flipDir = 1` (forward reveal), `flipDir = -1` (backward hide). Face shows in second half for forward, first half for backward
+- **Match detection**: use a `matchingPhase` flag, not a lockTimer equality check
+- **Scoring**: base 100 + speed bonus (`max(0, 30 - timeSinceLast * 15) * 2`) + combo multiplier (`1 + (combo - 1) * 0.5`)
+- **Combo**: consecutive matches within 2 seconds chain combos
+- **Star rating**: performance index = score − moves×20 − time×15, thresholds at 35%/65% of perfect
+- **Easter egg**: rapid taps on title screen (7 in 3s) toggles a special mode
 
 ### Performance
 - Cache gradient objects where possible
@@ -273,10 +308,11 @@ All visual elements must be custom canvas-drawn. This includes:
 
 ## User Preferences (learned through iteration)
 
-- **Nature themes** — forests, animals, dirt roads, mountains. Not neon/sci-fi
+- **Visual variety** — each game must have a distinct theme. Wild Run (nature/warm), Arrow Escape (dark/neon), Matcha (cream/tactile). Don't repeat styles
+- **Nature themes over neon/sci-fi** — forests, animals, dirt roads, mountains
 - **Vehicle should be a tractor** — large rear wheels, green body, cabin at rear
 - **Animal obstacles** — deer, bear, sheep (faces only). No rocks, puddles, or logs
-- **Fuel as gas pump nozzle** — red pistol-grip dispenser handle
+- **Fuel icon is a simple red gas pump** — rounded body, dark cap, display dot, hose. NOT a nozzle close-up. Same design at all sizes
 - **Continuous difficulty** — formulas not thresholds. Scale to 50,000m+
 - **Scarce fuel** — thresholds at 50%, 25%, 5%. 40pt fill. Creates tension
 - **Zero overlaps** — unified lane-assignment system for all objects
@@ -285,11 +321,15 @@ All visual elements must be custom canvas-drawn. This includes:
 - **Sound defaults muted** — subtle engine, pleasant waveforms
 - **Offline-first** — service worker on every game
 - **Fun fonts** — Fredoka One, not system fonts
-- **No emojis** — custom canvas art everywhere
+- **No emojis** — custom canvas art everywhere. No unicode symbols for game UI
 - **Large touch targets** — 44pt minimum for buttons, 28px+ for mute
 - **Swipe-up to boost** on mobile — intuitive gas-pedal metaphor
 - **Link previews** — favicon + OG meta tags for rich sharing
 - **Minimal back-and-forth** — build complete in one shot
+- **Branch discipline** — each game on its own branch. Check `git branch --show-current` before editing
+- **No star ratings on game over screen** — user prefers clean stats without stars
+- **Pause + Home on every game** — non-negotiable. Pause during play, Home on title
+- **Landing page as iOS app grid** — rounded icons, no cards. Clean dark background
 
 ---
 
@@ -309,6 +349,9 @@ When building a new game, include ALL of these:
 - [ ] HUD: clean top bar (not overlapping mute button), drawn icons, fuel gauge
 - [ ] Game over screen: stats, new-high-score check (before endGame updates), play again button
 - [ ] Custom-drawn mute button (speaker + sound waves / X), defaults to muted
+- [ ] Pause button below mute button (two-bar icon, P/Escape toggles)
+- [ ] Home button on title screen (house icon, top-left, → `../index.html`)
+- [ ] Themed pause overlay: PAUSED + RESUME (game accent color) + MENU (→ title screen)
 - [ ] Web Audio synthesized sounds with aggressive iOS warmup (4-buffer burst)
 - [ ] `safeLS()` wrapper for ALL localStorage calls
 - [ ] `touchcancel` handler alongside `touchend`
@@ -319,5 +362,5 @@ When building a new game, include ALL of these:
 - [ ] Smooth animations with lerp, squash & stretch, tilt
 - [ ] Keyboard + touch controls (swipe-up for boost on mobile)
 - [ ] Responsive canvas sizing (max-width matching MAX_W, centered)
-- [ ] Update landing page card
+- [ ] iOS-style landing page card (app icon grid, not text cards)
 - [ ] PR to main with detailed description
