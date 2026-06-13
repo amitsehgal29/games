@@ -567,13 +567,16 @@
     ctx.fillStyle = grad;
     ctx.fillRect(sx, 0, sw, canvas.height);
 
-    // Gravel specks
+    // Gravel specks (deterministic — no Math.random in render)
     const dotSpacing = 14;
     for (let yy = (frameCount * 4) % dotSpacing; yy < canvas.height; yy += dotSpacing) {
-      for (let xx = sx + 10; xx < sx + sw - 10; xx += dotSpacing + rand(-5, 5)) {
+      for (let xx = sx + 10; xx < sx + sw - 10; xx += dotSpacing) {
+        const gx = xx + dotSpacing * ((((xx * 73 + yy * 37) % 100) - 50) / 100 * 0.35);
+        const gy = yy + dotSpacing * ((((xx * 59 + yy * 91) % 100) - 50) / 100 * 0.35);
+        const gs = 0.6 + (((xx * 17 + yy * 43) % 100) / 100) * 0.9;
         ctx.fillStyle = C.gravel;
         ctx.beginPath();
-        ctx.arc(xx + rand(-1.5, 1.5), yy + rand(-1.5, 1.5), 0.6 + Math.random() * 0.9, 0, Math.PI * 2);
+        ctx.arc(gx, gy, gs, 0, Math.PI * 2);
         ctx.fill();
       }
     }
@@ -588,16 +591,20 @@
       ctx.stroke();
     });
 
-    // Grass tufts at road edge
+    // Grass tufts at road edge (deterministic — no Math.random in render)
     ctx.fillStyle = C.grassEdg;
     for (let yy = (frameCount * 4) % 30; yy < canvas.height; yy += 30) {
-      const lx = sx + rand(-2, 3);
-      const rx = sx + sw + rand(-3, 2);
+      const seed = Math.floor(yy * 0.1 + frameCount);
+      const lx = sx + ((seed * 31) % 6 - 2);
+      const rx = sx + sw + ((seed * 47) % 6 - 3);
       [lx, rx].forEach(gx => {
+        const h = 6 + ((seed * 53) % 9);
+        const dx = ((seed * 67) % 11 - 5);
+        const dx2 = ((seed * 71) % 7 - 3);
         ctx.beginPath();
         ctx.moveTo(gx, yy);
-        ctx.lineTo(gx + rand(-5, 5), yy - rand(6, 14));
-        ctx.lineTo(gx + rand(-3, 3), yy);
+        ctx.lineTo(gx + dx, yy - h);
+        ctx.lineTo(gx + dx2, yy);
         ctx.fill();
       });
     }
