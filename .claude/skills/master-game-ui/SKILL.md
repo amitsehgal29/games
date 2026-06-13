@@ -6,182 +6,111 @@ version: 2.0.0
 
 # Master Game UI Architecture
 
-This skill orchestrates game interface engineering — combining performance patterns, visual standards, and genre-appropriate theming. Every game in this repo follows these rules.
+This skill orchestrates game interface engineering by combining 3 foundational skills with visual standards and genre-appropriate theming.
+
+## Core Skill Dependencies
+
+*Ensure these skills are installed from the marketplace:*
+- `canvas-design`: Design philosophy for creating visual art and posters (.png/.pdf output)
+- `algorithmic-art`: Generative art using p5.js with seeded randomness and particle systems
+- `gsap-core` + `gsap-timeline` + `gsap-plugins`: GreenSock animation library for DOM/SVG tweens, timelines, scroll-triggered animation, and plugin-based effects
+
+All can be installed via `npx skills add <github-url>`.
 
 ---
 
-## 1. Rendering Engine
+## Rendering Engine
 
-- **Canvas 2D only** — all game elements drawn via canvas primitives (arc, rect, ellipse, bezierCurveTo, quadraticCurveTo)
+- **Canvas 2D only** — all game elements drawn via canvas primitives (arc, rect, ellipse, quadraticCurveTo)
 - **Fixed internal game width** (400 units) scaled to canvas via `scaleX(val) = val * (canvas.width / GAME_W)`
 - **60fps via requestAnimationFrame** with delta-time for ALL movement
 - Never use frame counts for animation — always `elapsedTime` accumulator
-- Clamp dt: `Math.max(0, Math.min(dt, 0.1))` — guards against negative and huge values
+- Clamp dt: `Math.max(0, Math.min(dt, 0.1))`
 
----
+## Visual Standards
 
-## 2. Genre-Based Theming
+- **No emojis anywhere** — custom canvas-drawn icons for everything
+- **Fredoka One** for titles/buttons, **Fredoka** for body text — import via Google Fonts `<link>`
+- High contrast, vibrant colors — deep gradients, strong shadows
+- All artwork via canvas primitives — no images, no sprites
 
-When building a new game, choose a visual theme distinct from existing games. All styles use **canvas-drawn art only** — no CSS frameworks, no images, no CDN dependencies.
-
-### Theme A: Nature & Wilderness
-- Warm earthy palette — forest greens, sky blues, dirt browns, golden sunlight
-- Organic shapes — trees, mountains, animals, rivers
-- Fredoka One for titles, Fredoka for body
-- Example: Wild Run
-
-### Theme B: Modern & Neon
-- Dark backgrounds with vibrant accent colors — deep navy, neon glows, jewel tones
-- Geometric precision — grids, circles, sharp lines
-- Outfit font for clean modern feel
-- Example: Arrow Escape
-
-### Theme C: Warm & Tactile
-- Cream/paper backgrounds, soft shadows, rich jewel-tone accents
-- Handcrafted feel — organic shapes, bezier curves, subtle textures
-- Outfit or Fredoka depending on tone
-- Example: Matcha
-
-### Theme D: Retro & Pixel
-- Limited color palette, blocky pixel-art shapes
-- Crisp edges, no anti-aliasing, `image-rendering: pixelated`
-- Press Start 2P or similar pixel font
-- For 8-bit/16-bit arcade-style games
-
-### Theme E: Sci-Fi & Futuristic
-- Dark backgrounds with intense neon glows, hex grids, clip-path polygons
-- High-contrast cyan/magenta/green on black
-- Monospace or tech fonts
-- For space, cyberpunk, tactical HUD games
-
----
-
-## 3. Visual Standards
-
-- **No emojis anywhere** — custom canvas-drawn icons for everything (fruit, speaker, fuel, stars, arrows)
-- **High contrast, vibrant colors** — deep gradients, strong shadows
-- **Fun, game-like fonts** — Fredoka One (titles/buttons), Fredoka (body), Outfit (modern). Import via Google Fonts `<link>` with solid fallback stack
-- All artwork via canvas primitives — no images, no sprites, no external assets
-
----
-
-## 4. Title Screen Design
+## Title Screen Design
 
 ```
 ┌─────────────────────────┐
 │   gradient overlay bg   │
 │   floating particles    │
-│   decorative circles    │
 │                         │
-│   ════ TITLE ════      │  (gradient fill, large font, decorative lines/dots)
+│   ★── TITLE ──★        │  (gold gradient, Fredoka One, decorative lines)
 │      subtitle           │
 │                         │
-│  ┌─HOW TO PLAY────────┐ │  (styled card: dark bg, colored accent bar, rounded)
-│  │ Instruction text    │ │
-│  │ Secondary hint      │ │
-│  └────────────────────┘ │
+│  ┌─CONTROLS──┐ ┌─HOW──┐ │  (styled cards with colored accent bars)
+│  │ ◀ ▶ steer │ │ info  │ │
+│  │ ▲  boost  │ │       │ │
+│  └───────────┘ └──────┘ │
 │                         │
-│    [ ▶ START ]          │  (pulsing glow, gradient fill, rounded pill, 200×52px)
+│    [ ⏵ START ]          │  (pulsing glow, gradient fill, large target)
 │                         │
-│    Best: 500 pts ★★★   │  (high score if exists, with star rating)
+│    Best: 500 pts        │
+│  Tap or Space to start  │
 └─────────────────────────┘
 ```
 
-**Rules:**
-- Full-screen overlay with deep gradient background (not flat)
-- Big bold title with gradient fill + decorative elements (lines, diamond dots, floating particles)
-- Control instructions in styled cards with colored accent bars — not just text
-- Prominent START button: gradient fill, pulsing shadow glow, rounded pill shape
-- Show high score/best level if one exists
-- Mute button always visible and accessible from title screen
+## HUD Design
 
----
+- Top bar: semi-transparent dark background
+- Row 1: score icon + number (left), distance (center)
+- Row 2: fuel icon + gauge bar (left), speed (right)
+- Fuel gauge: gradient green→amber→red with shine overlay
+- All icons custom-drawn, no emojis
 
-## 5. HUD Design
+## Game Over Screen
 
-```
-┌──────────────────────────────┐
-│  🍎 42    1,250m    ⛽ ████  │  ← semi-transparent dark bar
-│            moves     68 km/h │
-└──────────────────────────────┘
-```
+- Overlay with game-over title (Fredoka One, warm color)
+- Score + distance stats
+- "New High Score!" with star icons flanking
+- Prominent "PLAY AGAIN" button
 
-- **Clean, unobtrusive** — small bar at top of screen, semi-transparent dark background
-- Row 1: score icon + number (left), distance/progress (center)
-- Row 2: fuel/health icon + gauge bar (left), speed/stat (right)
-- Gauge bar: gradient that shifts green → amber → red as resource depletes, with shine overlay
-- All icons custom-drawn (fruit, fuel can, speaker, star) — never emoji
-
----
-
-## 6. Game Over / Level Complete Screen
-
-- Strong overlay with title in fun font (warm color for game-over, green for level-clear)
-- Show final stats: score, time, moves, distance
-- "New High Score!" / "New High Level!" with star icons flanking
-- Celebration particles on level clear (colored dots burst outward with gravity)
-- Star rating (1-3 ★) based on performance thresholds
-- Prominent "PLAY AGAIN" / "NEXT LEVEL" button with pulsing glow
-- Secondary "CHANGE DIFFICULTY" or "MENU" button
-
----
-
-## 7. Custom Drawn Icons
-
-All icons must be canvas-drawn — no emoji, no images.
+## Custom Drawn Icons
 
 - **Fruit**: orange circle, radial gradient, green leaf, highlight spot, pulsing glow
-- **Fuel can / nozzle**: red grip body, metal nozzle, hose, trigger guard, highlight
-- **Speaker**: rectangle body + triangle cone, arc sound waves (unmuted) or red X (muted)
-- **Star**: 4-point or 5-point sparkle, gold fill, white center
+- **Fuel droplet**: red rounded rect, yellow accent stripe, cap
+- **Speaker**: rectangle body + triangle cone, arc waves (unmuted) or red X (muted)
+- **Star**: 4-point sparkle, gold fill, white center
 - **Play triangle**: filled right-pointing triangle
-- **Arrow (direction)**: stem + triangular head, rotated for up/down/left/right
-- **Tea leaf**: bezier-curve oval, center vein, tiny stem
 
----
+## Performance Rules
 
-## 8. Mandatory Performance Constraints
-
-- **GPU Acceleration Only**: Never animate `width`, `height`, `top`, `left`. Use canvas transforms
-- **No per-frame allocations**: Cache gradient objects, don't create new ones in render loop
+- **GPU Acceleration Only**: Never animate `width`, `height`, `top`, `left`. Use canvas transforms.
+- **No per-frame allocations**: Cache gradients, don't create objects in render loop
 - **Don't mutate state in draw functions** — rendering must be read-only
-- **Input Neutrality**: Canvas handles all input. Button hit-testing via stored rect objects (`canvas._startBtn = {x,y,w,h}`)
-- **No Math.random() in render** — causes visual flicker. Use deterministic patterns seeded by `elapsedTime` + object index
-- Scale factor computed once per frame: `canvas.width / GAME_W`, not recalculated per call
+- **Input Neutrality**: `pointer-events: none` on HUD overlays
+- **No Math.random() in render** — causes visual flicker, use deterministic or stored values
 
----
+## Mobile UX
 
-## 9. Mobile UX
-
-- Touch targets minimum 44px (22 game units at 480px canvas)
-- Mute button: 22px+ visual radius, 1.5× larger touch area
-- START/PLAY AGAIN buttons: 190-200 game units wide, 48-52 tall
-- `touchcancel` handler alongside `touchend` for all press-and-hold interactions
+- Touch targets minimum 44px
+- Mute button: 28px+ visual radius, larger touch area
+- START/PLAY AGAIN buttons: 200×58+ game units
+- Swipe-up for boost, tap sides for steering
+- `touchcancel` alongside `touchend`
 - `{ passive: false }` on all game touch listeners
-- Prevent default on game input events
-- `muteToggledByTouch` flag to deduplicate touchstart + click on same tap
 
----
+## Audio Patterns
 
-## 10. Audio Patterns
+- Web Audio API synthesized sounds (no files)
+- Default muted — user opts in
+- Engine: subtle sine/triangle oscillators (~0.02 max volume)
+- SFX: short oscillator envelopes + noise bursts
+- iOS: play silent buffer to prime audio session
+- Delay engine start 150ms after user gesture on mobile
+- Wrap AudioContext in try-catch
 
-- **Web Audio API synthesized sounds** — no audio files
-- **Default muted** — user opts in. Store preference in localStorage
-- Engine: subtle sine/triangle oscillators (~0.02 max volume). Pitch tracks game speed
-- SFX: short oscillator envelopes + noise bursts (flip, match, click, win, lose)
-- iOS: play silent buffer to prime audio session after first user gesture
-- Wrap AudioContext creation in try-catch for older browsers
-- `toggleMute()` calls `initAudio()` to ensure context is running
+## Robustness Checklist
 
----
-
-## 11. Robustness Checklist
-
-- `safeLS()` wrapper for ALL localStorage calls (try-catch quota/security errors)
-- Service worker (`sw.js`) for offline play — cache-first navigation, network-first fetch
-- Delta-time clamped: `Math.max(0, Math.min(dt, 0.1))`
-- All empty arrays handled gracefully (forEach on empty = no-op)
-- Canvas `save()`/`restore()` balanced in all code paths
-- `globalAlpha` always reset to `1` after use
-- Button hit-test rects stored on `canvas._btnName` object, checked in both touch + click handlers
-- Service worker registered with `.catch(() => {})`
+- `safeLS()` wrapper for localStorage (try-catch quota/security errors)
+- Service worker for offline play
+- Delta-time clamping against negative and huge values
+- All empty arrays handled (forEach on empty = no-op)
+- Canvas save/restore balanced in all code paths
+- `globalAlpha` always reset to 1 after use
