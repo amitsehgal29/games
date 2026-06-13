@@ -435,11 +435,12 @@
     initAudio(); sfxTap();
 
     if (!hasClearPath(row, col, arrow.dir, idx)) {
-      // Wrong tap — restart level immediately
+      // Wrong tap — game over
       sfxInvalid(); sfxLose();
       arrow.shakeTimer = 0.3;
-      setTimeout(() => startLevel(level), 400);
-      state = 'animating'; // block further taps during shake
+      if (level > highLevel) { highLevel = level; safeLS('arrowescape_lv', String(highLevel)); }
+      setTimeout(() => { state = 'title'; }, 500);
+      state = 'animating';
       return;
     }
 
