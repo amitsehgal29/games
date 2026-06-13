@@ -37,6 +37,8 @@ This repo is a collection of simple, single-page HTML games. Each game is a self
 
 ## Development Workflow
 
+**🚨 Before ANY change: verify you're on the correct branch.** Each game has its own branch (`game/<game-name>`). Never modify files for one game while on another game's branch. Check with `git branch --show-current` and `git status` before editing.
+
 1. `git checkout -b game/<game-name>`
 2. Build the game as `index.html` + `sw.js` + `icon.svg` inside `<game-name>/`
 3. Update the landing page (`index.html` at root) with a card linking to the new game
