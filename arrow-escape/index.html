@@ -581,15 +581,20 @@
     }
     if (state==='title' && canvas._startBtn) {
       const b = canvas._startBtn;
-      if (mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h) startLevel(1);
+      if (mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h) { startLevel(1); return; }
     }
     if (state==='over' && canvas._restartBtn) {
       const b = canvas._restartBtn;
-      if (mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h) startLevel(1);
+      if (mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h) { startLevel(1); return; }
     }
     if (state==='levelComplete' && canvas._nextBtn) {
       const b = canvas._nextBtn;
-      if (mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h) startLevel(level+1);
+      if (mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h) { startLevel(level+1); return; }
+    }
+    // Arrow tap for desktop/laptop
+    if (state === 'playing') {
+      const cell = cellFromPoint(mx, my);
+      if (cell) tapArrow(cell.row, cell.col);
     }
   });
 
