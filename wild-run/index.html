@@ -4,13 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Wild Run</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
       width: 100%; height: 100%; overflow: hidden;
       background: #1a1a2e;
       display: flex; justify-content: center; align-items: center;
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-family: 'Fredoka', 'Segoe UI', system-ui, sans-serif;
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
       user-select: none; -webkit-user-select: none;
@@ -1417,7 +1420,7 @@
         w = rand(44, 60);  // large, slow-looking
         break;
       case 'fox':
-        w = rand(24, 36);  // small, darting
+        w = rand(40, 54);  // large, like bear
         break;
     }
 
@@ -1543,7 +1546,7 @@
 
     // ─── ROW 1: Score (left) · Distance (center) ───
     ctx.fillStyle = C.hudText;
-    ctx.font = `bold ${fs}px system-ui, sans-serif`;
+    ctx.font = `bold ${fs}px 'Fredoka', system-ui, sans-serif`;
     ctx.textBaseline = 'middle';
 
     ctx.textAlign = 'left';
@@ -1589,7 +1592,7 @@
     // Speed badge
     const speedKph = Math.round(speed / 180 * 60);
     ctx.fillStyle = C.hudText;
-    ctx.font = `${fs * 0.7}px system-ui, sans-serif`;
+    ctx.font = `600 ${fs * 0.7}px 'Fredoka', system-ui, sans-serif`;
     ctx.textAlign = 'right';
     ctx.fillText(`${speedKph} km/h`, scaleX(GAME_W - GRASS_W - 6), scaleV(39));
   }
@@ -1685,7 +1688,7 @@
     titleGrad.addColorStop(0.7, '#FFB300');
     titleGrad.addColorStop(1, '#FF8F00');
     ctx.fillStyle = titleGrad;
-    ctx.font = `900 ${scaleV(44)}px system-ui, -apple-system, sans-serif`;
+    ctx.font = `900 ${scaleV(44)}px 'Fredoka One', system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('WILD RUN', cx, titleY);
@@ -1698,58 +1701,80 @@
     // ── Subtitle ──
     const subY = titleY + scaleV(36);
     ctx.fillStyle = '#C8E6A0';
-    ctx.font = `600 ${scaleV(14)}px system-ui, -apple-system, sans-serif`;
+    ctx.font = `600 ${scaleV(14)}px 'Fredoka', system-ui, sans-serif`;
     ctx.fillText('Race through the wilderness', cx, subY);
 
     // ── Control cards ──
     const cardY = subY + scaleV(28);
-    const cardW = scaleX(125);
-    const cardH = scaleV(72);
-    const cardGap = scaleV(10);
+    const cardW = scaleX(130);
+    const cardH = scaleV(90);
+    const cardGap = scaleV(8);
     const leftCardX = cx - cardW - cardGap / 2;
     const rightCardX = cx + cardGap / 2;
 
-    // Card backgrounds
+    // Card backgrounds with colored top accent
     [leftCardX, rightCardX].forEach((cardX, ci) => {
       const cardGrad = ctx.createLinearGradient(cardX, cardY, cardX, cardY + cardH);
-      cardGrad.addColorStop(0, 'rgba(255,255,255,0.12)');
-      cardGrad.addColorStop(1, 'rgba(255,255,255,0.04)');
+      cardGrad.addColorStop(0, 'rgba(255,255,255,0.14)');
+      cardGrad.addColorStop(1, 'rgba(255,255,255,0.05)');
       ctx.fillStyle = cardGrad;
-      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-      ctx.lineWidth = scaleV(1.5);
-      roundRect(cardX, cardY, cardW, cardH, scaleV(10));
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+      ctx.lineWidth = scaleV(2);
+      roundRect(cardX, cardY, cardW, cardH, scaleV(12));
       ctx.fill();
       ctx.stroke();
+      // Top accent bar
+      ctx.fillStyle = ci === 0 ? '#FF9800' : '#4CAF50';
+      roundRect(cardX + scaleV(2), cardY + scaleV(2), cardW - scaleV(4), scaleV(4), scaleV(2));
+      ctx.fill();
     });
 
     // Left card: Controls
     ctx.fillStyle = '#FFF';
-    ctx.font = `bold ${scaleV(11)}px system-ui, sans-serif`;
+    ctx.font = `900 ${scaleV(13)}px 'Fredoka One', system-ui, sans-serif`;
     ctx.textAlign = 'left';
-    ctx.fillText('🎮  CONTROLS', leftCardX + scaleV(10), cardY + scaleV(18));
-    ctx.fillStyle = '#D0D0D0';
-    ctx.font = `${scaleV(10)}px system-ui, sans-serif`;
-    const lh = scaleV(16);
-    ctx.fillText('<  >   Arrow keys to steer', leftCardX + scaleV(10), cardY + scaleV(16) + lh);
-    ctx.fillText('^       Hold for nitro boost', leftCardX + scaleV(10), cardY + scaleV(16) + lh * 2);
+    ctx.fillText('CONTROLS', leftCardX + scaleV(12), cardY + scaleV(24));
+    ctx.fillStyle = '#E0E0E0';
+    ctx.font = `600 ${scaleV(11)}px 'Fredoka', system-ui, sans-serif`;
+    const lh = scaleV(17);
+    // Arrow key icons drawn
+    const aRowY = cardY + scaleV(24) + lh;
+    ctx.fillStyle = '#FFD54F';
+    ctx.font = `bold ${scaleV(12)}px 'Fredoka', system-ui, sans-serif`;
+    ctx.fillText('◀ ▶', leftCardX + scaleV(10), aRowY);
+    ctx.fillStyle = '#E0E0E0';
+    ctx.font = `600 ${scaleV(10.5)}px 'Fredoka', system-ui, sans-serif`;
+    ctx.fillText('  Arrow keys to steer', leftCardX + scaleV(32), aRowY);
+    // Nitro
+    const nRowY = aRowY + lh;
+    ctx.fillStyle = '#FFD54F';
+    ctx.font = `bold ${scaleV(12)}px 'Fredoka', system-ui, sans-serif`;
+    ctx.fillText('▲', leftCardX + scaleV(16), nRowY);
+    ctx.fillStyle = '#E0E0E0';
+    ctx.font = `600 ${scaleV(10.5)}px 'Fredoka', system-ui, sans-serif`;
+    ctx.fillText('  Hold for nitro boost', leftCardX + scaleV(32), nRowY);
 
     // Right card: Collectibles
     ctx.fillStyle = '#FFF';
-    ctx.font = `bold ${scaleV(11)}px system-ui, sans-serif`;
-    ctx.fillText('🎯  COLLECT', rightCardX + scaleV(10), cardY + scaleV(18));
-    ctx.fillStyle = '#D0D0D0';
-    ctx.font = `${scaleV(10)}px system-ui, sans-serif`;
-    drawFruitIcon(rightCardX + scaleV(10), cardY + scaleV(22) + lh, scaleV(6));
-    ctx.fillText('   Fruit = points', rightCardX + scaleV(10), cardY + scaleV(16) + lh);
-    drawFuelIcon(rightCardX + scaleV(10), cardY + scaleV(24) + lh * 2, scaleV(8), '#D32F2F');
-    ctx.fillText('    Fuel can = keep going', rightCardX + scaleV(10), cardY + scaleV(16) + lh * 2);
+    ctx.font = `900 ${scaleV(13)}px 'Fredoka One', system-ui, sans-serif`;
+    ctx.fillText('COLLECT', rightCardX + scaleV(12), cardY + scaleV(24));
+    // Fruit
+    const fRowY = cardY + scaleV(24) + lh;
+    drawFruitIcon(rightCardX + scaleV(14), fRowY + scaleV(2), scaleV(6.5));
+    ctx.fillStyle = '#E0E0E0';
+    ctx.font = `600 ${scaleV(10.5)}px 'Fredoka', system-ui, sans-serif`;
+    ctx.fillText('  Fruit = points', rightCardX + scaleV(24), fRowY + scaleV(1));
+    // Fuel
+    const fuRowY = fRowY + lh;
+    drawFuelIcon(rightCardX + scaleV(14), fuRowY + scaleV(4), scaleV(9), '#F44336');
+    ctx.fillText('  Fuel can = keep going', rightCardX + scaleV(24), fuRowY + scaleV(1));
 
     // ── Dodge tip line ──
     const tipY = cardY + cardH + scaleV(16);
     ctx.fillStyle = '#FFCC80';
-    ctx.font = `600 ${scaleV(11)}px system-ui, sans-serif`;
+    ctx.font = `600 ${scaleV(11)}px 'Fredoka One', system-ui, sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillText('Dodge bears, deer & foxes crossing the road!', cx, tipY);
+    ctx.fillText('Dodge bears, deer & foxes!', cx, tipY);
 
     // ── START button — big, pulsing, game-like ──
     const btnW = scaleX(170);
@@ -1786,7 +1811,7 @@
 
     // Button text
     ctx.fillStyle = '#FFF';
-    ctx.font = `900 ${scaleV(20)}px system-ui, -apple-system, sans-serif`;
+    ctx.font = `900 ${scaleV(20)}px 'Fredoka One', system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     drawPlayTriangle(cx - scaleV(48), btnY + btnH / 2, scaleV(14));
@@ -1796,7 +1821,7 @@
     if (highScore > 0) {
       const hsY = btnY + btnH + scaleV(22);
       ctx.fillStyle = '#FFE082';
-      ctx.font = `600 ${scaleV(11)}px system-ui, sans-serif`;
+      ctx.font = `600 ${scaleV(11)}px 'Fredoka', system-ui, sans-serif`;
       drawStarIcon(cx - scaleX(54), hsY, scaleV(6));
       ctx.fillText(`Best: ${highScore} pts   •   ${highDist}m`, cx + scaleV(4), hsY);
     }
@@ -1804,7 +1829,7 @@
     // ── Footer line ──
     const footerY = canvas.height - scaleV(18);
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
-    ctx.font = `${scaleV(9)}px system-ui, sans-serif`;
+    ctx.font = `600 ${scaleV(9)}px 'Fredoka', system-ui, sans-serif`;
     ctx.fillText('Tap screen or press SPACE to start', cx, footerY);
 
     // Store button bounds for click detection
@@ -1819,18 +1844,18 @@
     const cy = canvas.height * 0.33;
 
     ctx.fillStyle = '#FF6B35';
-    ctx.font = `bold ${scaleV(36)}px system-ui, sans-serif`;
+    ctx.font = `900 ${scaleV(36)}px 'Fredoka One', system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('Game Over', cx, cy - scaleV(18));
 
     const statsY = cy + scaleV(28);
     ctx.fillStyle = '#FFF';
-    ctx.font = `bold ${scaleV(20)}px system-ui, sans-serif`;
+    ctx.font = `bold ${scaleV(20)}px 'Fredoka', system-ui, sans-serif`;
     drawFruitIcon(cx - scaleV(28), statsY - scaleV(1), scaleV(11));
     ctx.fillText(`${score}`, cx + scaleV(6), statsY);
     ctx.fillStyle = '#CCC';
-    ctx.font = `${scaleV(16)}px system-ui, sans-serif`;
+    ctx.font = `600 ${scaleV(16)}px 'Fredoka', system-ui, sans-serif`;
     ctx.fillText(`${Math.floor(distance)}m`, cx, statsY + scaleV(32));
 
     let newBest = false;
@@ -1846,7 +1871,7 @@
 
     if (newBest) {
       ctx.fillStyle = '#FFD93D';
-      ctx.font = `bold ${scaleV(17)}px system-ui, sans-serif`;
+      ctx.font = `bold ${scaleV(17)}px 'Fredoka One', system-ui, sans-serif`;
       drawStarIcon(cx - scaleV(80), statsY + scaleV(65), scaleV(9));
       ctx.fillText('New High Score!', cx, statsY + scaleV(65));
       drawStarIcon(cx + scaleV(80), statsY + scaleV(65), scaleV(9));
@@ -1861,7 +1886,7 @@
     ctx.fill();
 
     ctx.fillStyle = '#FFF';
-    ctx.font = `bold ${scaleV(17)}px system-ui, sans-serif`;
+    ctx.font = `900 ${scaleV(17)}px 'Fredoka One', system-ui, sans-serif`;
     ctx.fillText('PLAY AGAIN', cx, btnY + scaleV(22));
 
     canvas._restartBtn = { x: cx - scaleX(82), y: btnY, w: scaleX(164), h: scaleV(44) };
