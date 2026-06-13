@@ -128,9 +128,12 @@
   let speed = BASE_SPEED;
   let fuel = FUEL_MAX;
   let playerLane = 1;
+  let prevLane = 1;                 // previous lane (to detect switches)
   let playerX = LANE_CX[1];         // target position (game-space)
   let displayX = LANE_CX[1];        // visual position (smoothed)
   let tiltAngle = 0;                // jeep lean
+  let squashScale = 1;              // squash/stretch during lane switches
+  let switchDustTimer = 0;          // dust burst after lane switch
   let playerY = 0;
   let obstacles = [];
   let collectibles = [];
@@ -452,10 +455,11 @@
   // ═══════════════════════════════════════
   // DRAWING — SAFARI JEEP (top-down with perspective)
   // ═══════════════════════════════════════
-  function drawJeep(x, y, w, h, tilt) {
+  function drawJeep(x, y, w, h, tilt, squash) {
     ctx.save();
     ctx.translate(x, y);
     if (tilt) ctx.rotate(tilt);
+    if (squash && squash !== 1) ctx.scale(squash, 2 - squash); // squash & stretch
 
     const bw = w, bh = h;
 
@@ -1028,12 +1032,47 @@
   // ═══════════════════════════════════════
   const OBSTACLE_TYPES = ['boulder', 'log'];
 
+  // Returns set of lanes occupied near the spawn zone (top of screen)
+  function getBusyLanes() {
+    const busy = new Set();
+    const zone = canvas.height * 0.25;
+    for (const o of obstacles) {
+      if (o.y < zone) o.lanes.forEach(l => busy.add(l));
+    }
+    for (const c of collectibles) {
+      if (c.y < zone) busy.add(c.lane);
+    }
+    return busy;
+  }
+
+  function pickFreeLane() {
+    const busy = getBusyLanes();
+    const free = [];
+    for (let i = 0; i < LANES; i++) {
+      if (!busy.has(i)) free.push(i);
+    }
+    if (free.length > 0) return free[randInt(0, free.length - 1)];
+    // All lanes busy — pick the one with fewest items near spawn
+    const counts = Array(LANES).fill(0);
+    const zone = canvas.height * 0.25;
+    for (const o of obstacles) {
+      if (o.y < zone) o.lanes.forEach(l => counts[l]++);
+    }
+    for (const c of collectibles) {
+      if (c.y < zone) counts[c.lane]++;
+    }
+    let best = 0;
+    for (let i = 1; i < LANES; i++) {
+      if (counts[i] < counts[best]) best = i;
+    }
+    return best;
+  }
+
   function spawnObstacle() {
     const type = OBSTACLE_TYPES[randInt(0, 1)];
-    const lane = randInt(0, LANES - 1);
+    const lane = pickFreeLane();
     const x = LANE_CX[lane];
     let w = 0, h = 0, r = 0;
-    let occupiesLanes = [lane];
 
     switch (type) {
       case 'boulder':
@@ -1042,18 +1081,18 @@
       case 'log':
         w = rand(42, 58);
         h = rand(12, 18);
-        // Logs always single-lane, never span
         break;
     }
 
-    obstacles.push({ type, x, y: -50, w, h, r, lanes: occupiesLanes });
+    obstacles.push({ type, x, y: -50, w, h, r, lanes: [lane] });
   }
 
   function spawnCollectible() {
-    const lane = randInt(0, LANES - 1);
+    const lane = pickFreeLane();
     collectibles.push({
       x: LANE_CX[lane],
       y: -30,
+      lane: lane,
       type: Math.random() < 0.3 ? 'fuel' : 'fruit',
     });
   }
@@ -1266,9 +1305,12 @@
     speed = BASE_SPEED;
     fuel = FUEL_MAX;
     playerLane = 1;
+    prevLane = 1;
     playerX = LANE_CX[1];
     displayX = LANE_CX[1];
     tiltAngle = 0;
+    squashScale = 1;
+    switchDustTimer = 0;
     obstacles = [];
     collectibles = [];
     particles = [];
@@ -1303,15 +1345,28 @@
     if (fuel <= 0) { fuel = 0; endGame(); return; }
     if (laneSwitchCooldown > 0) laneSwitchCooldown -= dtC;
 
-    // ── Smooth lane switching ──
+    // ── Smooth lane switching (dramatic) ──
     playerY = canvas.height * PLAYER_Y_RATIO;
     playerX = LANE_CX[playerLane];
+
+    // Detect lane switch for effects
+    if (playerLane !== prevLane) {
+      switchDustTimer = 0.15;
+      prevLane = playerLane;
+    }
+    if (switchDustTimer > 0) switchDustTimer -= dtC;
+
     displayX = lerp(displayX, playerX, 1 - Math.exp(-LANE_SWITCH_SPEED * dtC));
 
-    // Tilt based on horizontal velocity (difference between visual and target)
+    // Dramatic tilt — more lean during switches
     const horzDiff = playerX - displayX;
-    const targetTilt = horzDiff * 0.025;
-    tiltAngle = lerp(tiltAngle, targetTilt, 1 - Math.exp(-20 * dtC));
+    const targetTilt = horzDiff * 0.07;
+    tiltAngle = lerp(tiltAngle, targetTilt, 1 - Math.exp(-18 * dtC));
+
+    // Squash & stretch — compress horizontally during quick movement
+    const absHDiff = Math.abs(horzDiff);
+    const targetSquash = 1 - (absHDiff / LANE_W) * 0.3;
+    squashScale = lerp(squashScale, clamp(targetSquash, 0.85, 1), 1 - Math.exp(-15 * dtC));
 
     // ── Move objects ──
     const scrollSpeed = effectiveSpeed;
@@ -1390,7 +1445,12 @@
     }
 
     // ── Effects ──
+    // Normal dust trail
     if (Math.random() < 45 * dtC) spawnDust(scaleX(displayX), playerY + scaleV(24), 2);
+    // Extra dust burst during lane switch
+    if (switchDustTimer > 0 && Math.random() < 60 * dtC) {
+      spawnDust(scaleX(displayX), playerY + scaleV(10), 3);
+    }
     if (nearMissTimer > 0) nearMissTimer -= dtC;
     if (shakeTimer > 0) shakeTimer -= dtC;
     updateParticles(dtC);
@@ -1459,7 +1519,7 @@
 
     // Player jeep
     const jw = scaleV(54), jh = scaleV(80);
-    drawJeep(scaleX(displayX), playerY, jw, jh, tiltAngle);
+    drawJeep(scaleX(displayX), playerY, jw, jh, tiltAngle, squashScale);
 
     // Nitro flames
     if (nitroActive && nitroFuel > 0) {
