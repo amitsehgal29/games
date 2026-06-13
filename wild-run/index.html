@@ -876,76 +876,84 @@
     ctx.restore();
   }
 
-  function drawFox(x, y, s) {
+  function drawSheep(x, y, s) {
     ctx.save();
     // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
     ctx.beginPath();
-    ctx.ellipse(x, y + s * 0.38, s * 0.32, s * 0.06, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y + s * 0.36, s * 0.34, s * 0.06, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Ears — large triangles, distinctive
-    ctx.fillStyle = '#D95A2B';
-    [[-0.1, -0.28], [0.1, -0.28]].forEach(([ex, ey]) => {
+    // Ears — black, floppy, sticking out sideways
+    ctx.fillStyle = '#2A2A2A';
+    [[-0.24, -0.1], [0.24, -0.1]].forEach(([ex, ey]) => {
       ctx.beginPath();
-      ctx.moveTo(x + ex * s, y + ey * s);
-      ctx.lineTo(x + (ex - 0.18) * s, y + (ey - 0.18) * s);
-      ctx.lineTo(x + (ex + 0.08) * s, y + (ey - 0.04) * s);
-      ctx.closePath();
+      ctx.ellipse(x + ex * s, y + ey * s, s * 0.14, s * 0.08, -0.3 * Math.sign(ex), 0, Math.PI * 2);
       ctx.fill();
-    });
-    // Inner ear — white
-    ctx.fillStyle = '#FFF';
-    [[-0.1, -0.28], [0.1, -0.28]].forEach(([ex, ey]) => {
+      // Inner ear pink
+      ctx.fillStyle = '#E8A0A0';
       ctx.beginPath();
-      ctx.moveTo(x + ex * s, y + (ey + 0.02) * s);
-      ctx.lineTo(x + (ex - 0.1) * s, y + (ey - 0.1) * s);
-      ctx.lineTo(x + (ex + 0.03) * s, y + (ey - 0.02) * s);
-      ctx.closePath();
+      ctx.ellipse(x + ex * s, y + ey * s, s * 0.08, s * 0.04, -0.3 * Math.sign(ex), 0, Math.PI * 2);
       ctx.fill();
+      ctx.fillStyle = '#2A2A2A';
     });
 
-    // Face — pointed/heart shape
-    const faceGrad = ctx.createRadialGradient(x, y - s * 0.04, s * 0.03, x, y, s * 0.35);
-    faceGrad.addColorStop(0, '#F07838');
-    faceGrad.addColorStop(0.6, '#D95A2B');
-    faceGrad.addColorStop(1, '#B8401A');
-    ctx.fillStyle = faceGrad;
+    // Wool — fluffy cloud-like face
+    const woolGrad = ctx.createRadialGradient(x, y - s * 0.04, s * 0.05, x, y, s * 0.38);
+    woolGrad.addColorStop(0, '#FAFAFA');
+    woolGrad.addColorStop(0.5, '#F0EDE8');
+    woolGrad.addColorStop(1, '#D8D2C8');
+    ctx.fillStyle = woolGrad;
+
+    // Bumpy wool outline
     ctx.beginPath();
-    ctx.moveTo(x, y + s * 0.28);  // chin point
-    ctx.quadraticCurveTo(x - s * 0.38, y - s * 0.02, x, y - s * 0.28); // left cheek
-    ctx.quadraticCurveTo(x + s * 0.38, y - s * 0.02, x, y + s * 0.28); // right cheek
+    const bumps = 18;
+    for (let i = 0; i < bumps; i++) {
+      const a = (i / bumps) * Math.PI * 2 - Math.PI / 2;
+      const r = s * (0.34 + Math.sin(i * 3.5) * 0.08 + Math.sin(i * 5.7) * 0.05);
+      const px = x + Math.cos(a) * r;
+      const py = y + Math.sin(a) * r * 0.9;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
     ctx.fill();
 
-    // White cheek fluff / muzzle
-    ctx.fillStyle = '#FFF';
+    // Face — darker skin visible on front
+    ctx.fillStyle = '#3A3028';
     ctx.beginPath();
-    ctx.moveTo(x, y + s * 0.2);
-    ctx.quadraticCurveTo(x - s * 0.25, y, x, y - s * 0.08);
-    ctx.quadraticCurveTo(x + s * 0.25, y, x, y + s * 0.2);
+    ctx.ellipse(x, y + s * 0.05, s * 0.14, s * 0.18, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Nose — black dot
+    // Nose — black, prominent
     ctx.fillStyle = '#111';
     ctx.beginPath();
-    ctx.arc(x, y - s * 0.02, s * 0.04, 0, Math.PI * 2);
+    ctx.ellipse(x, y + s * 0.02, s * 0.06, s * 0.05, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Eyes — bright, alert
+    // Eyes — gentle, slightly sleepy
     ctx.fillStyle = '#FFF';
     ctx.beginPath();
-    ctx.arc(x - s * 0.08, y - s * 0.1, s * 0.055, 0, Math.PI * 2);
+    ctx.arc(x - s * 0.08, y - s * 0.06, s * 0.05, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(x + s * 0.08, y - s * 0.1, s * 0.055, 0, Math.PI * 2);
+    ctx.arc(x + s * 0.08, y - s * 0.06, s * 0.05, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#1A3A00';
+    ctx.fillStyle = '#111';
     ctx.beginPath();
-    ctx.arc(x - s * 0.08, y - s * 0.1, s * 0.03, 0, Math.PI * 2);
+    ctx.arc(x - s * 0.08, y - s * 0.06, s * 0.028, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(x + s * 0.08, y - s * 0.1, s * 0.03, 0, Math.PI * 2);
+    ctx.arc(x + s * 0.08, y - s * 0.06, s * 0.028, 0, Math.PI * 2);
     ctx.fill();
+
+    // Wool tufts on cheeks
+    ctx.fillStyle = '#F5F2EE';
+    [[-0.26, 0.12], [0.26, 0.12]].forEach(([wx, wy]) => {
+      ctx.beginPath();
+      ctx.arc(x + wx * s, y + wy * s, s * 0.1, 0, Math.PI * 2);
+      ctx.fill();
+    });
 
     ctx.restore();
   }
@@ -1368,7 +1376,7 @@
   // ═══════════════════════════════════════
   // GAME OBJECT SPAWNING
   // ═══════════════════════════════════════
-  const OBSTACLE_TYPES = ['deer', 'bear', 'fox'];
+  const OBSTACLE_TYPES = ['deer', 'bear', 'sheep'];
 
   // Returns set of lanes occupied near the spawn zone (top of screen)
   function getBusyLanes() {
@@ -1419,8 +1427,8 @@
       case 'bear':
         w = rand(44, 60);  // large, slow-looking
         break;
-      case 'fox':
-        w = rand(40, 54);  // large, like bear
+      case 'sheep':
+        w = rand(38, 52);  // fluffy, medium-large
         break;
     }
 
@@ -1433,7 +1441,7 @@
       x: LANE_CX[lane],
       y: -30,
       lane: lane,
-      type: Math.random() < 0.3 ? 'fuel' : 'fruit',
+      type: Math.random() < 0.18 ? 'fuel' : 'fruit',
     });
   }
 
@@ -1774,7 +1782,7 @@
     ctx.fillStyle = '#FFCC80';
     ctx.font = `600 ${scaleV(11)}px 'Fredoka One', system-ui, sans-serif`;
     ctx.textAlign = 'center';
-    ctx.fillText('Dodge bears, deer & foxes!', cx, tipY);
+    ctx.fillText('Dodge bears, deer & sheep!', cx, tipY);
 
     // ── START button — big, pulsing, game-like ──
     const btnW = scaleX(170);
@@ -2134,7 +2142,7 @@
       switch (obs.type) {
         case 'deer': drawDeer(sx, sy, scaleV(obs.w || 44)); break;
         case 'bear': drawBear(sx, sy, scaleV(obs.w || 55)); break;
-        case 'fox':  drawFox(sx, sy, scaleV(obs.w || 30)); break;
+        case 'sheep':  drawSheep(sx, sy, scaleV(obs.w || 48)); break;
       }
     });
 
