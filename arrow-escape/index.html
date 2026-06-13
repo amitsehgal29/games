@@ -122,6 +122,7 @@
 
   // ── State ──
   let state = 'title';
+  let paused = false;
   let level = 1, gridCols = 3, gridRows = 4;
   let arrows = [];
   let animArrow = null, animProgress = 0;
@@ -600,6 +601,60 @@
     ctx.restore();
   }
 
+  function drawPauseIcon(x, y, s) {
+    ctx.fillStyle = C.text;
+    const bw = s * 0.22, bh = s * 0.55, gap = s * 0.14;
+    roundRect(x - gap/2 - bw, y - bh/2, bw, bh, s * 0.06); ctx.fill();
+    roundRect(x + gap/2, y - bh/2, bw, bh, s * 0.06); ctx.fill();
+  }
+
+  function drawHomeIcon(x, y, s) {
+    ctx.fillStyle = C.text;
+    ctx.fillRect(x - s*0.3, y + s*0.02, s*0.6, s*0.45);
+    ctx.beginPath();
+    ctx.moveTo(x, y - s*0.48);
+    ctx.lineTo(x - s*0.45, y + s*0.02);
+    ctx.lineTo(x + s*0.45, y + s*0.02);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    roundRect(x - s*0.1, y + s*0.15, s*0.2, s*0.3, s*0.04); ctx.fill();
+  }
+
+  function drawPauseOverlay() {
+    ctx.fillStyle = C.overlay; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const cx = canvas.width / 2, cy = canvas.height * 0.4;
+    ctx.fillStyle = C.text;
+    ctx.font = `900 ${scaleV(36)}px 'Outfit', system-ui, sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('PAUSED', cx, cy);
+    const btnW = scaleX(200), btnH = scaleV(52);
+    const btnX = cx - btnW/2, btnY = cy + scaleV(40);
+    ctx.fillStyle = C.surface; ctx.strokeStyle = C.borderGlow; ctx.lineWidth = scaleV(2);
+    roundRect(btnX, btnY, btnW, btnH, btnH/2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = C.text;
+    ctx.font = `800 ${scaleV(18)}px 'Outfit', system-ui, sans-serif`;
+    ctx.fillText('RESUME', cx, btnY + btnH/2);
+    canvas._resumeBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
+  }
+
+  function drawPauseButton() {
+    if (state !== 'playing' && state !== 'levelComplete') return;
+    const r = scaleV(22), x = scaleX(GAME_W - 20) - r, y = scaleV(140);
+    canvas._pauseBtn = { x: x - r*1.5, y: y - r*1.5, w: r*3, h: r*3 };
+    ctx.fillStyle = C.surface; ctx.strokeStyle = C.border; ctx.lineWidth = scaleV(1);
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    drawPauseIcon(x, y, r * 0.65);
+  }
+
+  function drawHomeButton() {
+    if (state !== 'title') return;
+    const r = scaleV(22), x = scaleX(20) + r, y = scaleV(85);
+    canvas._homeBtn = { x: x - r*1.5, y: y - r*1.5, w: r*3, h: r*3 };
+    ctx.fillStyle = C.surface; ctx.strokeStyle = C.border; ctx.lineWidth = scaleV(1);
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    drawHomeIcon(x, y, r * 0.6);
+  }
+
   let muteToggledByTouch = false;
 
   function drawSpeakerIcon(x, y, s, isMuted) {
@@ -715,12 +770,22 @@
     if (state === 'title') drawTitleScreen();
     if (state === 'levelComplete') drawLevelComplete();
     drawMuteButton();
+    drawPauseButton();
+    drawHomeButton();
+    if (paused && state === 'playing') drawPauseOverlay();
+  }
+
+  function togglePause() {
+    if (state !== 'playing') return;
+    paused = !paused;
+    if (!paused) lastFrameTime = performance.now();
   }
 
   function gameLoop(ts) {
     const dt = (ts - lastFrameTime) / 1000;
-    lastFrameTime = ts; elapsedTime += dt;
-    update(dt); render();
+    lastFrameTime = ts;
+    if (!paused) { elapsedTime += dt; update(dt); }
+    render();
     requestAnimationFrame(gameLoop);
   }
 
@@ -735,6 +800,23 @@
         const b = canvas._muteBtn;
         if (tx>=b.x && tx<=b.x+b.w && ty>=b.y && ty<=b.y+b.h) { muteToggledByTouch = true; toggleMute(); return; }
       }
+      // Home button on title
+      if (state === 'title' && canvas._homeBtn) {
+        const b = canvas._homeBtn;
+        if (tx>=b.x && tx<=b.x+b.w && ty>=b.y && ty<=b.y+b.h) { window.location.href = '../index.html'; return; }
+      }
+      // Pause overlay resume
+      if (paused && canvas._resumeBtn) {
+        const b = canvas._resumeBtn;
+        if (tx>=b.x && tx<=b.x+b.w && ty>=b.y && ty<=b.y+b.h) { togglePause(); return; }
+      }
+      // Pause button
+      if (canvas._pauseBtn) {
+        const b = canvas._pauseBtn;
+        if (tx>=b.x && tx<=b.x+b.w && ty>=b.y && ty<=b.y+b.h) { togglePause(); return; }
+      }
+      if (paused) return;
+
       if (state === 'title' && canvas._startBtn) {
         const b = canvas._startBtn;
         if (tx>=b.x && tx<=b.x+b.w && ty>=b.y && ty<=b.y+b.h) { startLevel(1); return; }
@@ -769,6 +851,21 @@
       const b = canvas._muteBtn;
       if (mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h) { toggleMute(); return; }
     }
+    // Home button on title
+    if (state === 'title' && canvas._homeBtn) {
+      const b = canvas._homeBtn;
+      if (mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h) { window.location.href = '../index.html'; return; }
+    }
+    // Pause overlay resume
+    if (paused && canvas._resumeBtn) {
+      const b = canvas._resumeBtn;
+      if (mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h) { togglePause(); return; }
+    }
+    // Pause button
+    if (canvas._pauseBtn) {
+      const b = canvas._pauseBtn;
+      if (mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h) { togglePause(); return; }
+    }
     if (state==='title' && canvas._startBtn) {
       const b = canvas._startBtn;
       if (mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h) { startLevel(1); return; }
@@ -787,6 +884,20 @@
     if (state === 'playing') {
       const cell = cellFromPoint(mx, my);
       if (cell) tapArrow(cell.row, cell.col);
+    }
+  });
+
+  window.addEventListener('keydown', e => {
+    if (e.key === ' ' || e.key === 'Enter') {
+      e.preventDefault();
+      if (state === 'title') { startLevel(1); }
+      else if (state === 'levelComplete') { startLevel(level+1); }
+    }
+    if (e.key === 'p' || e.key === 'P') {
+      if (state === 'playing') { togglePause(); e.preventDefault(); }
+    }
+    if (e.key === 'Escape') {
+      if (state === 'playing') { togglePause(); e.preventDefault(); }
     }
   });
 
