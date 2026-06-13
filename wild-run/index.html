@@ -1354,7 +1354,21 @@
   }
 
   function spawnCollectible() {
-    const lane = pickFreeLane();
+    // Pick a lane with no collectible nearby (avoid fruit overlap)
+    const minGap = 180;
+    const laneCounts = Array(LANES).fill(0);
+    for (const c of collectibles) {
+      if (c.y < canvas.height * 0.7 && c.y > -minGap) {
+        laneCounts[c.lane]++;
+      }
+    }
+    // Prefer lanes with no collectible nearby
+    const free = [];
+    for (let i = 0; i < LANES; i++) {
+      if (laneCounts[i] === 0) free.push(i);
+    }
+    const lane = free.length > 0 ? free[randInt(0, free.length - 1)] : pickFreeLane();
+
     collectibles.push({
       x: LANE_CX[lane],
       y: -30,
@@ -1487,8 +1501,8 @@
     ctx.textBaseline = 'middle';
 
     ctx.textAlign = 'left';
-    drawFruitIcon(pad + scaleV(6), scaleV(18) - scaleV(5), scaleV(10));
-    ctx.fillText(`${score}`, pad + scaleV(16), scaleV(18));
+    drawFruitIcon(pad + scaleV(6), scaleV(18) - scaleV(5), scaleV(12));
+    ctx.fillText(`${score}`, pad + scaleV(20), scaleV(18));
 
     ctx.textAlign = 'center';
     ctx.fillText(`${Math.floor(distance)}m`, scaleX(GAME_W / 2), scaleV(18));
@@ -1500,7 +1514,7 @@
     const fuelX = fuelIconX + scaleV(18);
 
     // Fuel icon (drawn droplet)
-    drawFuelIcon(fuelIconX + scaleV(4), fuelY + fuelH / 2, scaleV(7));
+    drawFuelIcon(fuelIconX + scaleV(4), fuelY + fuelH / 2, scaleV(10));
 
     // Fuel bar background
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
