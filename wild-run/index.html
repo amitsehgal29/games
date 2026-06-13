@@ -1305,7 +1305,7 @@
   // GAME OBJECT SPAWNING — unified non-overlap system
   // ═══════════════════════════════════════
   const OBSTACLE_TYPES = ['deer', 'bear', 'sheep'];
-  const MIN_OBJECT_GAP = 200;  // px — no two objects in same lane within this Y distance
+  const MIN_OBJECT_GAP = 250;  // px — no two objects in same lane within this Y distance
 
   // Returns which lanes have any object (obstacle or collectible) within minGap of targetY
   function getLanesNear(objs, targetY, minGap) {
@@ -1358,15 +1358,15 @@
     switch (type) {
       case 'deer':
         w = rand(35, 50);
-        r = w * 0.35;
+        r = w * 0.28;
         break;
       case 'bear':
         w = rand(44, 60);
-        r = w * 0.38;
+        r = w * 0.30;
         break;
       case 'sheep':
         w = rand(38, 52);
-        r = w * 0.36;
+        r = w * 0.28;
         break;
     }
 
@@ -1990,6 +1990,8 @@
 
     // ── Collisions ──
     const pw = scaleV(46), ph = scaleV(74);
+    // Use visual position for lane — matches what player sees, not target lane
+    const visualLane = clamp(Math.round((displayX - ROAD_X - LANE_W/2) / LANE_W), 0, LANES-1);
     for (const obs of obstacles) {
       const sx = scaleX(displayX), sy = playerY;
       const ox = scaleX(obs.x), oy = obs.y;
@@ -1997,14 +1999,14 @@
       const oh = obs.h ? scaleV(obs.h) : 0;
       const or = obs.r ? scaleV(obs.r) : 0;
 
-      if (checkCollision(ox, oy, ow, oh, or, obs.lanes, playerLane, sx, sy, pw, ph)) {
+      if (checkCollision(ox, oy, ow, oh, or, obs.lanes, visualLane, sx, sy, pw, ph)) {
         endGame();
         return;
       }
 
       // Near-miss detection
       const nearDist = scaleV(18);
-      if (obs.lanes.includes(playerLane) && oy > sy - ph && oy < sy + ph) {
+      if (obs.lanes.includes(visualLane) && oy > sy - ph && oy < sy + ph) {
         const dist = Math.abs(oy - sy);
         if (dist < nearDist + ph / 2) {
           if (nearMissTimer <= 0) sfxNearMiss();
