@@ -806,65 +806,69 @@
   function drawBear(x, y, s) {
     ctx.save();
     // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath();
-    ctx.ellipse(x, y + s * 0.42, s * 0.44, s * 0.1, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y + s * 0.4, s * 0.4, s * 0.08, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Legs — thick, short
-    ctx.fillStyle = '#3E2216';
-    [[-0.22, 0.22], [0.22, 0.22], [-0.14, -0.14], [0.14, -0.14]].forEach(([lx, ly]) => {
-      ctx.beginPath();
-      ctx.arc(x + lx * s, y + ly * s, s * 0.11, 0, Math.PI * 2);
-      ctx.fill();
-    });
-
-    // Body — large, dark brown
-    const bodyGrad = ctx.createRadialGradient(x - s * 0.05, y - s * 0.08, s * 0.05, x, y, s * 0.45);
-    bodyGrad.addColorStop(0, '#6B3A2A');
-    bodyGrad.addColorStop(0.6, '#4A2216');
-    bodyGrad.addColorStop(1, '#2E120A');
-    ctx.fillStyle = bodyGrad;
-    ctx.beginPath();
-    ctx.ellipse(x, y, s * 0.44, s * 0.32, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Head — round, forward
-    ctx.fillStyle = '#5A2E1E';
-    ctx.beginPath();
-    ctx.arc(x, y - s * 0.3, s * 0.2, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Snout — lighter
-    ctx.fillStyle = '#8B6040';
-    ctx.beginPath();
-    ctx.arc(x, y - s * 0.35, s * 0.1, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Ears — small rounds
+    // Ears — round, at top
     ctx.fillStyle = '#4A2216';
-    [[-0.14, -0.42], [0.14, -0.42]].forEach(([ex, ey]) => {
+    [[-0.16, -0.28], [0.16, -0.28]].forEach(([ex, ey]) => {
+      ctx.beginPath();
+      ctx.arc(x + ex * s, y + ey * s, s * 0.14, 0, Math.PI * 2);
+      ctx.fill();
+      // Inner ear
+      ctx.fillStyle = '#8B6040';
       ctx.beginPath();
       ctx.arc(x + ex * s, y + ey * s, s * 0.08, 0, Math.PI * 2);
       ctx.fill();
+      ctx.fillStyle = '#4A2216';
     });
 
-    // Eyes — tiny dots
+    // Face — large round
+    const faceGrad = ctx.createRadialGradient(x, y - s * 0.02, s * 0.05, x, y, s * 0.42);
+    faceGrad.addColorStop(0, '#6B3A2A');
+    faceGrad.addColorStop(0.7, '#4A2216');
+    faceGrad.addColorStop(1, '#2E120A');
+    ctx.fillStyle = faceGrad;
+    ctx.beginPath();
+    ctx.arc(x, y, s * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Muzzle — lighter brown circle
+    ctx.fillStyle = '#A07050';
+    ctx.beginPath();
+    ctx.ellipse(x, y + s * 0.12, s * 0.18, s * 0.14, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Nose — dark
+    ctx.fillStyle = '#1A0A04';
+    ctx.beginPath();
+    ctx.ellipse(x, y + s * 0.04, s * 0.07, s * 0.05, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eyes — white with dark pupil
+    ctx.fillStyle = '#FFF';
+    ctx.beginPath();
+    ctx.arc(x - s * 0.1, y - s * 0.08, s * 0.06, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x + s * 0.1, y - s * 0.08, s * 0.06, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = '#111';
     ctx.beginPath();
-    ctx.arc(x - s * 0.06, y - s * 0.33, s * 0.025, 0, Math.PI * 2);
+    ctx.arc(x - s * 0.1, y - s * 0.08, s * 0.03, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(x + s * 0.06, y - s * 0.33, s * 0.025, 0, Math.PI * 2);
+    ctx.arc(x + s * 0.1, y - s * 0.08, s * 0.03, 0, Math.PI * 2);
     ctx.fill();
 
-    // Claws hint
-    ctx.fillStyle = '#1A0A04';
-    [[-0.26, 0.32], [0.26, 0.32]].forEach(([cx, cy]) => {
-      ctx.beginPath();
-      ctx.arc(x + cx * s, y + cy * s, s * 0.04, 0, Math.PI * 2);
-      ctx.fill();
-    });
+    // Mouth — slight frown
+    ctx.strokeStyle = '#1A0A04';
+    ctx.lineWidth = s * 0.025;
+    ctx.beginPath();
+    ctx.arc(x, y + s * 0.16, s * 0.06, 0.1, Math.PI - 0.1);
+    ctx.stroke();
 
     ctx.restore();
   }
@@ -874,87 +878,70 @@
     // Shadow
     ctx.fillStyle = 'rgba(0,0,0,0.25)';
     ctx.beginPath();
-    ctx.ellipse(x, y + s * 0.35, s * 0.3, s * 0.06, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y + s * 0.38, s * 0.32, s * 0.06, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Legs — thin, quick
-    ctx.strokeStyle = '#3A1E0E';
-    ctx.lineWidth = s * 0.06;
-    ctx.lineCap = 'round';
-    [[-0.15, 0.12], [0.15, 0.12], [-0.08, -0.1], [0.08, -0.1]].forEach(([lx, ly]) => {
-      ctx.beginPath();
-      ctx.moveTo(x + lx * s, y + ly * s);
-      ctx.lineTo(x + lx * s, y + s * 0.3);
-      ctx.stroke();
-    });
-
-    // Bushy tail — large, sweeping behind
+    // Ears — large triangles, distinctive
     ctx.fillStyle = '#D95A2B';
-    ctx.beginPath();
-    ctx.ellipse(x, y + s * 0.38, s * 0.35, s * 0.16, 0.2, 0, Math.PI * 2);
-    ctx.fill();
-    // White tail tip
-    ctx.fillStyle = '#FFF';
-    ctx.beginPath();
-    ctx.arc(x + s * 0.3, y + s * 0.35, s * 0.08, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Body — orange-red, compact
-    const bodyGrad = ctx.createRadialGradient(x, y - s * 0.05, s * 0.03, x, y, s * 0.32);
-    bodyGrad.addColorStop(0, '#F07030');
-    bodyGrad.addColorStop(0.5, '#D95A2B');
-    bodyGrad.addColorStop(1, '#B8401A');
-    ctx.fillStyle = bodyGrad;
-    ctx.beginPath();
-    ctx.ellipse(x, y, s * 0.3, s * 0.2, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // White chest/belly
-    ctx.fillStyle = '#FFF';
-    ctx.beginPath();
-    ctx.ellipse(x, y + s * 0.02, s * 0.18, s * 0.12, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Head — small, pointed
-    ctx.fillStyle = '#F07030';
-    ctx.beginPath();
-    ctx.arc(x, y - s * 0.22, s * 0.13, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Snout
-    ctx.fillStyle = '#FFF';
-    ctx.beginPath();
-    ctx.arc(x, y - s * 0.26, s * 0.06, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Ears — large triangles
-    ctx.fillStyle = '#D95A2B';
-    [[-0.08, -0.3], [0.08, -0.3]].forEach(([ex, ey]) => {
+    [[-0.1, -0.28], [0.1, -0.28]].forEach(([ex, ey]) => {
       ctx.beginPath();
       ctx.moveTo(x + ex * s, y + ey * s);
-      ctx.lineTo(x + (ex - 0.12) * s, y + (ey - 0.15) * s);
-      ctx.lineTo(x + (ex + 0.06) * s, y + (ey - 0.05) * s);
+      ctx.lineTo(x + (ex - 0.18) * s, y + (ey - 0.18) * s);
+      ctx.lineTo(x + (ex + 0.08) * s, y + (ey - 0.04) * s);
       ctx.closePath();
       ctx.fill();
     });
-    // Inner ear
+    // Inner ear — white
     ctx.fillStyle = '#FFF';
-    [[-0.08, -0.3], [0.08, -0.3]].forEach(([ex, ey]) => {
+    [[-0.1, -0.28], [0.1, -0.28]].forEach(([ex, ey]) => {
       ctx.beginPath();
       ctx.moveTo(x + ex * s, y + (ey + 0.02) * s);
-      ctx.lineTo(x + (ex - 0.06) * s, y + (ey - 0.08) * s);
-      ctx.lineTo(x + (ex + 0.02) * s, y + (ey - 0.02) * s);
+      ctx.lineTo(x + (ex - 0.1) * s, y + (ey - 0.1) * s);
+      ctx.lineTo(x + (ex + 0.03) * s, y + (ey - 0.02) * s);
       ctx.closePath();
       ctx.fill();
     });
 
-    // Eyes
+    // Face — pointed/heart shape
+    const faceGrad = ctx.createRadialGradient(x, y - s * 0.04, s * 0.03, x, y, s * 0.35);
+    faceGrad.addColorStop(0, '#F07838');
+    faceGrad.addColorStop(0.6, '#D95A2B');
+    faceGrad.addColorStop(1, '#B8401A');
+    ctx.fillStyle = faceGrad;
+    ctx.beginPath();
+    ctx.moveTo(x, y + s * 0.28);  // chin point
+    ctx.quadraticCurveTo(x - s * 0.38, y - s * 0.02, x, y - s * 0.28); // left cheek
+    ctx.quadraticCurveTo(x + s * 0.38, y - s * 0.02, x, y + s * 0.28); // right cheek
+    ctx.fill();
+
+    // White cheek fluff / muzzle
+    ctx.fillStyle = '#FFF';
+    ctx.beginPath();
+    ctx.moveTo(x, y + s * 0.2);
+    ctx.quadraticCurveTo(x - s * 0.25, y, x, y - s * 0.08);
+    ctx.quadraticCurveTo(x + s * 0.25, y, x, y + s * 0.2);
+    ctx.fill();
+
+    // Nose — black dot
     ctx.fillStyle = '#111';
     ctx.beginPath();
-    ctx.arc(x - s * 0.04, y - s * 0.24, s * 0.02, 0, Math.PI * 2);
+    ctx.arc(x, y - s * 0.02, s * 0.04, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eyes — bright, alert
+    ctx.fillStyle = '#FFF';
+    ctx.beginPath();
+    ctx.arc(x - s * 0.08, y - s * 0.1, s * 0.055, 0, Math.PI * 2);
     ctx.fill();
     ctx.beginPath();
-    ctx.arc(x + s * 0.04, y - s * 0.24, s * 0.02, 0, Math.PI * 2);
+    ctx.arc(x + s * 0.08, y - s * 0.1, s * 0.055, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#1A3A00';
+    ctx.beginPath();
+    ctx.arc(x - s * 0.08, y - s * 0.1, s * 0.03, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x + s * 0.08, y - s * 0.1, s * 0.03, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
@@ -1037,104 +1024,77 @@
 
   function drawDeer(x, y, s) {
     ctx.save();
-    // Face slightly left
-    const dir = 1;
-
     // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.14)';
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
     ctx.beginPath();
-    ctx.ellipse(x, y + s * 0.48, s * 0.38, s * 0.07, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y + s * 0.38, s * 0.36, s * 0.06, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Back legs
-    ctx.strokeStyle = C.deerLeg;
-    ctx.lineWidth = s * 0.08;
+    // Antlers — prominent, branching upward
+    ctx.strokeStyle = '#5C3D1E';
+    ctx.lineWidth = s * 0.05;
     ctx.lineCap = 'round';
-    [[-0.18, -0.05], [0.08, -0.05]].forEach(([lx, ly]) => {
-      ctx.beginPath();
-      ctx.moveTo(x + lx * s, y + ly * s);
-      ctx.lineTo(x + lx * s, y + s * 0.38);
-      ctx.stroke();
-    });
-    // Front legs
-    [[-0.1, -0.18], [0.16, -0.18]].forEach(([lx, ly]) => {
-      ctx.beginPath();
-      ctx.moveTo(x + lx * s, y + ly * s);
-      ctx.lineTo(x + lx * s, y + s * 0.38);
-      ctx.stroke();
-    });
-    // Hooves
-    ctx.fillStyle = '#3A2A1A';
-    [[-0.18, 0.38], [0.08, 0.38], [-0.1, 0.38], [0.16, 0.38]].forEach(([lx, ly]) => {
-      ctx.fillRect(x + lx * s - s * 0.04, y + ly * s - s * 0.02, s * 0.08, s * 0.06);
-    });
+    // Left antler
+    ctx.beginPath();
+    ctx.moveTo(x - s * 0.08, y - s * 0.24);
+    ctx.lineTo(x - s * 0.18, y - s * 0.48);
+    ctx.lineTo(x - s * 0.28, y - s * 0.55);
+    ctx.moveTo(x - s * 0.18, y - s * 0.48);
+    ctx.lineTo(x - s * 0.04, y - s * 0.52);
+    ctx.stroke();
+    // Right antler
+    ctx.beginPath();
+    ctx.moveTo(x + s * 0.08, y - s * 0.24);
+    ctx.lineTo(x + s * 0.18, y - s * 0.48);
+    ctx.lineTo(x + s * 0.28, y - s * 0.55);
+    ctx.moveTo(x + s * 0.18, y - s * 0.48);
+    ctx.lineTo(x + s * 0.04, y - s * 0.52);
+    ctx.stroke();
 
-    // Body
+    // Ears — oval, sticking out
     ctx.fillStyle = C.deerBody;
-    ctx.beginPath();
-    ctx.ellipse(x, y - s * 0.02, s * 0.42, s * 0.26, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Belly
-    ctx.fillStyle = C.deerBelly;
-    ctx.beginPath();
-    ctx.ellipse(x, y + s * 0.02, s * 0.3, s * 0.16, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Spots on back
-    ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    for (let i = 0; i < 5; i++) {
+    [[-0.22, -0.22], [0.22, -0.22]].forEach(([ex, ey]) => {
       ctx.beginPath();
-      ctx.arc(x + rand(-s * 0.2, s * 0.2), y - s * 0.08 + rand(-s * 0.1, s * 0.1), s * 0.04, 0, Math.PI * 2);
+      ctx.ellipse(x + ex * s, y + ey * s, s * 0.08, s * 0.14, 0, 0, Math.PI * 2);
       ctx.fill();
-    }
+    });
 
-    // Neck
-    ctx.fillStyle = C.deerBody;
+    // Face — oval, warm brown
+    const faceGrad = ctx.createRadialGradient(x, y - s * 0.04, s * 0.04, x, y, s * 0.34);
+    faceGrad.addColorStop(0, '#D4A86C');
+    faceGrad.addColorStop(0.7, '#C4956A');
+    faceGrad.addColorStop(1, '#A0754A');
+    ctx.fillStyle = faceGrad;
     ctx.beginPath();
-    ctx.ellipse(x + dir * s * 0.28, y - s * 0.16, s * 0.12, s * 0.26, dir * 0.5, 0, Math.PI * 2);
+    ctx.ellipse(x, y, s * 0.32, s * 0.36, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Head
+    // Lighter muzzle/cheek area
+    ctx.fillStyle = '#F0E0CC';
     ctx.beginPath();
-    ctx.arc(x + dir * s * 0.34, y - s * 0.34, s * 0.12, 0, Math.PI * 2);
+    ctx.ellipse(x, y + s * 0.1, s * 0.16, s * 0.18, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Snout
-    ctx.fillStyle = C.deerBelly;
+    // Nose — dark
+    ctx.fillStyle = '#1A1A1A';
     ctx.beginPath();
-    ctx.arc(x + dir * s * 0.41, y - s * 0.31, s * 0.06, 0, Math.PI * 2);
+    ctx.arc(x, y - s * 0.02, s * 0.05, 0, Math.PI * 2);
     ctx.fill();
 
-    // Eye
+    // Eyes — large, gentle
+    ctx.fillStyle = '#FFF';
+    ctx.beginPath();
+    ctx.arc(x - s * 0.09, y - s * 0.08, s * 0.065, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x + s * 0.09, y - s * 0.08, s * 0.065, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = '#111';
     ctx.beginPath();
-    ctx.arc(x + dir * s * 0.39, y - s * 0.37, s * 0.025, 0, Math.PI * 2);
+    ctx.arc(x - s * 0.09, y - s * 0.08, s * 0.032, 0, Math.PI * 2);
     ctx.fill();
-
-    // Ear
-    ctx.fillStyle = C.deerBody;
     ctx.beginPath();
-    ctx.ellipse(x + dir * s * 0.31, y - s * 0.44, s * 0.05, s * 0.1, -dir * 0.3, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Antlers
-    ctx.strokeStyle = '#5C3D1E';
-    ctx.lineWidth = s * 0.035;
-    ctx.beginPath();
-    ctx.moveTo(x + dir * s * 0.31, y - s * 0.43);
-    ctx.lineTo(x + dir * s * 0.24, y - s * 0.62);
-    ctx.lineTo(x + dir * s * 0.18, y - s * 0.55);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(x + dir * s * 0.31, y - s * 0.43);
-    ctx.lineTo(x + dir * s * 0.38, y - s * 0.6);
-    ctx.stroke();
-
-    // Tail
-    ctx.fillStyle = C.deerBelly;
-    ctx.beginPath();
-    ctx.arc(x - dir * s * 0.42, y - s * 0.1, s * 0.06, 0, Math.PI * 2);
+    ctx.arc(x + s * 0.09, y - s * 0.08, s * 0.032, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
