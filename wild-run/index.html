@@ -1801,19 +1801,26 @@
   }
 
   function drawMuteButton() {
-    const r = scaleV(18);
+    const r = scaleV(28);
     const x = scaleX(GAME_W - GRASS_W - 4) - r;
-    const y = scaleV(46);
-    canvas._muteBtn = { x: x - r, y: y - r, w: r * 2, h: r * 2 };
+    const y = scaleV(52);
+    // Touch target: 44pt minimum for mobile
+    const touchR = Math.max(r, scaleV(22));
+    canvas._muteBtn = { x: x - touchR, y: y - touchR, w: touchR * 2, h: touchR * 2 };
 
     // Background circle
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
 
+    // Border ring
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = scaleV(2);
+    ctx.stroke();
+
     // Speaker icon (drawn)
-    drawSpeakerIcon(x, y, r * 0.9, muted);
+    drawSpeakerIcon(x, y, r * 0.75, muted);
   }
 
   // ═══════════════════════════════════════
