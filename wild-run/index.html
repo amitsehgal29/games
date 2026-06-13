@@ -1278,10 +1278,10 @@
   // ═══════════════════════════════════════
   const OBSTACLE_TYPES = ['deer', 'bear', 'sheep'];
 
-  // Returns set of lanes occupied near the spawn zone (top of screen)
+  // Returns set of lanes occupied ahead of the player (top 65% of screen)
   function getBusyLanes() {
     const busy = new Set();
-    const zone = canvas.height * 0.25;
+    const zone = canvas.height * 0.65;
     for (const o of obstacles) {
       if (o.y < zone) o.lanes.forEach(l => busy.add(l));
     }
@@ -1298,9 +1298,9 @@
       if (!busy.has(i)) free.push(i);
     }
     if (free.length > 0) return free[randInt(0, free.length - 1)];
-    // All lanes busy — pick the one with fewest items near spawn
+    // All lanes busy — pick the one with fewest items ahead of player
     const counts = Array(LANES).fill(0);
-    const zone = canvas.height * 0.25;
+    const zone = canvas.height * 0.65;
     for (const o of obstacles) {
       if (o.y < zone) o.lanes.forEach(l => counts[l]++);
     }
@@ -1948,7 +1948,7 @@
 
     if (distance - lastObstacleDist > gapDist && obstacles.length < maxObs) {
       // Check which lanes are blocked near the spawn zone (top of screen)
-      const nearSpawn = obstacles.filter(o => o.y < canvas.height * 0.25);
+      const nearSpawn = obstacles.filter(o => o.y < canvas.height * 0.65);
       const blockedLanes = new Set();
       nearSpawn.forEach(o => o.lanes.forEach(l => blockedLanes.add(l)));
 
