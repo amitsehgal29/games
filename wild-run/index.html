@@ -1567,23 +1567,34 @@
   function drawPauseOverlay() {
     ctx.fillStyle = 'rgba(0,0,0,0.65)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const cx = canvas.width / 2, cy = canvas.height * 0.4;
+    const cx = canvas.width / 2, cy = canvas.height * 0.35;
     ctx.fillStyle = '#FFF';
     ctx.font = `900 ${scaleV(36)}px 'Fredoka One', system-ui, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('PAUSED', cx, cy);
 
-    // Resume button
-    const btnW = scaleX(200), btnH = scaleV(52);
-    const btnX = cx - btnW/2, btnY = cy + scaleV(40);
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    roundRect(btnX, btnY, btnW, btnH, btnH/2); ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = scaleV(2);
+    const btnW = scaleX(200), btnH = scaleV(48);
+    const btnX = cx - btnW/2;
+    // Resume — orange gradient, matching wild-run nature theme
+    const resumeY = cy + scaleV(42);
+    const bg = ctx.createLinearGradient(btnX, resumeY, btnX, resumeY+btnH);
+    bg.addColorStop(0, '#FF9800'); bg.addColorStop(0.5, '#FF6D00'); bg.addColorStop(1, '#E65100');
+    ctx.fillStyle = bg; roundRect(btnX, resumeY, btnW, btnH, btnH/2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = scaleV(2.5);
     ctx.stroke();
     ctx.fillStyle = '#FFF';
-    ctx.font = `800 ${scaleV(18)}px 'Fredoka One', system-ui, sans-serif`;
-    ctx.fillText('RESUME', cx, btnY + btnH/2);
-    canvas._resumeBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
+    ctx.font = `800 ${scaleV(17)}px 'Fredoka One', system-ui, sans-serif`;
+    ctx.fillText('RESUME', cx, resumeY + btnH/2);
+    canvas._resumeBtn = { x: btnX, y: resumeY, w: btnW, h: btnH };
+
+    // Menu button
+    const menuY = resumeY + btnH + scaleV(12);
+    ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.strokeStyle = 'rgba(255,255,255,0.2)'; ctx.lineWidth = scaleV(1.5);
+    roundRect(btnX, menuY, btnW, btnH, btnH/2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.font = `700 ${scaleV(14)}px 'Fredoka One', system-ui, sans-serif`;
+    ctx.fillText('MENU', cx, menuY + btnH/2);
+    canvas._menuBtn = { x: btnX, y: menuY, w: btnW, h: btnH };
   }
 
   // ═══════════════════════════════════════
@@ -2380,10 +2391,17 @@
         if (tx >= b.x && tx <= b.x + b.w && ty >= b.y && ty <= b.y + b.h) { window.location.href = '../index.html'; return; }
       }
 
-      // Pause overlay resume button
-      if (paused && canvas._resumeBtn) {
-        const b = canvas._resumeBtn;
-        if (tx >= b.x && tx <= b.x + b.w && ty >= b.y && ty <= b.y + b.h) { togglePause(); return; }
+      // Pause overlay
+      if (paused) {
+        if (canvas._resumeBtn) {
+          const b = canvas._resumeBtn;
+          if (tx >= b.x && tx <= b.x + b.w && ty >= b.y && ty <= b.y + b.h) { togglePause(); return; }
+        }
+        if (canvas._menuBtn) {
+          const b = canvas._menuBtn;
+          if (tx >= b.x && tx <= b.x + b.w && ty >= b.y && ty <= b.y + b.h) { paused = false; window.location.href = '../index.html'; return; }
+        }
+        return;
       }
 
       // Pause button (always check after mute/home)
@@ -2441,10 +2459,17 @@
       if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) { window.location.href = '../index.html'; return; }
     }
 
-    // Pause overlay resume
-    if (paused && canvas._resumeBtn) {
-      const b = canvas._resumeBtn;
-      if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) { togglePause(); return; }
+    // Pause overlay
+    if (paused) {
+      if (canvas._resumeBtn) {
+        const b = canvas._resumeBtn;
+        if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) { togglePause(); return; }
+      }
+      if (canvas._menuBtn) {
+        const b = canvas._menuBtn;
+        if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) { paused = false; window.location.href = '../index.html'; return; }
+      }
+      return;
     }
 
     // Pause button
