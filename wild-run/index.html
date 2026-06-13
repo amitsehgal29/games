@@ -1692,24 +1692,21 @@
     ctx.textAlign = 'left';
     ctx.fillText('CONTROLS', leftCardX + scaleV(12), cardY + scaleV(24));
     ctx.fillStyle = '#E0E0E0';
-    ctx.font = `600 ${scaleV(11)}px 'Fredoka', system-ui, sans-serif`;
-    const lh = scaleV(17);
-    // Arrow key icons drawn
+    ctx.font = `600 ${scaleV(10.5)}px 'Fredoka', system-ui, sans-serif`;
+    const lh = scaleV(16);
+    // Arrow keys
     const aRowY = cardY + scaleV(24) + lh;
     ctx.fillStyle = '#FFD54F';
-    ctx.font = `bold ${scaleV(12)}px 'Fredoka', system-ui, sans-serif`;
+    ctx.font = `bold ${scaleV(11)}px 'Fredoka', system-ui, sans-serif`;
     ctx.fillText('◀ ▶', leftCardX + scaleV(10), aRowY);
     ctx.fillStyle = '#E0E0E0';
-    ctx.font = `600 ${scaleV(10.5)}px 'Fredoka', system-ui, sans-serif`;
-    ctx.fillText('  Arrow keys to steer', leftCardX + scaleV(32), aRowY);
-    // Nitro
+    ctx.fillText('  Keys / tap sides', leftCardX + scaleV(32), aRowY);
+    // Boost
     const nRowY = aRowY + lh;
     ctx.fillStyle = '#FFD54F';
-    ctx.font = `bold ${scaleV(12)}px 'Fredoka', system-ui, sans-serif`;
     ctx.fillText('▲', leftCardX + scaleV(16), nRowY);
     ctx.fillStyle = '#E0E0E0';
-    ctx.font = `600 ${scaleV(10.5)}px 'Fredoka', system-ui, sans-serif`;
-    ctx.fillText('  Hold for nitro boost', leftCardX + scaleV(32), nRowY);
+    ctx.fillText('  Hold key / swipe up', leftCardX + scaleV(32), nRowY);
 
     // Right card: Collectibles
     ctx.fillStyle = '#FFF';
@@ -1787,7 +1784,7 @@
     const footerY = canvas.height - scaleV(18);
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
     ctx.font = `600 ${scaleV(9)}px 'Fredoka', system-ui, sans-serif`;
-    ctx.fillText('Tap screen or press SPACE to start', cx, footerY);
+    ctx.fillText('Tap to start • Swipe up to boost • Steer with taps', cx, footerY);
 
     // Store button bounds for click detection
     canvas._startBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
@@ -2195,11 +2192,13 @@
     if (e.key === 'ArrowUp' || e.key === 'w') boostOff();
   });
 
+  let touchStartY = 0;
   canvas.addEventListener('touchstart', e => {
     e.preventDefault();
     const rect = canvas.getBoundingClientRect();
     for (const t of e.changedTouches) {
       const tx = t.clientX - rect.left, ty = t.clientY - rect.top;
+      touchStartY = t.clientY;
 
       // Mute button check first — don't steal its tap
       if (canvas._muteBtn) {
@@ -2214,14 +2213,14 @@
       if (state === 'playing') {
         if (tx < rect.width / 2) moveLeft();
         else moveRight();
-        if (ty < canvas.height * 0.4) boostOn();
       }
     }
   }, { passive: false });
   canvas.addEventListener('touchmove', e => {
     e.preventDefault();
     for (const t of e.changedTouches) {
-      if (t.clientY < canvas.getBoundingClientRect().top + canvas.height * 0.4) boostOn();
+      // Swipe up > 40px from initial touch point = boost
+      if (touchStartY - t.clientY > 40) boostOn();
       else boostOff();
     }
   }, { passive: false });
