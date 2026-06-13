@@ -171,7 +171,6 @@
         const AC = window.AudioContext || window.webkitAudioContext;
         if (AC) {
           audioCtx = new AC();
-          // Immediately resume if suspended (mobile requires this from user gesture)
           if (audioCtx.state === 'suspended') {
             audioCtx.resume().catch(() => {});
           }
@@ -183,10 +182,24 @@
     return audioCtx;
   }
 
+  // Prime audio on iOS — silent switch mutes Web Audio unless a buffer is played
+  function primeAudioIOS() {
+    if (!audioCtx || muted) return;
+    try {
+      const buf = audioCtx.createBuffer(1, 1, 22050);
+      const src = audioCtx.createBufferSource();
+      src.buffer = buf;
+      src.connect(audioCtx.destination);
+      src.start(0);
+      src.stop(audioCtx.currentTime + 0.001);
+    } catch(e) { /* ignore */ }
+  }
+
   // Call on any first user interaction to unlock audio on mobile
   function unlockAudio() {
     if (!audioCtx) initAudio();
     else if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+    primeAudioIOS();
   }
 
   function playTone(freq, endFreq, duration, type, vol, rampDown) {
@@ -1289,49 +1302,56 @@
   }
 
   // ═══════════════════════════════════════
-  // GAME OBJECT SPAWNING
+  // GAME OBJECT SPAWNING — unified non-overlap system
   // ═══════════════════════════════════════
   const OBSTACLE_TYPES = ['deer', 'bear', 'sheep'];
+  const MIN_OBJECT_GAP = 200;  // px — no two objects in same lane within this Y distance
 
-  // Returns set of lanes occupied ahead of the player (top 65% of screen)
-  function getBusyLanes() {
+  // Returns which lanes have any object (obstacle or collectible) within minGap of targetY
+  function getLanesNear(objs, targetY, minGap) {
     const busy = new Set();
-    const zone = canvas.height * 0.65;
-    for (const o of obstacles) {
-      if (o.y < zone) o.lanes.forEach(l => busy.add(l));
-    }
-    for (const c of collectibles) {
-      if (c.y < zone) busy.add(c.lane);
+    for (const o of objs) {
+      const oy = o.y !== undefined ? o.y : o.y;
+      if (Math.abs(oy - targetY) < minGap) {
+        if (o.lanes) o.lanes.forEach(l => busy.add(l));
+        else if (o.lane !== undefined) busy.add(o.lane);
+      }
     }
     return busy;
   }
 
-  function pickFreeLane() {
-    const busy = getBusyLanes();
-    const free = [];
-    for (let i = 0; i < LANES; i++) {
-      if (!busy.has(i)) free.push(i);
-    }
-    if (free.length > 0) return free[randInt(0, free.length - 1)];
-    // All lanes busy — pick the one with fewest items ahead of player
-    const counts = Array(LANES).fill(0);
-    const zone = canvas.height * 0.65;
+  // Assign a lane that has NO object (obstacle or collectible) within MIN_OBJECT_GAP
+  function assignClearLane(spawnY) {
+    const minGap = MIN_OBJECT_GAP;
+    const occupied = Array(LANES).fill(Infinity); // closest object distance per lane
+
     for (const o of obstacles) {
-      if (o.y < zone) o.lanes.forEach(l => counts[l]++);
+      const dist = Math.abs(o.y - spawnY);
+      o.lanes.forEach(l => { if (dist < occupied[l]) occupied[l] = dist; });
     }
     for (const c of collectibles) {
-      if (c.y < zone) counts[c.lane]++;
+      const dist = Math.abs(c.y - spawnY);
+      if (dist < occupied[c.lane]) occupied[c.lane] = dist;
     }
+
+    // Lanes with nothing within minGap
+    const free = [];
+    for (let i = 0; i < LANES; i++) {
+      if (occupied[i] >= minGap) free.push(i);
+    }
+    if (free.length > 0) return free[randInt(0, free.length - 1)];
+
+    // All lanes occupied nearby — pick the one with the furthest object
     let best = 0;
     for (let i = 1; i < LANES; i++) {
-      if (counts[i] < counts[best]) best = i;
+      if (occupied[i] > occupied[best]) best = i;
     }
     return best;
   }
 
   function spawnObstacle() {
     const type = OBSTACLE_TYPES[randInt(0, 2)];
-    const lane = pickFreeLane();
+    const lane = assignClearLane(-50);
     const x = LANE_CX[lane];
     let w = 0, h = 0, r = 0;
 
@@ -1354,21 +1374,7 @@
   }
 
   function spawnCollectible() {
-    // Pick a lane with no collectible nearby (avoid fruit overlap)
-    const minGap = 180;
-    const laneCounts = Array(LANES).fill(0);
-    for (const c of collectibles) {
-      if (c.y < canvas.height * 0.7 && c.y > -minGap) {
-        laneCounts[c.lane]++;
-      }
-    }
-    // Prefer lanes with no collectible nearby
-    const free = [];
-    for (let i = 0; i < LANES; i++) {
-      if (laneCounts[i] === 0) free.push(i);
-    }
-    const lane = free.length > 0 ? free[randInt(0, free.length - 1)] : pickFreeLane();
-
+    const lane = assignClearLane(-30);
     collectibles.push({
       x: LANE_CX[lane],
       y: -30,
@@ -1378,7 +1384,7 @@
   }
 
   function spawnFuelCan() {
-    const lane = pickFreeLane();
+    const lane = assignClearLane(-30);
     collectibles.push({
       x: LANE_CX[lane],
       y: -30,
@@ -1976,16 +1982,8 @@
     const gapDist = GAP_DIST_BASE / (1 + distance / 800);
 
     if (distance - lastObstacleDist > gapDist && obstacles.length < maxObs) {
-      // Check which lanes are blocked near the spawn zone (top of screen)
-      const nearSpawn = obstacles.filter(o => o.y < canvas.height * 0.65);
-      const blockedLanes = new Set();
-      nearSpawn.forEach(o => o.lanes.forEach(l => blockedLanes.add(l)));
-
-      // Only spawn if at least 1 lane is free (always leave a path)
-      if (blockedLanes.size < LANES) {
-        spawnObstacle();
-        lastObstacleDist = distance;
-      }
+      spawnObstacle();
+      lastObstacleDist = distance;
     }
 
     // ── Spawn collectibles ──
