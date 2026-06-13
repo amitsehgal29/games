@@ -61,8 +61,8 @@
   const PLAYER_Y_RATIO = 0.80;
   const BASE_SPEED  = 140;
   const MAX_SPEED   = 700;
-  const SPEED_STEP  = 12;
-  const DIST_PER_STEP = 1000;
+  const SPEED_STEP  = 22;
+  const DIST_PER_STEP = 1200;
 
   const FUEL_MAX     = 100;
   const FUEL_DRAIN   = 3.0;
@@ -71,7 +71,7 @@
   const OBSTACLE_MIN_GAP = 0.50;
   const COLLECTIBLE_CHANCE = 0.19;
   const GAP_DIST_BASE = OBSTACLE_MIN_GAP * BASE_SPEED * 1.2;
-  const GAP_DIST_MIN = 22;
+  const GAP_DIST_MIN = 30;
   const LANE_SWITCH_SPEED = 14;
 
   // ═══════════════════════════════════════
@@ -1909,10 +1909,14 @@
     }
 
     // ── Spawn obstacles ──
-    // Difficulty scales continuously to 50,000m — never blocks all lanes
-    const progress = clamp(distance / 50000, 0, 1); // 0..1 over full range
-    const maxObs = Math.min(1 + Math.floor(distance / 5000), LANES - 1);
-    const gapDist = clamp(GAP_DIST_BASE * (1 - progress * 0.75), GAP_DIST_MIN, GAP_DIST_BASE);
+    // Difficulty scales per table: 0→50,000m
+    let maxObs;
+    if (distance < 3000) maxObs = 1;
+    else if (distance < 8000) maxObs = 2;
+    else if (distance < 25000) maxObs = 3;
+    else maxObs = 4;
+    const progress = clamp(distance / 50000, 0, 1);
+    const gapDist = clamp(GAP_DIST_BASE - Math.pow(progress, 0.55) * (GAP_DIST_BASE - GAP_DIST_MIN), GAP_DIST_MIN, GAP_DIST_BASE);
 
     if (distance - lastObstacleDist > gapDist && obstacles.length < maxObs) {
       spawnObstacle();
