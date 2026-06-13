@@ -1402,20 +1402,21 @@
 
   function drawSpeakerIcon(x, y, s, isMuted) {
     ctx.fillStyle = '#FFF';
+    // Speaker body — simple rectangle
+    ctx.fillRect(x - s*0.4, y - s*0.2, s*0.22, s*0.4);
+    // Cone — triangle
     ctx.beginPath();
-    ctx.moveTo(x - s*0.2, y - s*0.15); ctx.lineTo(x - s*0.05, y - s*0.15);
-    ctx.lineTo(x + s*0.15, y - s*0.35); ctx.lineTo(x + s*0.15, y + s*0.35);
-    ctx.lineTo(x - s*0.05, y + s*0.15); ctx.lineTo(x - s*0.2, y + s*0.15);
+    ctx.moveTo(x - s*0.18, y - s*0.28); ctx.lineTo(x + s*0.14, y - s*0.45);
+    ctx.lineTo(x + s*0.14, y + s*0.45); ctx.lineTo(x - s*0.18, y + s*0.28);
     ctx.closePath(); ctx.fill();
     if (!isMuted) {
-      ctx.strokeStyle = '#FFF'; ctx.lineWidth = s*0.06; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.arc(x + s*0.22, y, s*0.2, -0.5, 0.5); ctx.stroke();
-      ctx.beginPath(); ctx.arc(x + s*0.3, y, s*0.35, -0.5, 0.5); ctx.stroke();
-      ctx.beginPath(); ctx.arc(x + s*0.38, y, s*0.5, -0.45, 0.45); ctx.stroke();
+      ctx.strokeStyle = '#FFF'; ctx.lineWidth = s*0.1; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(x + s*0.26, y, s*0.25, -0.45, 0.45); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x + s*0.38, y, s*0.42, -0.45, 0.45); ctx.stroke();
     } else {
-      ctx.strokeStyle = '#FFF'; ctx.lineWidth = s*0.08; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(x + s*0.28, y - s*0.22); ctx.lineTo(x + s*0.48, y + s*0.22); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x + s*0.48, y - s*0.22); ctx.lineTo(x + s*0.28, y + s*0.22); ctx.stroke();
+      ctx.strokeStyle = '#FF4444'; ctx.lineWidth = s*0.1; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(x + s*0.28, y - s*0.3); ctx.lineTo(x + s*0.52, y + s*0.3); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + s*0.52, y - s*0.3); ctx.lineTo(x + s*0.28, y + s*0.3); ctx.stroke();
     }
   }
 
@@ -1687,15 +1688,15 @@
     ctx.fillText('Dodge bears, deer & sheep!', cx, tipY);
 
     // ── START button — big, pulsing, game-like ──
-    const btnW = scaleX(170);
-    const btnH = scaleV(50);
+    const btnW = scaleX(200);
+    const btnH = scaleV(60);
     const btnX = cx - btnW / 2;
-    const btnY = tipY + scaleV(24);
+    const btnY = tipY + scaleV(20);
     const pulse = 1 + Math.sin(frameCount * 0.06) * 0.04;
 
     // Outer glow
     ctx.shadowColor = 'rgba(255,140,0,0.5)';
-    ctx.shadowBlur = scaleV(18) * pulse;
+    ctx.shadowBlur = scaleV(22) * pulse;
 
     // Button gradient
     const btnGrad = ctx.createLinearGradient(btnX, btnY, btnX, btnY + btnH);
@@ -1708,24 +1709,24 @@
 
     // Button top shine
     ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    roundRect(btnX + scaleV(4), btnY + scaleV(2), btnW - scaleV(8), btnH / 2, btnH / 3);
+    roundRect(btnX + scaleV(4), btnY + scaleV(2), btnW - scaleV(8), btnH / 2.5, btnH / 4);
     ctx.fill();
 
     ctx.shadowBlur = 0;
 
     // Button border
     ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-    ctx.lineWidth = scaleV(2);
+    ctx.lineWidth = scaleV(2.5);
     roundRect(btnX, btnY, btnW, btnH, btnH / 2);
     ctx.stroke();
 
     // Button text
     ctx.fillStyle = '#FFF';
-    ctx.font = `900 ${scaleV(20)}px 'Fredoka One', system-ui, sans-serif`;
+    ctx.font = `900 ${scaleV(24)}px 'Fredoka One', system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    drawPlayTriangle(cx - scaleV(48), btnY + btnH / 2, scaleV(14));
-    ctx.fillText('START', cx + scaleV(8), btnY + btnH / 2);
+    drawPlayTriangle(cx - scaleV(54), btnY + btnH / 2, scaleV(16));
+    ctx.fillText('START', cx + scaleV(10), btnY + btnH / 2);
 
     // ── High score ──
     if (highScore > 0) {
@@ -1787,19 +1788,27 @@
       drawStarIcon(cx + scaleV(80), statsY + scaleV(65), scaleV(9));
     }
 
-    const btnY = statsY + scaleV(95);
-    const btnGrad = ctx.createLinearGradient(cx, btnY, cx, btnY + scaleV(44));
+    const btnW = scaleX(200), btnH = scaleV(58);
+    const btnY = statsY + scaleV(90);
+    const btnGrad = ctx.createLinearGradient(cx, btnY, cx, btnY + btnH);
     btnGrad.addColorStop(0, '#5CB860');
     btnGrad.addColorStop(1, '#3D8B40');
     ctx.fillStyle = btnGrad;
-    roundRect(cx - scaleX(82), btnY, scaleX(164), scaleV(44), scaleV(22));
+    roundRect(cx - btnW / 2, btnY, btnW, btnH, btnH / 2);
+    ctx.fill();
+
+    // Shine
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    roundRect(cx - btnW / 2 + scaleV(4), btnY + scaleV(2), btnW - scaleV(8), btnH / 2.5, btnH / 4);
     ctx.fill();
 
     ctx.fillStyle = '#FFF';
-    ctx.font = `900 ${scaleV(17)}px 'Fredoka One', system-ui, sans-serif`;
-    ctx.fillText('PLAY AGAIN', cx, btnY + scaleV(22));
+    ctx.font = `900 ${scaleV(22)}px 'Fredoka One', system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('PLAY AGAIN', cx, btnY + btnH / 2);
 
-    canvas._restartBtn = { x: cx - scaleX(82), y: btnY, w: scaleX(164), h: scaleV(44) };
+    canvas._restartBtn = { x: cx - btnW / 2, y: btnY, w: btnW, h: btnH };
   }
 
   function drawMuteButton() {
