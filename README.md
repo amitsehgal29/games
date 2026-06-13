@@ -6,7 +6,11 @@ A collection of simple, single-page HTML games — open and play instantly, no s
 
 ## Games
 
-*(Coming soon — first game is on the way!)*
+| Game | Description |
+|------|-------------|
+| 🏞️ [Wild Run](https://amitsehgal29.github.io/games/wild-run/) | Dodge boulders, deer, and puddles — race through the wilderness! |
+
+*(More games coming soon!)*
 
 ## How It Works
 
