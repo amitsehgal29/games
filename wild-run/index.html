@@ -1141,9 +1141,9 @@
 
   function drawFuelCan(x, y, w, h) {
     // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
     ctx.beginPath();
-    ctx.ellipse(x + w * 0.06, y + h * 0.18, w / 2, h / 2.8, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + w * 0.04, y + h * 0.2, w / 2.2, h / 3, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Outer glow ring
@@ -1151,44 +1151,37 @@
     ctx.globalAlpha = glowPulse;
     ctx.fillStyle = '#8B0000';
     ctx.beginPath();
-    ctx.arc(x, y + h * 0.02, Math.max(w, h) * 0.9, 0, Math.PI * 2);
+    ctx.arc(x, y, Math.max(w, h) * 0.8, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    // Body — bold red with horizontal gradient
+    // Jerrycan body — bold red
     const grad = ctx.createLinearGradient(x - w / 2, y, x + w / 2, y);
     grad.addColorStop(0, '#B22222');
     grad.addColorStop(0.3, '#E83535');
     grad.addColorStop(0.7, '#DC2626');
     grad.addColorStop(1, '#991111');
     ctx.fillStyle = grad;
-    roundRect(x - w / 2, y - h / 2, w, h, w * 0.18);
+    roundRect(x - w / 2, y - h / 2, w, h, w * 0.15);
     ctx.fill();
 
-    // Yellow accent stripe (horizontal band across the middle)
+    // Yellow stripe
     ctx.fillStyle = '#FFD700';
-    roundRect(x - w * 0.42, y - h * 0.15, w * 0.84, h * 0.18, 2);
-    ctx.fill();
-    // Yellow stripe glow
-    ctx.fillStyle = 'rgba(255,215,0,0.2)';
-    roundRect(x - w * 0.44, y - h * 0.17, w * 0.88, h * 0.22, 3);
-    ctx.fill();
+    ctx.fillRect(x - w * 0.35, y - h * 0.08, w * 0.7, h * 0.12);
 
-    // Ridges (darker red)
-    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-    ctx.lineWidth = 1.5;
-    for (let i = 1; i <= 3; i++) {
-      const ry = y - h / 2 + (h / 4) * i;
-      ctx.beginPath();
-      ctx.moveTo(x - w / 2 + 5, ry);
-      ctx.lineTo(x + w / 2 - 5, ry);
-      ctx.stroke();
-    }
+    // Handle on top
+    ctx.strokeStyle = '#DC2626';
+    ctx.lineWidth = w * 0.08;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(x, y - h * 0.2, w * 0.22, Math.PI * 0.9, Math.PI * 0.1);
+    ctx.stroke();
 
-    // Cap
-    ctx.fillStyle = '#222';
-    roundRect(x - w * 0.14, y - h / 2 - h * 0.14, w * 0.28, h * 0.16, 3);
-    ctx.fill();
+    // Spout top-right
+    ctx.fillStyle = '#991111';
+    ctx.fillRect(x + w * 0.3, y - h * 0.32, w * 0.08, h * 0.16);
+    ctx.fillStyle = '#333';
+    ctx.fillRect(x + w * 0.28, y - h * 0.34, w * 0.12, w * 0.06);
     ctx.fillStyle = '#555';
     roundRect(x - w * 0.08, y - h / 2 - h * 0.1, w * 0.16, h * 0.06, 2);
     ctx.fill();
@@ -1197,12 +1190,9 @@
     ctx.fillStyle = 'rgba(255,255,255,0.18)';
     roundRect(x - w * 0.42, y - h * 0.4, w * 0.12, h * 0.5, 2);
     ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.12)';
-    roundRect(x - w * 0.42, y + h * 0.15, w * 0.12, h * 0.22, 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    roundRect(x - w * 0.3, y - h * 0.38, w * 0.25, h * 0.1, 2);
     ctx.fill();
-
-    // Fuel symbol on can (drawn fuel droplet)
-    drawFuelIcon(x, y + h * 0.02, w * 0.22, '#FFF');
   }
 
   // ═══════════════════════════════════════
@@ -1388,16 +1378,32 @@
 
   function drawFuelIcon(x, y, s, color) {
     const c = color || '#D32F2F';
+    // Jerrycan body
     ctx.fillStyle = c;
-    ctx.beginPath();
-    ctx.moveTo(x, y - s*0.35);
-    ctx.quadraticCurveTo(x + s*0.32, y + s*0.05, x + s*0.18, y + s*0.32);
-    ctx.quadraticCurveTo(x, y + s*0.42, x - s*0.18, y + s*0.32);
-    ctx.quadraticCurveTo(x - s*0.32, y + s*0.05, x, y - s*0.35);
+    roundRect(x - s*0.25, y - s*0.1, s*0.5, s*0.35, s*0.05);
     ctx.fill();
-    if (c !== '#FFF' && c !== '#FFFFFF') {
-      ctx.fillStyle = 'rgba(255,255,255,0.25)';
-      ctx.beginPath(); ctx.ellipse(x - s*0.06, y, s*0.08, s*0.15, -0.3, 0, Math.PI*2); ctx.fill();
+    // Body highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    roundRect(x - s*0.2, y - s*0.06, s*0.35, s*0.08, s*0.03);
+    ctx.fill();
+    // Handle on top
+    ctx.strokeStyle = c;
+    ctx.lineWidth = s*0.06;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(x, y - s*0.12, s*0.16, Math.PI, 0);
+    ctx.stroke();
+    // Spout (small rectangle top-right)
+    ctx.fillStyle = c;
+    ctx.fillRect(x + s*0.18, y - s*0.2, s*0.06, s*0.12);
+    // Spout cap
+    ctx.fillStyle = '#333';
+    ctx.fillRect(x + s*0.17, y - s*0.22, s*0.08, s*0.04);
+    // Cross/plus symbol on body for fuel
+    if (c !== '#FFF') {
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.fillRect(x - s*0.02, y + s*0.02, s*0.04, s*0.18);
+      ctx.fillRect(x - s*0.09, y + s*0.09, s*0.18, s*0.04);
     }
   }
 
