@@ -169,14 +169,24 @@
     if (!audioCtx) {
       try {
         const AC = window.AudioContext || window.webkitAudioContext;
-        if (AC) audioCtx = new AC();
+        if (AC) {
+          audioCtx = new AC();
+          // Immediately resume if suspended (mobile requires this from user gesture)
+          if (audioCtx.state === 'suspended') {
+            audioCtx.resume().catch(() => {});
+          }
+        }
       } catch(e) { audioCtx = null; }
+    } else if (audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
     }
-    // Mobile browsers require resume() from a user gesture — return promise
-    if (audioCtx && audioCtx.state === 'suspended') {
-      return audioCtx.resume();
-    }
-    return Promise.resolve();
+    return audioCtx;
+  }
+
+  // Call on any first user interaction to unlock audio on mobile
+  function unlockAudio() {
+    if (!audioCtx) initAudio();
+    else if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
   }
 
   function playTone(freq, endFreq, duration, type, vol, rampDown) {
@@ -311,10 +321,9 @@
     if (muted) {
       stopEngine();
     } else {
-      initAudio().then(() => {
-        sfxClick();
-        if (!muted && state === 'playing') startEngine();
-      });
+      unlockAudio();
+      sfxClick();
+      if (state === 'playing') startEngine();
     }
   }
 
@@ -1345,7 +1354,21 @@
   }
 
   function spawnCollectible() {
-    const lane = pickFreeLane();
+    // Pick a lane with no collectible nearby (avoid fruit overlap)
+    const minGap = 180;
+    const laneCounts = Array(LANES).fill(0);
+    for (const c of collectibles) {
+      if (c.y < canvas.height * 0.7 && c.y > -minGap) {
+        laneCounts[c.lane]++;
+      }
+    }
+    // Prefer lanes with no collectible nearby
+    const free = [];
+    for (let i = 0; i < LANES; i++) {
+      if (laneCounts[i] === 0) free.push(i);
+    }
+    const lane = free.length > 0 ? free[randInt(0, free.length - 1)] : pickFreeLane();
+
     collectibles.push({
       x: LANE_CX[lane],
       y: -30,
@@ -1478,8 +1501,8 @@
     ctx.textBaseline = 'middle';
 
     ctx.textAlign = 'left';
-    drawFruitIcon(pad + scaleV(6), scaleV(18) - scaleV(5), scaleV(10));
-    ctx.fillText(`${score}`, pad + scaleV(16), scaleV(18));
+    drawFruitIcon(pad + scaleV(6), scaleV(18) - scaleV(5), scaleV(12));
+    ctx.fillText(`${score}`, pad + scaleV(20), scaleV(18));
 
     ctx.textAlign = 'center';
     ctx.fillText(`${Math.floor(distance)}m`, scaleX(GAME_W / 2), scaleV(18));
@@ -1491,7 +1514,7 @@
     const fuelX = fuelIconX + scaleV(18);
 
     // Fuel icon (drawn droplet)
-    drawFuelIcon(fuelIconX + scaleV(4), fuelY + fuelH / 2, scaleV(7));
+    drawFuelIcon(fuelIconX + scaleV(4), fuelY + fuelH / 2, scaleV(10));
 
     // Fuel bar background
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
@@ -2176,14 +2199,24 @@
 
   canvas.addEventListener('touchstart', e => {
     e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
     for (const t of e.changedTouches) {
-      const tx = t.clientX, ty = t.clientY;
-      const rect = canvas.getBoundingClientRect();
+      const tx = t.clientX - rect.left, ty = t.clientY - rect.top;
+
+      // Mute button check first — don't steal its tap
+      if (canvas._muteBtn) {
+        const b = canvas._muteBtn;
+        if (tx >= b.x && tx <= b.x + b.w && ty >= b.y && ty <= b.y + b.h) {
+          toggleMute();
+          return;
+        }
+      }
+
       if (state === 'title' || state === 'over') { startGame(); return; }
       if (state === 'playing') {
-        if (tx < rect.left + canvas.width / 2) moveLeft();
+        if (tx < rect.width / 2) moveLeft();
         else moveRight();
-        if (ty < rect.top + canvas.height * 0.4) boostOn();
+        if (ty < canvas.height * 0.4) boostOn();
       }
     }
   }, { passive: false });
@@ -2223,9 +2256,8 @@
   function startGame() {
     resetGame();
     state = 'playing';
-    initAudio().then(() => {
-      if (!muted) startEngine();
-    });
+    unlockAudio();
+    if (!muted) startEngine();
     lastFrameTime = performance.now();
   }
 
