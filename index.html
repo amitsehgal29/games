@@ -2,132 +2,97 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🎮 Games</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Games</title>
+  <meta name="description" content="A collection of simple, single-page games — open and play instantly.">
+  <meta property="og:title" content="Games">
+  <meta property="og:description" content="Simple, single-page games — open and play instantly.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://amitsehgal29.github.io/games/">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-
+    html, body {
+      width: 100%; min-height: 100vh; overflow-x: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+      background: #0D0D14;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none; -webkit-user-select: none;
+    }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-      color: #e0e0e0;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 2rem 1rem;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 60px 20px 40px;
+      background:
+        radial-gradient(ellipse 60% 40% at 50% 0%, rgba(40,40,70,0.3), transparent),
+        radial-gradient(ellipse 40% 30% at 80% 90%, rgba(25,30,50,0.25), transparent),
+        #0D0D14;
     }
 
-    header {
-      text-align: center;
-      margin-bottom: 3rem;
-    }
-
-    header h1 {
-      font-size: 3rem;
-      color: #fff;
-      margin-bottom: 0.5rem;
-    }
-
-    header p {
-      font-size: 1.1rem;
-      color: #aaa;
-    }
-
-    .games-grid {
+    .app-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-      gap: 1.5rem;
-      width: 100%;
-      max-width: 900px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px 12px;
+      max-width: 380px; width: 100%;
+    }
+    @media (min-width: 500px) {
+      .app-grid { grid-template-columns: repeat(4, 1fr); max-width: 460px; }
     }
 
-    .game-card {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
-      padding: 2rem;
-      text-align: center;
-      transition: transform 0.2s, background 0.2s;
-      cursor: pointer;
-      text-decoration: none;
-      color: inherit;
-      display: block;
+    .app-item {
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      text-decoration: none; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .app-item:active .app-icon { transform: scale(0.88); }
+    .app-item:active .app-name { opacity: 0.5; }
+
+    .app-icon {
+      width: 76px; height: 76px; border-radius: 18px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 36px;
+      transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+      box-shadow: 0 6px 18px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+      position: relative; overflow: hidden;
+    }
+    .app-icon::after {
+      content: ''; position: absolute; top: 0; left: 12%; right: 12%; height: 42%;
+      background: linear-gradient(rgba(255,255,255,0.12), transparent);
+      border-radius: 18px 18px 50% 50%; pointer-events: none;
+    }
+    .app-name {
+      font-size: 11px; font-weight: 500; color: rgba(255,255,255,0.85);
+      letter-spacing: 0.1px; text-align: center;
+      transition: opacity 0.18s;
+      max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
 
-    .game-card:hover {
-      transform: translateY(-4px);
-      background: rgba(255, 255, 255, 0.1);
-    }
-
-    .game-card .icon {
-      font-size: 3rem;
-      margin-bottom: 1rem;
-    }
-
-    .game-card h2 {
-      font-size: 1.3rem;
-      color: #fff;
-      margin-bottom: 0.5rem;
-    }
-
-    .game-card p {
-      font-size: 0.9rem;
-      color: #999;
-    }
-
-    .coming-soon {
-      opacity: 0.6;
-      pointer-events: none;
-    }
-
-    .coming-soon .badge {
-      display: inline-block;
-      background: #ffd700;
-      color: #000;
-      font-size: 0.7rem;
-      padding: 0.2rem 0.6rem;
-      border-radius: 4px;
-      margin-top: 0.5rem;
-      font-weight: 600;
-    }
+    .icon-wild-run  { background: linear-gradient(150deg, #3A7D44, #1E5C28); }
+    .icon-arrow     { background: linear-gradient(150deg, #4A44D0, #312D8A); }
+    .icon-matcha    { background: linear-gradient(150deg, #4A6741, #C8A040); }
 
     footer {
-      margin-top: 3rem;
-      color: #666;
-      font-size: 0.85rem;
-      text-align: center;
+      margin-top: 48px; color: rgba(255,255,255,0.15); font-size: 11px;
+      font-weight: 500; letter-spacing: 0.5px; text-align: center;
     }
-
-    footer a { color: #888; }
+    footer a { color: rgba(255,255,255,0.2); text-decoration: none; }
   </style>
 </head>
 <body>
-  <header>
-    <h1>🎮 Games</h1>
-    <p>Simple, single-page games — open and play instantly.</p>
-  </header>
-
-  <div class="games-grid">
-    <a href="wild-run/" class="game-card">
-      <div class="icon">🏞️</div>
-      <h2>Wild Run</h2>
-      <p>Dodge animals as you race your tractor through the wilderness!</p>
+  <div class="app-grid">
+    <a href="wild-run/" class="app-item">
+      <div class="app-icon icon-wild-run">🏞️</div>
+      <span class="app-name">Wild Run</span>
     </a>
-    <a href="arrow-escape/" class="game-card">
-      <div class="icon">🏹</div>
-      <h2>Arrow Escape</h2>
-      <p>Tap arrows to clear the grid — a sleek logic puzzle!</p>
+    <a href="arrow-escape/" class="app-item">
+      <div class="app-icon icon-arrow">🏹</div>
+      <span class="app-name">Arrow Escape</span>
     </a>
-    <a href="matcha/" class="game-card">
-      <div class="icon">🍵</div>
-      <h2>Matcha</h2>
-      <p>Flip cards to find matching pairs — a zen memory game!</p>
+    <a href="matcha/" class="app-item">
+      <div class="app-icon icon-matcha">🍵</div>
+      <span class="app-name">Matcha</span>
     </a>
   </div>
-
   <footer>
-    <p>Built with vanilla HTML/CSS/JS • <a href="https://github.com/amitsehgal29/games">GitHub</a></p>
+    <p>Built with vanilla HTML/CSS/JS · <a href="https://github.com/amitsehgal29/games">GitHub</a></p>
   </footer>
 </body>
 </html>
