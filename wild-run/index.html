@@ -60,11 +60,11 @@
   const FUEL_DRAIN   = 3.0;
   const FUEL_PICKUP  = 18;
 
-  const OBSTACLE_MIN_GAP = 0.40;
+  const OBSTACLE_MIN_GAP = 0.50;
   const COLLECTIBLE_CHANCE = 0.38;
-  const MAX_OBSTACLES_EARLY = 2;
-  const MAX_OBSTACLES_MID   = 3;
-  const MAX_OBSTACLES_LATE  = 5;
+  const MAX_OBSTACLES_EARLY = 1;
+  const MAX_OBSTACLES_MID   = 2;
+  const MAX_OBSTACLES_LATE  = 4;
   const LANE_SWITCH_SPEED = 14; // lerp speed for smooth lane changes
 
   // ═══════════════════════════════════════
@@ -803,71 +803,158 @@
   // ═══════════════════════════════════════
   // DRAWING — OBSTACLES (improved)
   // ═══════════════════════════════════════
-  function drawBoulder(x, y, r) {
+  function drawBear(x, y, s) {
     ctx.save();
-
-    // Deep shadow for contrast against road
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
     ctx.beginPath();
-    ctx.ellipse(x + r * 0.1, y + r * 0.22, r * 0.92, r * 0.36, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, y + s * 0.42, s * 0.44, s * 0.1, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Main body — dark charcoal, high contrast against sand road
-    const grad = ctx.createRadialGradient(x - r * 0.2, y - r * 0.3, r * 0.06, x, y, r);
-    grad.addColorStop(0, '#6A6A72');
-    grad.addColorStop(0.3, '#484850');
-    grad.addColorStop(0.7, '#2A2A32');
-    grad.addColorStop(1, '#14141A');
-    ctx.fillStyle = grad;
+    // Legs — thick, short
+    ctx.fillStyle = '#3E2216';
+    [[-0.22, 0.22], [0.22, 0.22], [-0.14, -0.14], [0.14, -0.14]].forEach(([lx, ly]) => {
+      ctx.beginPath();
+      ctx.arc(x + lx * s, y + ly * s, s * 0.11, 0, Math.PI * 2);
+      ctx.fill();
+    });
 
-    // Jagged irregular shape
-    const segs = 14;
+    // Body — large, dark brown
+    const bodyGrad = ctx.createRadialGradient(x - s * 0.05, y - s * 0.08, s * 0.05, x, y, s * 0.45);
+    bodyGrad.addColorStop(0, '#6B3A2A');
+    bodyGrad.addColorStop(0.6, '#4A2216');
+    bodyGrad.addColorStop(1, '#2E120A');
+    ctx.fillStyle = bodyGrad;
     ctx.beginPath();
-    for (let i = 0; i < segs; i++) {
-      const a = (i / segs) * Math.PI * 2;
-      const j = 0.8 + Math.sin(i * 2.8 + 0.6) * 0.16 + Math.sin(i * 5.3 + 1) * 0.08 + Math.sin(i * 7.1) * 0.06;
-      const px = x + Math.cos(a) * r * j;
-      const py = y + Math.sin(a) * r * j;
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
-    }
-    ctx.closePath();
+    ctx.ellipse(x, y, s * 0.44, s * 0.32, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Top-edge highlight rim
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    // Head — round, forward
+    ctx.fillStyle = '#5A2E1E';
     ctx.beginPath();
-    ctx.arc(x - r * 0.18, y - r * 0.32, r * 0.28, 0, Math.PI * 2);
+    ctx.arc(x, y - s * 0.3, s * 0.2, 0, Math.PI * 2);
     ctx.fill();
 
-    // Secondary highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    // Snout — lighter
+    ctx.fillStyle = '#8B6040';
     ctx.beginPath();
-    ctx.arc(x - r * 0.22, y - r * 0.38, r * 0.09, 0, Math.PI * 2);
+    ctx.arc(x, y - s * 0.35, s * 0.1, 0, Math.PI * 2);
     ctx.fill();
 
-    // Deep crack lines
-    ctx.strokeStyle = 'rgba(0,0,0,0.45)';
-    ctx.lineWidth = r * 0.06;
+    // Ears — small rounds
+    ctx.fillStyle = '#4A2216';
+    [[-0.14, -0.42], [0.14, -0.42]].forEach(([ex, ey]) => {
+      ctx.beginPath();
+      ctx.arc(x + ex * s, y + ey * s, s * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Eyes — tiny dots
+    ctx.fillStyle = '#111';
+    ctx.beginPath();
+    ctx.arc(x - s * 0.06, y - s * 0.33, s * 0.025, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x + s * 0.06, y - s * 0.33, s * 0.025, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Claws hint
+    ctx.fillStyle = '#1A0A04';
+    [[-0.26, 0.32], [0.26, 0.32]].forEach(([cx, cy]) => {
+      ctx.beginPath();
+      ctx.arc(x + cx * s, y + cy * s, s * 0.04, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    ctx.restore();
+  }
+
+  function drawFox(x, y, s) {
+    ctx.save();
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.beginPath();
+    ctx.ellipse(x, y + s * 0.35, s * 0.3, s * 0.06, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Legs — thin, quick
+    ctx.strokeStyle = '#3A1E0E';
+    ctx.lineWidth = s * 0.06;
     ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.moveTo(x - r * 0.3, y - r * 0.35);
-    ctx.lineTo(x + r * 0.05, y - r * 0.1);
-    ctx.lineTo(x + r * 0.15, y + r * 0.25);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(x + r * 0.25, y - r * 0.45);
-    ctx.lineTo(x + r * 0.4, y + r * 0.05);
-    ctx.stroke();
+    [[-0.15, 0.12], [0.15, 0.12], [-0.08, -0.1], [0.08, -0.1]].forEach(([lx, ly]) => {
+      ctx.beginPath();
+      ctx.moveTo(x + lx * s, y + ly * s);
+      ctx.lineTo(x + lx * s, y + s * 0.3);
+      ctx.stroke();
+    });
 
-    // Bright moss patch for color pop
-    ctx.fillStyle = '#7CB342';
+    // Bushy tail — large, sweeping behind
+    ctx.fillStyle = '#D95A2B';
     ctx.beginPath();
-    ctx.arc(x + r * 0.3, y + r * 0.2, r * 0.22, 0, Math.PI * 2);
+    ctx.ellipse(x, y + s * 0.38, s * 0.35, s * 0.16, 0.2, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = '#8BC34A';
+    // White tail tip
+    ctx.fillStyle = '#FFF';
     ctx.beginPath();
-    ctx.arc(x + r * 0.28, y + r * 0.17, r * 0.16, 0, Math.PI * 2);
+    ctx.arc(x + s * 0.3, y + s * 0.35, s * 0.08, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Body — orange-red, compact
+    const bodyGrad = ctx.createRadialGradient(x, y - s * 0.05, s * 0.03, x, y, s * 0.32);
+    bodyGrad.addColorStop(0, '#F07030');
+    bodyGrad.addColorStop(0.5, '#D95A2B');
+    bodyGrad.addColorStop(1, '#B8401A');
+    ctx.fillStyle = bodyGrad;
+    ctx.beginPath();
+    ctx.ellipse(x, y, s * 0.3, s * 0.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // White chest/belly
+    ctx.fillStyle = '#FFF';
+    ctx.beginPath();
+    ctx.ellipse(x, y + s * 0.02, s * 0.18, s * 0.12, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Head — small, pointed
+    ctx.fillStyle = '#F07030';
+    ctx.beginPath();
+    ctx.arc(x, y - s * 0.22, s * 0.13, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Snout
+    ctx.fillStyle = '#FFF';
+    ctx.beginPath();
+    ctx.arc(x, y - s * 0.26, s * 0.06, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Ears — large triangles
+    ctx.fillStyle = '#D95A2B';
+    [[-0.08, -0.3], [0.08, -0.3]].forEach(([ex, ey]) => {
+      ctx.beginPath();
+      ctx.moveTo(x + ex * s, y + ey * s);
+      ctx.lineTo(x + (ex - 0.12) * s, y + (ey - 0.15) * s);
+      ctx.lineTo(x + (ex + 0.06) * s, y + (ey - 0.05) * s);
+      ctx.closePath();
+      ctx.fill();
+    });
+    // Inner ear
+    ctx.fillStyle = '#FFF';
+    [[-0.08, -0.3], [0.08, -0.3]].forEach(([ex, ey]) => {
+      ctx.beginPath();
+      ctx.moveTo(x + ex * s, y + (ey + 0.02) * s);
+      ctx.lineTo(x + (ex - 0.06) * s, y + (ey - 0.08) * s);
+      ctx.lineTo(x + (ex + 0.02) * s, y + (ey - 0.02) * s);
+      ctx.closePath();
+      ctx.fill();
+    });
+
+    // Eyes
+    ctx.fillStyle = '#111';
+    ctx.beginPath();
+    ctx.arc(x - s * 0.04, y - s * 0.24, s * 0.02, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x + s * 0.04, y - s * 0.24, s * 0.02, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
@@ -1318,7 +1405,7 @@
   // ═══════════════════════════════════════
   // GAME OBJECT SPAWNING
   // ═══════════════════════════════════════
-  const OBSTACLE_TYPES = ['boulder', 'deer', 'puddle'];
+  const OBSTACLE_TYPES = ['deer', 'bear', 'fox'];
 
   // Returns set of lanes occupied near the spawn zone (top of screen)
   function getBusyLanes() {
@@ -1363,15 +1450,14 @@
     let w = 0, h = 0, r = 0;
 
     switch (type) {
-      case 'boulder':
-        r = rand(14, 22);
-        break;
       case 'deer':
-        w = rand(35, 50);
+        w = rand(35, 50);  // medium
         break;
-      case 'puddle':
-        w = rand(50, 75);
-        h = rand(30, 45);
+      case 'bear':
+        w = rand(44, 60);  // large, slow-looking
+        break;
+      case 'fox':
+        w = rand(24, 36);  // small, darting
         break;
     }
 
@@ -1774,11 +1860,11 @@
     // ── Spawn obstacles ──
     // Determine max simultaneous obstacles based on distance
     let maxObs;
-    if (distance < 400) maxObs = MAX_OBSTACLES_EARLY;
-    else if (distance < 1200) maxObs = MAX_OBSTACLES_MID;
+    if (distance < 500) maxObs = MAX_OBSTACLES_EARLY;
+    else if (distance < 1500) maxObs = MAX_OBSTACLES_MID;
     else maxObs = MAX_OBSTACLES_LATE;
 
-    const gapSec = OBSTACLE_MIN_GAP * (BASE_SPEED / speed) * (BASE_SPEED / speed);
+    const gapSec = OBSTACLE_MIN_GAP * (BASE_SPEED / speed);
     if (distance - lastObstacleDist > speed * gapSec * 1.2 && obstacles.length < maxObs) {
       // Check which lanes are blocked near the spawn zone (top of screen)
       const nearSpawn = obstacles.filter(o => o.y < canvas.height * 0.25);
@@ -1910,10 +1996,9 @@
     obstacles.forEach(obs => {
       const sx = scaleX(obs.x), sy = obs.y;
       switch (obs.type) {
-        case 'boulder': drawBoulder(sx, sy, scaleV(obs.r)); break;
-        case 'log': drawLog(sx, sy, scaleV(obs.w), scaleV(obs.h)); break;
         case 'deer': drawDeer(sx, sy, scaleV(obs.w || 44)); break;
-        case 'puddle': drawPuddle(sx, sy, scaleV(obs.w), scaleV(obs.h)); break;
+        case 'bear': drawBear(sx, sy, scaleV(obs.w || 55)); break;
+        case 'fox':  drawFox(sx, sy, scaleV(obs.w || 30)); break;
       }
     });
 
