@@ -1,4 +1,4 @@
-const CACHE_NAME = 'wild-run-v4';
+const CACHE_NAME = 'wild-run-v5';
 
 self.addEventListener('install', event => {
   event.waitUntil(
