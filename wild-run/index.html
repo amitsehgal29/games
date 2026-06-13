@@ -51,17 +51,20 @@
   const LANE_CX = Array.from({length: LANES}, (_, i) => ROAD_X + LANE_W * i + LANE_W / 2);
 
   const PLAYER_Y_RATIO = 0.80;
-  const BASE_SPEED  = 180;
-  const MAX_SPEED   = 540;
-  const SPEED_STEP  = 30;
-  const DIST_PER_STEP = 500;
+  const BASE_SPEED  = 140;
+  const MAX_SPEED   = 480;
+  const SPEED_STEP  = 22;
+  const DIST_PER_STEP = 600;
 
   const FUEL_MAX     = 100;
-  const FUEL_DRAIN   = 2.4;
-  const FUEL_PICKUP  = 28;
+  const FUEL_DRAIN   = 1.6;
+  const FUEL_PICKUP  = 35;
 
-  const OBSTACLE_MIN_GAP = 0.45;
-  const COLLECTIBLE_CHANCE = 0.28;
+  const OBSTACLE_MIN_GAP = 0.60;
+  const COLLECTIBLE_CHANCE = 0.38;
+  const MAX_OBSTACLES_EARLY = 1;
+  const MAX_OBSTACLES_MID   = 2;
+  const MAX_OBSTACLES_LATE  = 3;
   const LANE_SWITCH_SPEED = 14; // lerp speed for smooth lane changes
 
   // ═══════════════════════════════════════
@@ -1023,10 +1026,10 @@
   // ═══════════════════════════════════════
   // GAME OBJECT SPAWNING
   // ═══════════════════════════════════════
-  const OBSTACLE_TYPES = ['boulder', 'log', 'deer', 'puddle'];
+  const OBSTACLE_TYPES = ['boulder', 'log'];
 
   function spawnObstacle() {
-    const type = OBSTACLE_TYPES[randInt(0, 3)];
+    const type = OBSTACLE_TYPES[randInt(0, 1)];
     const lane = randInt(0, LANES - 1);
     const x = LANE_CX[lane];
     let w = 0, h = 0, r = 0;
@@ -1034,27 +1037,12 @@
 
     switch (type) {
       case 'boulder':
-        r = rand(20, 30);
+        r = rand(14, 22);
         break;
       case 'log':
-        w = rand(58, 90);
-        h = rand(16, 24);
-        if (Math.random() < 0.35 && lane < LANES - 1) {
-          occupiesLanes.push(lane + 1);
-          w += LANE_W;
-        }
-        break;
-      case 'deer':
-        w = rand(35, 55);  // used as scale
-        h = 0;
-        break;
-      case 'puddle':
-        w = rand(55, 85);
-        h = rand(35, 50);
-        if (Math.random() < 0.3 && lane < LANES - 1) {
-          occupiesLanes.push(lane + 1);
-          w += LANE_W * 0.8;
-        }
+        w = rand(42, 58);
+        h = rand(12, 18);
+        // Logs always single-lane, never span
         break;
     }
 
@@ -1081,7 +1069,7 @@
       const closestY = clamp(cy, py - ph / 2, py + ph / 2);
       return (cx - closestX) ** 2 + (cy - closestY) ** 2 < or * or;
     }
-    const margin = pw * 0.22;
+    const margin = pw * 0.32;
     return (
       px + pw / 2 - margin > ox - ow / 2 &&
       px - pw / 2 + margin < ox + ow / 2 &&
@@ -1337,12 +1325,23 @@
     }
 
     // ── Spawn obstacles ──
+    // Determine max simultaneous obstacles based on distance
+    let maxObs;
+    if (distance < 600) maxObs = MAX_OBSTACLES_EARLY;
+    else if (distance < 1800) maxObs = MAX_OBSTACLES_MID;
+    else maxObs = MAX_OBSTACLES_LATE;
+
     const gapSec = OBSTACLE_MIN_GAP * (BASE_SPEED / speed);
-    if (distance - lastObstacleDist > speed * gapSec * 1.2) {
-      spawnObstacle();
-      lastObstacleDist = distance;
-      if (Math.random() < 0.3 && speed > BASE_SPEED * 1.3) {
-        setTimeout(() => { if (state === 'playing') spawnObstacle(); }, rand(180, 450));
+    if (distance - lastObstacleDist > speed * gapSec * 1.2 && obstacles.length < maxObs) {
+      // Check which lanes are blocked near the spawn zone (top of screen)
+      const nearSpawn = obstacles.filter(o => o.y < canvas.height * 0.25);
+      const blockedLanes = new Set();
+      nearSpawn.forEach(o => o.lanes.forEach(l => blockedLanes.add(l)));
+
+      // Only spawn if at least 1 lane is free (always leave a path)
+      if (blockedLanes.size < LANES) {
+        spawnObstacle();
+        lastObstacleDist = distance;
       }
     }
 
