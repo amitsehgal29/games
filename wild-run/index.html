@@ -1162,56 +1162,29 @@
     ctx.beginPath();
     ctx.ellipse(x + s*0.05, y + s*0.35, s*0.4, s*0.12, 0, 0, Math.PI * 2);
     ctx.fill();
-
     // Outer glow — red pulse
     const glowPulse = 0.35 + Math.sin(elapsedTime * 5.5) * 0.2;
     ctx.globalAlpha = glowPulse;
     ctx.fillStyle = '#8B0000';
     ctx.beginPath(); ctx.arc(x, y, s*1.0, 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = 1;
-
-    // Gas pump body — same design as icon
-    const bw = s * 0.5, bh = s * 1.0;
-    const bx = x - bw/2, by = y - bh/2;
-
-    // Pump body — dark frame
-    ctx.fillStyle = '#2A2A2A';
-    roundRect(bx, by, bw, bh, bw * 0.25);
+    // Simple gas pump — same design as icon, larger
+    const pw = s * 0.5, ph = s * 0.8;
+    ctx.fillStyle = '#D32F2F';
+    roundRect(x - pw/2, y - ph/2, pw, ph, s * 0.1);
     ctx.fill();
-
-    // Red painted panel
-    const redGrad = ctx.createLinearGradient(bx, by, bx + bw, by);
-    redGrad.addColorStop(0, '#B71C1C'); redGrad.addColorStop(0.5, '#E53935');
-    redGrad.addColorStop(1, '#8B0000');
-    ctx.fillStyle = redGrad;
-    roundRect(bx + bw*0.1, by + bh*0.45, bw*0.8, bh*0.48, bw*0.1);
+    ctx.fillStyle = '#222';
+    roundRect(x - pw/2, y - ph/2, pw, ph * 0.2, s * 0.08);
     ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    roundRect(bx + bw*0.1, by + bh*0.45, bw*0.8, bh*0.12, bw*0.08);
-    ctx.fill();
-
-    // Display screen
-    ctx.fillStyle = '#1A1A1A';
-    roundRect(bx + bw*0.15, by + bh*0.12, bw*0.7, bh*0.28, bw*0.08);
-    ctx.fill();
-    ctx.fillStyle = '#3A5A3A';
-    roundRect(bx + bw*0.2, by + bh*0.16, bw*0.6, bh*0.2, bw*0.06);
-    ctx.fill();
-
-    // Base
-    ctx.fillStyle = '#333';
-    roundRect(bx - bw*0.08, by + bh*0.92, bw*1.16, bh*0.1, bw*0.1);
-    ctx.fill();
-
-    // Hose
-    ctx.strokeStyle = '#1A1A1A';
-    ctx.lineWidth = s * 0.07; ctx.lineCap = 'round';
+    ctx.fillStyle = '#4A4A4A';
+    ctx.beginPath(); ctx.arc(x, y - ph*0.25, s*0.05, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#222'; ctx.lineWidth = s * 0.05; ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(x + bw*0.5, y + bh*0.25);
-    ctx.quadraticCurveTo(x + bw*0.9, y + bh*0.25, x + bw*0.85, y + bh*0.55);
+    ctx.moveTo(x + pw*0.5, y + ph*0.1);
+    ctx.lineTo(x + pw*0.7, y + ph*0.15);
     ctx.stroke();
     ctx.fillStyle = '#444';
-    ctx.beginPath(); ctx.arc(x + bw*0.85, y + bh*0.55, s*0.06, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + pw*0.7, y + ph*0.15, s*0.04, 0, Math.PI*2); ctx.fill();
   }
 
   // ═══════════════════════════════════════
@@ -1395,57 +1368,29 @@
     ctx.beginPath(); ctx.moveTo(x + s*0.02, y - s*0.28); ctx.lineTo(x + s*0.12, y - s*0.2); ctx.stroke();
   }
 
-  function drawFuelIcon(x, y, s, color) {
-    const c = color || '#D32F2F';
-    // Gas station pump — tall unit with display, red body, hose
-    const bw = s * 0.36, bh = s * 0.9;
-    const bx = x - bw/2, by = y - bh/2;
-
-    // Pump body — dark frame
-    ctx.fillStyle = '#2A2A2A';
-    roundRect(bx, by, bw, bh, bw * 0.25);
+  function drawFuelIcon(x, y, s) {
+    // Simple gas pump — red body, dark frame, tiny display, hose
+    const w = s * 0.5, h = s * 0.8;
+    // Body
+    ctx.fillStyle = '#D32F2F';
+    roundRect(x - w/2, y - h/2, w, h, s * 0.1);
     ctx.fill();
-
-    // Red painted panel (lower portion)
-    ctx.fillStyle = c;
-    roundRect(bx + bw*0.1, by + bh*0.45, bw*0.8, bh*0.5, bw*0.1);
+    // Dark top cap
+    ctx.fillStyle = '#222';
+    roundRect(x - w/2, y - h/2, w, h * 0.2, s * 0.08);
     ctx.fill();
-    // Red panel highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    roundRect(bx + bw*0.1, by + bh*0.45, bw*0.8, bh*0.15, bw*0.08);
-    ctx.fill();
-
-    // Display screen (upper portion)
-    ctx.fillStyle = '#1A1A1A';
-    roundRect(bx + bw*0.15, by + bh*0.12, bw*0.7, bh*0.28, bw*0.08);
-    ctx.fill();
-    // Screen glow
-    ctx.fillStyle = '#3A5A3A';
-    roundRect(bx + bw*0.2, by + bh*0.16, bw*0.6, bh*0.2, bw*0.06);
-    ctx.fill();
-    // Screen digits
-    ctx.fillStyle = '#6FA86F';
-    ctx.font = `900 ${s*0.2}px monospace`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('88', x, by + bh*0.26);
-
-    // Base
-    ctx.fillStyle = '#333';
-    roundRect(bx - bw*0.08, by + bh*0.92, bw*1.16, bh*0.1, bw*0.1);
-    ctx.fill();
-
-    // Hose from right side curving down
-    ctx.strokeStyle = '#1A1A1A';
-    ctx.lineWidth = s * 0.06; ctx.lineCap = 'round';
+    // Display dot
+    ctx.fillStyle = '#4A4A4A';
+    ctx.beginPath(); ctx.arc(x, y - h*0.25, s*0.05, 0, Math.PI*2); ctx.fill();
+    // Hose line
+    ctx.strokeStyle = '#222'; ctx.lineWidth = s * 0.05; ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(x + bw*0.5, y + bh*0.25);
-    ctx.quadraticCurveTo(x + bw*0.9, y + bh*0.25, x + bw*0.85, y + bh*0.55);
+    ctx.moveTo(x + w*0.5, y + h*0.1);
+    ctx.lineTo(x + w*0.7, y + h*0.15);
     ctx.stroke();
     // Nozzle tip
     ctx.fillStyle = '#444';
-    ctx.beginPath(); ctx.arc(x + bw*0.85, y + bh*0.55, s*0.05, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = '#666';
-    ctx.beginPath(); ctx.arc(x + bw*0.85, y + bh*0.55, s*0.03, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + w*0.7, y + h*0.15, s*0.04, 0, Math.PI*2); ctx.fill();
   }
 
   function drawSpeakerIcon(x, y, s, isMuted) {
@@ -1777,7 +1722,7 @@
     ctx.fillText('  Fruit = points', rightCardX + scaleV(24), fRowY + scaleV(1));
     // Fuel
     const fuRowY = fRowY + lh;
-    drawFuelIcon(rightCardX + scaleV(14), fuRowY + scaleV(4), scaleV(9), '#F44336');
+    drawFuelIcon(rightCardX + scaleV(14), fuRowY + scaleV(4), scaleV(9));
     ctx.fillText('  Fuel can = keep going', rightCardX + scaleV(24), fuRowY + scaleV(1));
 
     // ── Dodge tip line ──
