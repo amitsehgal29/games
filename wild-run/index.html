@@ -39,11 +39,13 @@
     const w = Math.min(window.innerWidth, MAX_W);
     canvas.width = w;
     canvas.height = window.innerHeight;
-    // Redistribute tree Y positions after resize so trees don't all shift above viewport
-    if (treesL) treesL.forEach(t => { if (t.y > canvas.height + 80) t.y = rand(-80, 0); });
-    if (treesR) treesR.forEach(t => { if (t.y > canvas.height + 80) t.y = rand(-80, 0); });
   }
-  window.addEventListener('resize', resize);
+
+  function redistributeTrees() {
+    treesL.forEach(t => { if (t.y > canvas.height + 80) t.y = rand(-80, 0); });
+    treesR.forEach(t => { if (t.y > canvas.height + 80) t.y = rand(-80, 0); });
+  }
+  window.addEventListener('resize', () => { resize(); redistributeTrees(); });
   resize();
 
   // ═══════════════════════════════════════
