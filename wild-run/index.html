@@ -18,7 +18,7 @@
       -webkit-tap-highlight-color: transparent;
       user-select: none; -webkit-user-select: none;
     }
-    canvas { display: block; max-width: 500px; width: 100%; }
+    canvas { display: block; max-width: 480px; width: 100%; }
   </style>
 </head>
 <body>
@@ -39,6 +39,9 @@
     const w = Math.min(window.innerWidth, MAX_W);
     canvas.width = w;
     canvas.height = window.innerHeight;
+    // Redistribute tree Y positions after resize so trees don't all shift above viewport
+    if (treesL) treesL.forEach(t => { if (t.y > canvas.height + 80) t.y = rand(-80, 0); });
+    if (treesR) treesR.forEach(t => { if (t.y > canvas.height + 80) t.y = rand(-80, 0); });
   }
   window.addEventListener('resize', resize);
   resize();
@@ -144,6 +147,7 @@
   let treesL = [];
   let treesR = [];
   let frameCount = 0;
+  let elapsedTime = 0;
   let highScore = parseInt(safeLS('wildrun_hs')) || 0;
   let highDist  = parseInt(safeLS('wildrun_hd')) || 0;
   let lastObstacleDist = 0;
@@ -152,9 +156,12 @@
   let shakeTimer = 0;
   let nearMissTimer = 0;
   let fuelThresholds = new Set();   // which fuel thresholds have been triggered
+  let nitroRefilled = false;
+  let boostSwipeActive = false;
   let lastFrameTime = performance.now();
   let laneSwitchCooldown = 0;
   let lastDt = 0.016;              // stored for render-only consumers (clouds)
+  let pickupTimeout = null;
 
   // Audio
   let audioCtx = null;
@@ -248,7 +255,8 @@
 
   function sfxPickup() {
     playTone(660, 880, 0.12, 'sine', 0.12, 0.12);
-    setTimeout(() => { if (!muted && audioCtx) playTone(880, 1100, 0.1, 'sine', 0.1, 0.1); }, 60);
+    if (pickupTimeout) clearTimeout(pickupTimeout);
+    pickupTimeout = setTimeout(() => { if (!muted && audioCtx) playTone(880, 1100, 0.1, 'sine', 0.1, 0.1); }, 60);
   }
 
   function sfxFuelPickup() {
@@ -296,6 +304,7 @@
     const noiseGain = audioCtx.createGain();
     noiseGain.gain.setValueAtTime(0.3, t);
     engineNodes.push(bs);
+    engineNodes.push(noiseFilter, noiseGain);
 
     engineGain = audioCtx.createGain();
     engineGain.gain.setValueAtTime(0.018, t);
@@ -313,7 +322,7 @@
   }
 
   function stopEngine() {
-    engineNodes.forEach(n => { try { n.stop(); } catch(e) {} });
+    engineNodes.forEach(n => { try { n.stop(); } catch(e) {} try { n.disconnect(); } catch(e) {} });
     engineNodes = [];
     engineGain = null;
   }
@@ -348,12 +357,13 @@
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
   function lerp(a, b, t) { return a + (b - a) * t; }
   function safeLS(key, val) {
-    try { if (val !== undefined) safeLS(key, val); else return safeLS(key); }
-    catch(e) { return val !== undefined ? null : null; }
+    try {
+      if (val !== undefined) { localStorage.setItem(key, String(val)); return; }
+      return localStorage.getItem(key);
+    } catch(e) { return val !== undefined ? null : null; }
   }
 
   function scaleX(x) { return x * (canvas.width / GAME_W); }
-  function scaleY(y) { return y * (canvas.width / GAME_W); }
   function scaleV(v) { return v * (canvas.width / GAME_W); }
 
   function roundRect(x, y, w, h, r) {
@@ -396,8 +406,6 @@
 
   function drawClouds(dt) {
     clouds.forEach(c => {
-      c.x += c.speed * dt;
-      if (c.x > GAME_W + 140) c.x = -140;
       const cx = scaleX(c.x), cy = c.y;
       const w = scaleV(c.w), h = w * 0.4;
 
@@ -476,7 +484,7 @@
     birds.forEach(b => {
       const bx = scaleX(b.x), by = b.y;
       const wingSpan = scaleV(b.size);
-      const wingUp = Math.sin(frameCount * b.flapSpeed + b.phase) * wingSpan * 0.4;
+      const wingUp = Math.sin(elapsedTime * b.flapSpeed * 60 + b.phase) * wingSpan * 0.4;
 
       ctx.strokeStyle = '#3A3A3A';
       ctx.lineWidth = scaleV(1.5);
@@ -597,9 +605,9 @@
     };
   }
 
-  function drawTree(tree, scrollSpeed) {
+  function drawTree(tree) {
     const x = scaleX(tree.x), y = tree.y, s = scaleV(tree.size);
-    const sway = Math.sin(frameCount * 0.018 + tree.sway) * s * 0.06;
+    const sway = Math.sin(elapsedTime * 1.1 + tree.sway) * s * 0.06;
 
     // Trunk
     ctx.fillStyle = '#6B4226';
@@ -1074,9 +1082,9 @@
   // DRAWING — COLLECTIBLES
   // ═══════════════════════════════════════
   function drawFruit(x, y, r) {
-    const pulse = 1 + Math.sin(frameCount * 0.08) * 0.12;
-    const glowPulse = 0.55 + Math.sin(frameCount * 0.1 + 1) * 0.35;
-    const sparklePhase = frameCount * 0.12;
+    const pulse = 1 + Math.sin(elapsedTime * 5) * 0.12;
+    const glowPulse = 0.55 + Math.sin(elapsedTime * 6 + 1) * 0.35;
+    const sparklePhase = elapsedTime * 7;
     const r2 = r * pulse;
 
     // Outer pulsing glow rings
@@ -1179,7 +1187,7 @@
     ctx.fill();
 
     // Outer glow ring
-    const glowPulse = 0.35 + Math.sin(frameCount * 0.09) * 0.2;
+    const glowPulse = 0.35 + Math.sin(elapsedTime * 5.5) * 0.2;
     ctx.globalAlpha = glowPulse;
     ctx.fillStyle = '#8B0000';
     ctx.beginPath();
@@ -1307,19 +1315,6 @@
   const OBSTACLE_TYPES = ['deer', 'bear', 'sheep'];
   const MIN_OBJECT_GAP = 250;  // px — no two objects in same lane within this Y distance
 
-  // Returns which lanes have any object (obstacle or collectible) within minGap of targetY
-  function getLanesNear(objs, targetY, minGap) {
-    const busy = new Set();
-    for (const o of objs) {
-      const oy = o.y !== undefined ? o.y : o.y;
-      if (Math.abs(oy - targetY) < minGap) {
-        if (o.lanes) o.lanes.forEach(l => busy.add(l));
-        else if (o.lane !== undefined) busy.add(o.lane);
-      }
-    }
-    return busy;
-  }
-
   // Assign a lane that has NO object (obstacle or collectible) within MIN_OBJECT_GAP
   function assignClearLane(spawnY) {
     const minGap = MIN_OBJECT_GAP;
@@ -1350,7 +1345,7 @@
   }
 
   function spawnObstacle() {
-    const type = OBSTACLE_TYPES[randInt(0, 2)];
+    const type = OBSTACLE_TYPES[randInt(0, OBSTACLE_TYPES.length - 1)];
     const lane = assignClearLane(-50);
     const x = LANE_CX[lane];
     let w = 0, h = 0, r = 0;
@@ -1592,9 +1587,9 @@
 
     // ── Floating particles (animated) ──
     for (let i = 0; i < 12; i++) {
-      const px = (Math.sin(frameCount * 0.015 + i * 1.7) * 0.4 + 0.5) * canvas.width;
-      const py = (Math.cos(frameCount * 0.02 + i * 2.1) * 0.3 + 0.5) * canvas.height * 0.7;
-      const alpha = 0.15 + Math.sin(frameCount * 0.03 + i) * 0.08;
+      const px = (Math.sin(elapsedTime * 0.9 + i * 1.7) * 0.4 + 0.5) * canvas.width;
+      const py = (Math.cos(elapsedTime * 1.2 + i * 2.1) * 0.3 + 0.5) * canvas.height * 0.7;
+      const alpha = 0.15 + Math.sin(elapsedTime * 1.8 + i) * 0.08;
       ctx.fillStyle = `rgba(255,220,150,${alpha})`;
       ctx.beginPath();
       ctx.arc(px, py, scaleV(2), 0, Math.PI * 2);
@@ -1735,7 +1730,7 @@
     const btnH = scaleV(60);
     const btnX = cx - btnW / 2;
     const btnY = tipY + scaleV(20);
-    const pulse = 1 + Math.sin(frameCount * 0.06) * 0.04;
+    const pulse = 1 + Math.sin(elapsedTime * 3.5) * 0.04;
 
     // Outer glow
     ctx.shadowColor = 'rgba(255,140,0,0.5)';
@@ -1756,6 +1751,7 @@
     ctx.fill();
 
     ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
 
     // Button border
     ctx.strokeStyle = 'rgba(255,255,255,0.4)';
@@ -1812,16 +1808,8 @@
     ctx.font = `600 ${scaleV(16)}px 'Fredoka', system-ui, sans-serif`;
     ctx.fillText(`${Math.floor(distance)}m`, cx, statsY + scaleV(32));
 
-    let newBest = false;
-    if (score > highScore) {
-      newBest = true;
-      highScore = score;
-      safeLS('wildrun_hs', highScore);
-    }
-    if (distance > highDist) {
-      highDist = Math.floor(distance);
-      safeLS('wildrun_hd', highDist);
-    }
+    const prevHigh = highScore;
+    const newBest = score > prevHigh;
 
     if (newBest) {
       ctx.fillStyle = '#FFD93D';
@@ -1901,7 +1889,10 @@
     shakeTimer = 0;
     nearMissTimer = 0;
     fuelThresholds = new Set();
+    nitroRefilled = false;
+    boostSwipeActive = false;
     laneSwitchCooldown = 0;
+    if (pickupTimeout) { clearTimeout(pickupTimeout); pickupTimeout = null; }
     stopEngine();
   }
 
@@ -1916,7 +1907,7 @@
 
     let effectiveSpeed = speed;
     if (nitroActive && nitroFuel > 0) {
-      effectiveSpeed *= 1.5;
+      effectiveSpeed = Math.min(speed * 1.5, MAX_SPEED * 1.2);
       nitroFuel -= dtC * 22;
       fuel -= FUEL_DRAIN * dtC * 1.35;
     } else {
@@ -2027,6 +2018,7 @@
           sfxPickup();
         } else {
           fuel = clamp(fuel + FUEL_PICKUP, 0, FUEL_MAX);
+          fuelThresholds = new Set();
           spawnCollectFX(c.x, cy, '#D9442F');
           sfxFuelPickup();
         }
@@ -2055,12 +2047,14 @@
       if (b.x > GAME_W + 60) b.x = -60;
       if (b.x < -60) b.x = GAME_W + 60;
     });
+    clouds.forEach(c => { c.x += c.speed * dtC; if (c.x > GAME_W + 140) c.x = -140; });
   }
 
   function endGame() {
     state = 'over';
     stopEngine();
     sfxCrash();
+    if (pickupTimeout) { clearTimeout(pickupTimeout); pickupTimeout = null; }
     if (score > highScore) { highScore = score; safeLS('wildrun_hs', highScore); }
     if (distance > highDist) { highDist = Math.floor(distance); safeLS('wildrun_hd', highDist); }
     shakeTimer = 0.35;
@@ -2088,24 +2082,23 @@
     drawRoad();
 
     // Trees
-    const scrSpd = speed * (nitroActive ? 1.5 : 1);
-    treesL.forEach(t => drawTree(t, scrSpd));
-    treesR.forEach(t => drawTree(t, scrSpd));
+    treesL.forEach(t => drawTree(t));
+    treesR.forEach(t => drawTree(t));
 
-    // Collectibles
-    collectibles.forEach(c => {
-      const sx = scaleX(c.x), sy = c.y;
-      if (c.type === 'fruit') drawFruit(sx, sy, scaleV(15));
-      else drawFuelCan(sx, sy, scaleV(26), scaleV(32));
-    });
-
-    // Obstacles
-    obstacles.forEach(obs => {
-      const sx = scaleX(obs.x), sy = obs.y;
-      switch (obs.type) {
-        case 'deer': drawDeer(sx, sy, scaleV(obs.w || 44)); break;
-        case 'bear': drawBear(sx, sy, scaleV(obs.w || 55)); break;
-        case 'sheep':  drawSheep(sx, sy, scaleV(obs.w || 48)); break;
+    // All objects sorted by y for correct z-order
+    const allObjects = [...collectibles.map(c => ({...c, _t: 'c'})), ...obstacles.map(o => ({...o, _t: 'o'}))];
+    allObjects.sort((a, b) => a.y - b.y);
+    allObjects.forEach(obj => {
+      const sx = scaleX(obj.x), sy = obj.y;
+      if (obj._t === 'c') {
+        if (obj.type === 'fruit') drawFruit(sx, sy, scaleV(15));
+        else drawFuelCan(sx, sy, scaleV(26), scaleV(32));
+      } else {
+        switch (obj.type) {
+          case 'deer': drawDeer(sx, sy, scaleV(obj.w || 44)); break;
+          case 'bear': drawBear(sx, sy, scaleV(obj.w || 55)); break;
+          case 'sheep':  drawSheep(sx, sy, scaleV(obj.w || 48)); break;
+        }
       }
     });
 
@@ -2156,6 +2149,7 @@
     const dt = (ts - lastFrameTime) / 1000;
     lastFrameTime = ts;
     frameCount++;
+    elapsedTime += dt;
     update(dt);
     render();
     requestAnimationFrame(gameLoop);
@@ -2177,42 +2171,48 @@
     }
   }
   function boostOn() {
-    if (state === 'playing') { nitroActive = true; if (nitroFuel <= 0) nitroFuel = 60; }
+    if (state === 'playing') { nitroActive = true; if (nitroFuel <= 0 && !nitroRefilled) { nitroFuel = 60; nitroRefilled = true; } }
   }
-  function boostOff() { nitroActive = false; }
+  function boostOff() { nitroActive = false; nitroRefilled = false; }
 
   window.addEventListener('keydown', e => {
-    if (e.key === 'ArrowLeft' || e.key === 'a') moveLeft();
-    if (e.key === 'ArrowRight' || e.key === 'd') moveRight();
-    if (e.key === 'ArrowUp' || e.key === 'w') boostOn();
+    if (e.key === 'ArrowLeft' || e.key === 'a') { moveLeft(); e.preventDefault(); }
+    if (e.key === 'ArrowRight' || e.key === 'd') { moveRight(); e.preventDefault(); }
+    if (e.key === 'ArrowUp' || e.key === 'w') { boostOn(); e.preventDefault(); }
     if (e.key === ' ' || e.key === 'Enter') {
-      if (state === 'title' || state === 'over') startGame();
+      if (state === 'title' || state === 'over') { startGame(); e.preventDefault(); }
     }
-    e.preventDefault();
   });
   window.addEventListener('keyup', e => {
     if (e.key === 'ArrowUp' || e.key === 'w') boostOff();
   });
 
   let touchStartY = 0;
+  let muteToggledByTouch = false;
   canvas.addEventListener('touchstart', e => {
     e.preventDefault();
     const rect = canvas.getBoundingClientRect();
+    let steerApplied = false;
     for (const t of e.changedTouches) {
       const tx = t.clientX - rect.left, ty = t.clientY - rect.top;
-      touchStartY = t.clientY;
 
       // Mute button check first — don't steal its tap
       if (canvas._muteBtn) {
         const b = canvas._muteBtn;
         if (tx >= b.x && tx <= b.x + b.w && ty >= b.y && ty <= b.y + b.h) {
           toggleMute();
+          muteToggledByTouch = true;
           return;
         }
       }
 
+      touchStartY = t.clientY;
+      boostSwipeActive = false;
+
       if (state === 'title' || state === 'over') { startGame(); return; }
       if (state === 'playing') {
+        if (steerApplied) continue;
+        steerApplied = true;
         if (tx < rect.width / 2) moveLeft();
         else moveRight();
       }
@@ -2221,9 +2221,9 @@
   canvas.addEventListener('touchmove', e => {
     e.preventDefault();
     for (const t of e.changedTouches) {
-      // Swipe up > 40px from initial touch point = boost
-      if (touchStartY - t.clientY > 40) boostOn();
-      else boostOff();
+      // Swipe up > 40px from initial touch point = boost (latched)
+      if (!boostSwipeActive && touchStartY - t.clientY > 40) boostSwipeActive = true;
+      if (boostSwipeActive) boostOn(); else boostOff();
     }
   }, { passive: false });
   canvas.addEventListener('touchend', e => { e.preventDefault(); boostOff(); }, { passive: false });
@@ -2235,6 +2235,7 @@
 
     // Mute button (always clickable)
     if (canvas._muteBtn) {
+      if (muteToggledByTouch) { muteToggledByTouch = false; return; }
       const b = canvas._muteBtn;
       if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) {
         toggleMute();
