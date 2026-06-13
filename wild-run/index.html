@@ -2171,6 +2171,11 @@
     render();
     lastFrameTime = performance.now();
     requestAnimationFrame(gameLoop);
+
+    // Register service worker for offline play
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
   }
 
   init();
