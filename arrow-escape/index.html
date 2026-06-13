@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Arrow Escape</title>
-  <meta name="description" content="Tap arrows to escape the grid — a nature-themed logic puzzle!">
+  <meta name="description" content="A sleek logic puzzle — tap arrows in the right order to clear the grid">
   <meta property="og:title" content="Arrow Escape">
-  <meta property="og:description" content="Tap arrows to escape the grid — a nature-themed logic puzzle!">
+  <meta property="og:description" content="A sleek logic puzzle — tap arrows in the right order to clear the grid">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://amitsehgal29.github.io/games/arrow-escape/">
   <meta property="og:image" content="https://amitsehgal29.github.io/games/arrow-escape/icon.svg">
@@ -14,19 +14,19 @@
   <link rel="icon" type="image/svg+xml" href="icon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
       width: 100%; height: 100%; overflow: hidden;
-      background: #1a1a2e;
+      background: #0A0E1A;
       display: flex; justify-content: center; align-items: center;
-      font-family: 'Fredoka', system-ui, sans-serif;
+      font-family: 'Outfit', system-ui, sans-serif;
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
       user-select: none; -webkit-user-select: none;
     }
-    canvas { display: block; max-width: 500px; width: 100%; }
+    canvas { display: block; max-width: 480px; width: 100%; border-radius: 16px; }
   </style>
 </head>
 <body>
@@ -53,7 +53,6 @@
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
   function rand(min, max) { return min + Math.random() * (max - min); }
   function randInt(min, max) { return Math.floor(rand(min, max + 1)); }
-  function lerp(a, b, t) { return a + (b - a) * t; }
 
   function roundRect(x, y, w, h, r) {
     ctx.beginPath();
@@ -74,21 +73,29 @@
     } catch(e) { return val !== undefined ? null : null; }
   }
 
-  // ── Colors ──
+  // ── Colors — Dark theme with neon accents ──
   const C = {
-    bgTop: '#1B3A1B', bgBot: '#0D1F0D',
-    boardLight: '#D4A96A', boardDark: '#B8894A', boardEdge: '#8B5E3C',
-    cellLight: '#E8D5B0', cellDark: '#D4C098',
-    arrowBase: '#5C3A1E', arrowGlow: '#FF9800',
-    arrowDir: '#FFD54F',
-    heartFull: '#E53935', heartEmpty: '#555',
-    text: '#FFF', textDark: '#3A2A1A',
-    btnGreen: '#4CAF50', btnOrange: '#FF9800',
-    hudBg: 'rgba(0,0,0,0.55)',
-    leaf: '#6B9E38', leafDark: '#4A7A28',
+    bg1: '#0A0E1A', bg2: '#141829', bg3: '#1A1F33',
+    surface: 'rgba(255,255,255,0.04)',
+    border: 'rgba(255,255,255,0.08)',
+    borderGlow: 'rgba(255,255,255,0.15)',
+    cellEven: 'rgba(255,255,255,0.04)',
+    cellOdd: 'rgba(255,255,255,0.02)',
+    arrowBase: '#1E2440',
+    arrowBorder: 'rgba(255,255,255,0.2)',
+    dirColors: { up: '#FF6B6B', down: '#4ECDC4', left: '#FFD93D', right: '#6BCB77' },
+    safeGlow: 'rgba(108,203,119,0.5)',
+    dangerGlow: 'rgba(255,107,107,0.5)',
+    heartFull: '#FF4757', heartEmpty: 'rgba(255,255,255,0.12)',
+    text: '#FFFFFF', textDim: 'rgba(255,255,255,0.6)', textMuted: 'rgba(255,255,255,0.35)',
+    accent: '#6C63FF', accentGlow: 'rgba(108,99,255,0.4)',
+    overlay: 'rgba(10,14,26,0.85)',
+    btnPrimary: '#6C63FF',
+    btnSuccess: '#2ED573',
+    btnDanger: '#FF4757',
   };
 
-  // ── Directions: dx,dy for grid movement ──
+  // ── Directions ──
   const DIRS = {
     up:    { dx: 0, dy: -1, symbol: '↑', angle: -Math.PI/2 },
     down:  { dx: 0, dy: 1,  symbol: '↓', angle: Math.PI/2 },
@@ -98,159 +105,115 @@
   const DIR_KEYS = Object.keys(DIRS);
 
   // ── State ──
-  let state = 'title'; // title | playing | animating | levelComplete | over
-  let level = 1;
-  let lives = 3;
-  let maxLives = 3;
-  let gridSize = 3;
-  let arrows = [];       // {row, col, dir, alive, slideX, slideY, opacity}
-  let animArrow = null;  // currently animating arrow
-  let animProgress = 0;
-  let totalLevels = 0;
-  let solvedThisSession = 0;
+  let state = 'title';
+  let level = 1, gridCols = 3, gridRows = 4;
+  let arrows = [];
+  let animArrow = null, animProgress = 0;
   let highLevel = parseInt(safeLS('arrowescape_lv')) || 1;
-  let elapsedTime = 0;
-  let lastFrameTime = performance.now();
-  let frameCount = 0;
+  let elapsedTime = 0, lastFrameTime = performance.now();
 
   // Audio
-  let audioCtx = null;
-  let muted = true; // default muted
-
-  // ── Audio ──
+  let audioCtx = null, muted = true;
   function initAudio() {
     if (!audioCtx) {
       try {
         const AC = window.AudioContext || window.webkitAudioContext;
-        if (AC) {
-          audioCtx = new AC();
-          if (audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
-        }
+        if (AC) { audioCtx = new AC(); if (audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{}); }
       } catch(e) { audioCtx = null; }
     } else if (audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
     return audioCtx;
   }
-
-  function playTone(freq, endFreq, dur, type, vol) {
+  function playTone(f, e, d, t, v) {
     if (muted || !audioCtx) return;
     try {
-      const t = audioCtx.currentTime;
-      const o = audioCtx.createOscillator();
-      const g = audioCtx.createGain();
-      o.type = type || 'sine';
-      o.frequency.setValueAtTime(freq, t);
-      if (endFreq) o.frequency.linearRampToValueAtTime(endFreq, t + dur);
-      g.gain.setValueAtTime(vol || 0.1, t);
-      g.gain.exponentialRampToValueAtTime(0.001, t + dur);
-      o.connect(g); g.connect(audioCtx.destination);
-      o.start(t); o.stop(t + dur);
-    } catch(e) {}
+      const ti = audioCtx.currentTime, o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = t || 'sine'; o.frequency.setValueAtTime(f, ti);
+      if (e) o.frequency.linearRampToValueAtTime(e, ti + d);
+      g.gain.setValueAtTime(v||0.1, ti); g.gain.exponentialRampToValueAtTime(0.001, ti+d);
+      o.connect(g); g.connect(audioCtx.destination); o.start(ti); o.stop(ti+d);
+    } catch(x) {}
   }
-
-  function sfxTap() { playTone(440, 660, 0.08, 'sine', 0.08); }
-  function sfxInvalid() { playTone(150, 80, 0.2, 'triangle', 0.1); }
-  function sfxSlide() { playTone(330, 550, 0.25, 'sine', 0.06); }
+  function sfxTap() { playTone(520, 780, 0.1, 'sine', 0.08); }
+  function sfxInvalid() { playTone(140, 70, 0.25, 'triangle', 0.1); }
+  function sfxSlide() { playTone(400, 600, 0.3, 'sine', 0.06); }
   function sfxWin() {
-    playTone(523, 659, 0.12, 'sine', 0.1);
-    setTimeout(() => { if (!muted && audioCtx) playTone(659, 784, 0.12, 'sine', 0.1); }, 100);
-    setTimeout(() => { if (!muted && audioCtx) playTone(784, 1047, 0.18, 'sine', 0.12); }, 200);
+    playTone(523,659,0.1,'sine',0.1);
+    setTimeout(()=>{if(!muted&&audioCtx)playTone(659,784,0.1,'sine',0.1);},100);
+    setTimeout(()=>{if(!muted&&audioCtx)playTone(784,1047,0.15,'sine',0.12);},200);
   }
-  function sfxLose() { playTone(200, 60, 0.5, 'sawtooth', 0.12); }
-  function sfxClick() { playTone(800, 600, 0.04, 'sine', 0.05); }
+  function sfxLose() { playTone(200,50,0.5,'sawtooth',0.12); }
+  function sfxClick() { playTone(800,600,0.04,'sine',0.05); }
 
   function toggleMute() {
-    muted = !muted;
-    safeLS('arrowescape_muted', muted ? '1' : '0');
-    initAudio();
+    muted = !muted; safeLS('arrowescape_muted', muted?'1':'0'); initAudio();
   }
 
-  // ── Grid Logic ──
+  // ── Grid — vertical rectangle ──
   function getGridBounds() {
-    const boardW = scaleX(300);
-    const boardH = boardW;
-    const bx = (canvas.width - boardW) / 2;
-    const by = canvas.height * 0.25;
-    return { bx, by, boardW, boardH, cellSize: boardW / gridSize };
+    const gridW = scaleX(300);
+    const cellSize = gridW / gridCols;
+    const gridH = cellSize * gridRows;
+    const bx = (canvas.width - gridW) / 2;
+    const by = Math.max(scaleV(20), (canvas.height - gridH) / 2 - scaleV(20));
+    return { bx, by, gridW, gridH, cellSize };
   }
 
   function cellFromPoint(px, py) {
     const { bx, by, cellSize } = getGridBounds();
     const col = Math.floor((px - bx) / cellSize);
     const row = Math.floor((py - by) / cellSize);
-    if (col >= 0 && col < gridSize && row >= 0 && row < gridSize) return { row, col };
+    if (col >= 0 && col < gridCols && row >= 0 && row < gridRows) return { row, col };
     return null;
   }
 
-  // Check if an arrow at (row,col) with direction 'dir' has a clear path to exit
   function hasClearPath(row, col, dir, excludeIdx) {
-    const d = DIRS[dir];
-    let r = row + d.dy, c = col + d.dx;
-    while (r >= 0 && r < gridSize && c >= 0 && c < gridSize) {
-      const hit = arrows.findIndex((a, i) =>
-        i !== excludeIdx && a.alive && a.row === r && a.col === c);
-      if (hit >= 0) return false;
+    const d = DIRS[dir]; let r = row + d.dy, c = col + d.dx;
+    while (r >= 0 && r < gridRows && c >= 0 && c < gridCols) {
+      if (arrows.findIndex((a, i) => i !== excludeIdx && a.alive && a.row === r && a.col === c) >= 0) return false;
       r += d.dy; c += d.dx;
     }
-    return true; // exited the grid without hitting any arrow
+    return true;
   }
 
-  // Find arrows that can be safely extracted
-  function findSafeArrows() {
-    return arrows.filter((a, i) => a.alive && hasClearPath(a.row, a.col, a.dir, i));
-  }
-
-  // Generate a valid level
-  function generateLevel(size, numArrows) {
-    const maxAttempts = 200;
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      const testArrows = [];
-      const used = new Set();
+  function generateLevel(cols, rows, numArrows) {
+    const totalCells = cols * rows;
+    for (let attempt = 0; attempt < 300; attempt++) {
+      const test = [], used = new Set();
       for (let i = 0; i < numArrows; i++) {
-        let row, col, key;
-        do {
-          row = randInt(0, size - 1);
-          col = randInt(0, size - 1);
-          key = `${row},${col}`;
-        } while (used.has(key) && used.size < size * size);
-        if (used.size >= size * size) break;
-        used.add(key);
-        const dir = DIR_KEYS[randInt(0, DIR_KEYS.length - 1)];
-        testArrows.push({ row, col, dir, alive: true });
+        let r, c, k;
+        do { r = randInt(0, rows-1); c = randInt(0, cols-1); k = `${r},${c}`; }
+        while (used.has(k) && used.size < totalCells);
+        if (used.size >= totalCells) break;
+        used.add(k);
+        test.push({ row: r, col: c, dir: DIR_KEYS[randInt(0,3)], alive: true });
       }
-
-      // Validate: simulate extraction order
+      // Validate
+      const sim = test.map(a=>({...a}));
       let valid = true;
-      const sim = testArrows.map(a => ({...a}));
       for (let step = 0; step < sim.length; step++) {
-        const safe = sim.filter((a, i) => {
+        const safe = sim.filter((a,i) => {
           if (!a.alive) return false;
-          const d = DIRS[a.dir];
-          let r = a.row + d.dy, c = a.col + d.dx;
-          while (r >= 0 && r < size && c >= 0 && c < size) {
-            if (sim.find(s => s !== a && s.alive && s.row === r && s.col === c)) return false;
-            r += d.dy; c += d.dx;
+          const d = DIRS[a.dir]; let rr = a.row+d.dy, cc = a.col+d.dx;
+          while (rr>=0 && rr<rows && cc>=0 && cc<cols) {
+            if (sim.find(s=>s!==a&&s.alive&&s.row===rr&&s.col===cc)) return false;
+            rr+=d.dy; cc+=d.dx;
           }
           return true;
         });
         if (safe.length === 0) { valid = false; break; }
         safe[0].alive = false;
       }
-      if (valid) return testArrows;
+      if (valid) return test;
     }
-    // Fallback: simple level
-    const fallback = [];
-    for (let i = 0; i < Math.min(numArrows, size); i++) {
-      fallback.push({ row: i, col: i, dir: 'right', alive: true });
-    }
-    return fallback;
+    return [{row:0,col:0,dir:'right',alive:true},{row:1,col:1,dir:'down',alive:true}];
   }
 
   function startLevel(lvl) {
     level = lvl;
-    gridSize = clamp(3 + Math.floor((lvl - 1) / 2), 3, 7);
-    const numArrows = clamp(3 + lvl, 3, gridSize * gridSize - 1);
-    arrows = generateLevel(gridSize, numArrows);
-    lives = maxLives;
+    gridCols = clamp(3 + Math.floor((lvl-1)/5), 3, 5);
+    gridRows = clamp(4 + Math.floor((lvl-1)/2), 4, 9);
+    const numArrows = clamp(4 + lvl, 4, gridCols*gridRows - 1);
+    arrows = generateLevel(gridCols, gridRows, numArrows);
     state = 'playing';
     animArrow = null;
   }
@@ -258,406 +221,293 @@
   // ── Drawing ──
   function drawBackground() {
     const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    grad.addColorStop(0, C.bgTop);
-    grad.addColorStop(1, C.bgBot);
+    grad.addColorStop(0, C.bg1); grad.addColorStop(0.5, C.bg2); grad.addColorStop(1, C.bg3);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Decorative leaves
-    ctx.fillStyle = C.leafDark;
-    for (let i = 0; i < 8; i++) {
-      const lx = (Math.sin(i * 1.7 + elapsedTime * 0.2) * 0.3 + 0.5) * canvas.width;
-      const ly = canvas.height - scaleV(20 + i * 12);
-      ctx.globalAlpha = 0.15;
-      ctx.beginPath();
-      ctx.ellipse(lx, ly, scaleV(25), scaleV(8), i * 0.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-  }
-
-  function drawBoard() {
-    const { bx, by, boardW, cellSize } = getGridBounds();
-
-    // Board shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    roundRect(bx + scaleV(4), by + scaleV(4), boardW, boardW, scaleV(8));
-    ctx.fill();
-
-    // Board
-    const bgrad = ctx.createLinearGradient(bx, by, bx + boardW, by + boardW);
-    bgrad.addColorStop(0, C.boardLight);
-    bgrad.addColorStop(1, C.boardDark);
-    ctx.fillStyle = bgrad;
-    roundRect(bx, by, boardW, boardW, scaleV(8));
-    ctx.fill();
-
-    // Board edge
-    ctx.strokeStyle = C.boardEdge;
-    ctx.lineWidth = scaleV(3);
-    roundRect(bx, by, boardW, boardW, scaleV(8));
-    ctx.stroke();
-
-    // Cells
-    for (let row = 0; row < gridSize; row++) {
-      for (let col = 0; col < gridSize; col++) {
-        const cx = bx + col * cellSize;
-        const cy = by + row * cellSize;
-        const inset = cellSize * 0.06;
-
-        const cgrad = ctx.createLinearGradient(cx, cy, cx + cellSize, cy + cellSize);
-        cgrad.addColorStop(0, (row + col) % 2 === 0 ? C.cellLight : C.cellDark);
-        cgrad.addColorStop(1, (row + col) % 2 === 0 ? C.cellDark : C.cellLight);
-        ctx.fillStyle = cgrad;
-        roundRect(cx + inset, cy + inset, cellSize - inset * 2, cellSize - inset * 2, scaleV(4));
+    // Subtle geometric dots
+    ctx.fillStyle = 'rgba(255,255,255,0.015)';
+    for (let y = 0; y < canvas.height; y += scaleV(30)) {
+      for (let x = 0; x < canvas.width; x += scaleV(30)) {
+        ctx.beginPath();
+        ctx.arc(x + (y % (scaleV(60)) === 0 ? scaleV(15) : 0), y, scaleV(1), 0, Math.PI*2);
         ctx.fill();
       }
     }
   }
 
-  function drawArrow(arrow, idx) {
-    if (!arrow.alive && arrow.opacity <= 0) return;
-    const { bx, by, cellSize } = getGridBounds();
-    const cx = bx + arrow.col * cellSize + cellSize / 2;
-    const cy = by + arrow.row * cellSize + cellSize / 2;
-    const s = cellSize * 0.35;
+  function drawGrid() {
+    const { bx, by, gridW, gridH, cellSize } = getGridBounds();
 
-    let x = cx, y = cy, alpha = arrow.alive ? 1 : arrow.opacity;
-    if (arrow.slideX !== undefined) { x = arrow.slideX; y = arrow.slideY; }
+    // Grid background
+    ctx.fillStyle = C.surface;
+    ctx.strokeStyle = C.border;
+    ctx.lineWidth = scaleV(1.5);
+    roundRect(bx - scaleV(4), by - scaleV(4), gridW + scaleV(8), gridH + scaleV(8), scaleV(12));
+    ctx.fill();
+    ctx.stroke();
+
+    // Cells
+    for (let row = 0; row < gridRows; row++) {
+      for (let col = 0; col < gridCols; col++) {
+        const cx = bx + col * cellSize, cy = by + row * cellSize;
+        const inset = cellSize * 0.08;
+        ctx.fillStyle = (row + col) % 2 === 0 ? C.cellEven : C.cellOdd;
+        roundRect(cx + inset, cy + inset, cellSize - inset*2, cellSize - inset*2, scaleV(6));
+        ctx.fill();
+      }
+    }
+  }
+
+  function drawArrow(a, idx) {
+    if (!a.alive && a.opacity <= 0) return;
+    const { bx, by, cellSize } = getGridBounds();
+    const s = cellSize * 0.38;
+    const cx = bx + a.col * cellSize + cellSize/2;
+    const cy = by + a.row * cellSize + cellSize/2;
+    let x = cx, y = cy, alpha = a.alive ? 1 : a.opacity;
+    if (a.slideX !== undefined) { x = a.slideX; y = a.slideY; }
 
     ctx.save();
     ctx.globalAlpha = alpha;
 
+    // Outer glow ring
+    const dirColor = C.dirColors[a.dir] || C.accent;
+    ctx.shadowColor = dirColor;
+    ctx.shadowBlur = s * 0.5;
+
     // Base circle
-    const bgrad = ctx.createRadialGradient(x, y, s * 0.1, x, y, s);
-    bgrad.addColorStop(0, '#8B5E3C');
-    bgrad.addColorStop(1, C.arrowBase);
+    const bgrad = ctx.createRadialGradient(x - s*0.1, y - s*0.1, s*0.05, x, y, s);
+    bgrad.addColorStop(0, '#2A3050'); bgrad.addColorStop(1, C.arrowBase);
     ctx.fillStyle = bgrad;
-    ctx.beginPath();
-    ctx.arc(x, y, s, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, s, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
 
     // Border
-    ctx.strokeStyle = C.arrowGlow;
-    ctx.lineWidth = scaleV(2);
-    ctx.stroke();
+    ctx.strokeStyle = dirColor;
+    ctx.lineWidth = scaleV(2.5);
+    ctx.beginPath(); ctx.arc(x, y, s, 0, Math.PI*2); ctx.stroke();
 
-    // Direction symbol
-    const dir = DIRS[arrow.dir];
-    ctx.fillStyle = C.arrowDir;
-    ctx.font = `bold ${s * 1.4}px 'Fredoka One', system-ui, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(dir.symbol, x, y);
+    // Direction arrow
+    ctx.fillStyle = dirColor;
+    ctx.font = `900 ${s * 1.3}px 'Outfit', system-ui, sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(DIRS[a.dir].symbol, x, y);
+
+    // Safe indicator — glowing border
+    if (state === 'playing' && a.alive && hasClearPath(a.row, a.col, a.dir, idx)) {
+      ctx.strokeStyle = C.safeGlow;
+      ctx.lineWidth = scaleV(3);
+      ctx.setLineDash([scaleV(4), scaleV(3)]);
+      ctx.beginPath(); ctx.arc(cx, cy, s + scaleV(6), 0, Math.PI*2); ctx.stroke();
+      ctx.setLineDash([]);
+    }
 
     ctx.restore();
   }
 
-  function drawSafeIndicator(arrow) {
-    if (!arrow.alive || state !== 'playing') return;
-    const isSafe = hasClearPath(arrow.row, arrow.col, arrow.dir,
-      arrows.findIndex(a => a === arrow));
-    const { bx, by, cellSize } = getGridBounds();
-    const cx = bx + arrow.col * cellSize + cellSize / 2;
-    const cy = by + arrow.row * cellSize + cellSize / 2;
-    const s = cellSize * 0.35;
-
-    if (isSafe) {
-      ctx.strokeStyle = 'rgba(76,175,80,0.5)';
-      ctx.lineWidth = scaleV(2.5);
-      ctx.beginPath();
-      ctx.arc(cx, cy, s + scaleV(4), 0, Math.PI * 2);
-      ctx.stroke();
-    }
-  }
-
-  function drawHearts() {
-    const hx = scaleX(20);
-    const hy = scaleV(55);
-    const hs = scaleV(11);
-    for (let i = 0; i < maxLives; i++) {
-      const x = hx + i * (hs * 2.5);
-      ctx.fillStyle = i < lives ? C.heartFull : C.heartEmpty;
-      // Draw heart shape
-      ctx.beginPath();
-      const r = hs * 0.5;
-      ctx.arc(x - r, hy - r * 0.3, r, Math.PI, 0);
-      ctx.arc(x + r, hy - r * 0.3, r, Math.PI, 0);
-      ctx.lineTo(x, hy + hs * 0.8);
-      ctx.closePath();
-      ctx.fill();
-    }
-  }
-
   function drawHUD() {
-    // Level number
+    // Level badge — top right
+    const badgeX = scaleX(GAME_W - 20);
+    ctx.fillStyle = C.surface;
+    ctx.strokeStyle = C.borderGlow;
+    ctx.lineWidth = scaleV(1);
+    roundRect(badgeX - scaleX(60), scaleV(8), scaleX(60), scaleV(28), scaleV(14));
+    ctx.fill(); ctx.stroke();
     ctx.fillStyle = C.text;
-    ctx.font = `bold ${scaleV(18)}px 'Fredoka One', system-ui, sans-serif`;
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'top';
-    ctx.fillText(`Level ${level}`, scaleX(GAME_W - 20), scaleV(10));
+    ctx.font = `700 ${scaleV(12)}px 'Outfit', system-ui, sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(`Lv ${level}`, badgeX - scaleX(30), scaleV(22));
 
-    drawHearts();
+    // Grid size — top left
+    ctx.fillStyle = C.textDim;
+    ctx.font = `600 ${scaleV(11)}px 'Outfit', system-ui, sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText(`${gridCols}×${gridRows}`, scaleX(18), scaleV(22));
   }
 
   function drawTitleScreen() {
-    const bg = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    bg.addColorStop(0, 'rgba(15,30,15,0.85)');
-    bg.addColorStop(1, 'rgba(10,20,10,0.9)');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = C.overlay; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const cx = canvas.width / 2;
-    const cy = canvas.height * 0.28;
+    const cx = canvas.width / 2, cy = canvas.height * 0.25;
+
+    // Decorative circle
+    ctx.strokeStyle = 'rgba(108,99,255,0.1)'; ctx.lineWidth = scaleV(2);
+    ctx.beginPath(); ctx.arc(cx, cy + scaleV(10), scaleV(90), 0, Math.PI*2); ctx.stroke();
+    ctx.strokeStyle = 'rgba(108,99,255,0.06)';
+    ctx.beginPath(); ctx.arc(cx, cy + scaleV(10), scaleV(120), 0, Math.PI*2); ctx.stroke();
 
     // Title
     const tg = ctx.createLinearGradient(cx, cy - scaleV(30), cx, cy + scaleV(30));
-    tg.addColorStop(0, '#FFE082'); tg.addColorStop(0.5, '#FFB300'); tg.addColorStop(1, '#FF8F00');
+    tg.addColorStop(0, '#FFFFFF'); tg.addColorStop(0.5, '#A8B0FF'); tg.addColorStop(1, C.accent);
     ctx.fillStyle = tg;
-    ctx.font = `900 ${scaleV(42)}px 'Fredoka One', system-ui, sans-serif`;
+    ctx.font = `900 ${scaleV(44)}px 'Outfit', system-ui, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('ARROW', cx, cy - scaleV(20));
-    ctx.fillText('ESCAPE', cx, cy + scaleV(28));
+    ctx.fillText('ARROW', cx, cy - scaleV(18));
+    ctx.fillText('ESCAPE', cx, cy + scaleV(32));
 
-    ctx.fillStyle = '#A8D8A0';
-    ctx.font = `600 ${scaleV(14)}px 'Fredoka', system-ui, sans-serif`;
-    ctx.fillText('Tap arrows in the right order to clear the grid', cx, cy + scaleV(65));
+    ctx.fillStyle = C.textDim;
+    ctx.font = `500 ${scaleV(13)}px 'Outfit', system-ui, sans-serif`;
+    ctx.fillText('A sleek logic puzzle', cx, cy + scaleV(72));
 
-    // How to play card
-    const cardY = cy + scaleV(90);
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
-    ctx.lineWidth = scaleV(1.5);
-    roundRect(cx - scaleX(140), cardY, scaleX(280), scaleV(80), scaleV(12));
-    ctx.fill(); ctx.stroke();
+    // How to play — clean card
+    const cardW = scaleX(290), cardH = scaleV(72);
+    const cardX = cx - cardW/2, cardY = cy + scaleV(95);
+    ctx.fillStyle = C.surface; ctx.strokeStyle = C.border;
+    ctx.lineWidth = scaleV(1);
+    roundRect(cardX, cardY, cardW, cardH, scaleV(14)); ctx.fill(); ctx.stroke();
 
-    ctx.fillStyle = '#FFF';
-    ctx.font = `bold ${scaleV(13)}px 'Fredoka One', system-ui, sans-serif`;
-    ctx.textAlign = 'center';
+    ctx.fillStyle = C.accent;
+    ctx.font = `700 ${scaleV(12)}px 'Outfit', system-ui, sans-serif`;
     ctx.fillText('HOW TO PLAY', cx, cardY + scaleV(22));
-    ctx.fillStyle = '#D0D0D0';
-    ctx.font = `600 ${scaleV(11)}px 'Fredoka', system-ui, sans-serif`;
-    ctx.fillText('Arrows slide in their direction when tapped', cx, cardY + scaleV(44));
-    ctx.fillText('If an arrow hits another → lose a life ❤️', cx, cardY + scaleV(62));
+    ctx.fillStyle = C.textDim;
+    ctx.font = `500 ${scaleV(10.5)}px 'Outfit', system-ui, sans-serif`;
+    ctx.fillText('Tap arrows to slide them off the grid', cx, cardY + scaleV(44));
+    ctx.fillText('Hit another arrow → restart level', cx, cardY + scaleV(60));
 
     // Start button
-    const btnW = scaleX(180), btnH = scaleV(54);
-    const btnX = cx - btnW / 2, btnY = cardY + scaleV(105);
-    const pulse = 1 + Math.sin(elapsedTime * 3.5) * 0.04;
-    ctx.shadowColor = 'rgba(255,152,0,0.5)';
-    ctx.shadowBlur = scaleV(18) * pulse;
-    const bgGrad = ctx.createLinearGradient(btnX, btnY, btnX, btnY + btnH);
-    bgGrad.addColorStop(0, '#FF9800'); bgGrad.addColorStop(1, '#E65100');
-    ctx.fillStyle = bgGrad;
-    roundRect(btnX, btnY, btnW, btnH, btnH / 2);
-    ctx.fill();
+    const btnW = scaleX(190), btnH = scaleV(52);
+    const btnX = cx - btnW/2, btnY = cardY + cardH + scaleV(28);
+    const pulse = 1 + Math.sin(elapsedTime * 3) * 0.03;
+    ctx.shadowColor = C.accentGlow; ctx.shadowBlur = scaleV(20)*pulse;
+    const bg = ctx.createLinearGradient(btnX, btnY, btnX, btnY+btnH);
+    bg.addColorStop(0, C.accent); bg.addColorStop(1, '#5A52D5');
+    ctx.fillStyle = bg;
+    roundRect(btnX, btnY, btnW, btnH, btnH/2); ctx.fill();
     ctx.shadowBlur = 0;
+
     ctx.fillStyle = '#FFF';
-    ctx.font = `900 ${scaleV(20)}px 'Fredoka One', system-ui, sans-serif`;
-    ctx.fillText('▶  START', cx, btnY + btnH / 2);
+    ctx.font = `800 ${scaleV(18)}px 'Outfit', system-ui, sans-serif`;
+    ctx.fillText('START', cx, btnY + btnH/2);
 
     if (highLevel > 1) {
-      ctx.fillStyle = '#FFE082';
-      ctx.font = `600 ${scaleV(11)}px 'Fredoka', system-ui, sans-serif`;
-      ctx.fillText(`Best: Level ${highLevel}`, cx, btnY + btnH + scaleV(22));
+      ctx.fillStyle = C.textMuted;
+      ctx.font = `500 ${scaleV(11)}px 'Outfit', system-ui, sans-serif`;
+      ctx.fillText(`Best: Level ${highLevel}`, cx, btnY + btnH + scaleV(20));
     }
 
     canvas._startBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
   }
 
-  function drawGameOverScreen() {
-    ctx.fillStyle = 'rgba(0,0,0,0.65)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    const cx = canvas.width / 2, cy = canvas.height * 0.35;
-    ctx.fillStyle = '#E53935';
-    ctx.font = `900 ${scaleV(36)}px 'Fredoka One', system-ui, sans-serif`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('Game Over', cx, cy);
-
-    ctx.fillStyle = '#FFF';
-    ctx.font = `bold ${scaleV(18)}px 'Fredoka', system-ui, sans-serif`;
-    ctx.fillText(`Reached Level ${level}`, cx, cy + scaleV(40));
-
-    const btnW = scaleX(180), btnH = scaleV(54);
-    const btnX = cx - btnW / 2, btnY = cy + scaleV(75);
-    const bgrad = ctx.createLinearGradient(btnX, btnY, btnX, btnY + btnH);
-    bgrad.addColorStop(0, '#5CB860'); bgrad.addColorStop(1, '#3D8B40');
-    ctx.fillStyle = bgrad;
-    roundRect(btnX, btnY, btnW, btnH, btnH / 2);
-    ctx.fill();
-    ctx.fillStyle = '#FFF';
-    ctx.font = `900 ${scaleV(20)}px 'Fredoka One', system-ui, sans-serif`;
-    ctx.fillText('TRY AGAIN', cx, btnY + btnH / 2);
-
-    canvas._restartBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
-  }
-
   function drawLevelComplete() {
-    ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = C.overlay; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const cx = canvas.width / 2, cy = canvas.height * 0.35;
-    ctx.fillStyle = '#FFD54F';
-    ctx.font = `900 ${scaleV(32)}px 'Fredoka One', system-ui, sans-serif`;
+    const cx = canvas.width/2, cy = canvas.height*0.33;
+    ctx.fillStyle = '#2ED573';
+    ctx.font = `900 ${scaleV(32)}px 'Outfit', system-ui, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('Level Complete!', cx, cy);
+    ctx.fillText('CLEARED!', cx, cy);
 
+    ctx.fillStyle = C.text;
+    ctx.font = `600 ${scaleV(16)}px 'Outfit', system-ui, sans-serif`;
+    ctx.fillText(`Level ${level} complete`, cx, cy + scaleV(38));
+
+    const btnW = scaleX(190), btnH = scaleV(52);
+    const btnX = cx - btnW/2, btnY = cy + scaleV(70);
+    const bg = ctx.createLinearGradient(btnX, btnY, btnX, btnY+btnH);
+    bg.addColorStop(0, C.btnSuccess); bg.addColorStop(1, '#1FA855');
+    ctx.fillStyle = bg; roundRect(btnX, btnY, btnW, btnH, btnH/2); ctx.fill();
     ctx.fillStyle = '#FFF';
-    ctx.font = `bold ${scaleV(16)}px 'Fredoka', system-ui, sans-serif`;
-    ctx.fillText(`Level ${level} cleared`, cx, cy + scaleV(35));
-
-    const btnW = scaleX(180), btnH = scaleV(54);
-    const btnX = cx - btnW / 2, btnY = cy + scaleV(65);
-    const bgrad = ctx.createLinearGradient(btnX, btnY, btnX, btnY + btnH);
-    bgrad.addColorStop(0, '#FF9800'); bgrad.addColorStop(1, '#E65100');
-    ctx.fillStyle = bgrad;
-    roundRect(btnX, btnY, btnW, btnH, btnH / 2);
-    ctx.fill();
-    ctx.fillStyle = '#FFF';
-    ctx.font = `900 ${scaleV(20)}px 'Fredoka One', system-ui, sans-serif`;
-    ctx.fillText('NEXT LEVEL', cx, btnY + btnH / 2);
-
+    ctx.font = `800 ${scaleV(18)}px 'Outfit', system-ui, sans-serif`;
+    ctx.fillText('NEXT', cx, btnY + btnH/2);
     canvas._nextBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
   }
 
   function drawMuteButton() {
-    const r = scaleV(20);
-    const x = scaleX(GAME_W - 20) - r;
-    const y = scaleV(100);
-    canvas._muteBtn = { x: x - r, y: y - r, w: r * 2, h: r * 2 };
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-    ctx.lineWidth = scaleV(1.5);
-    ctx.stroke();
-    ctx.fillStyle = '#FFF';
-    ctx.font = `${r}px system-ui, sans-serif`;
+    const r = scaleV(18), x = scaleX(GAME_W - 20) - r, y = scaleV(85);
+    canvas._muteBtn = { x: x-r, y: y-r, w: r*2, h: r*2 };
+    ctx.fillStyle = C.surface; ctx.strokeStyle = C.border;
+    ctx.lineWidth = scaleV(1);
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = C.textDim;
+    ctx.font = `${r*0.9}px system-ui, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(muted ? '🔇' : '🔊', x, y);
   }
 
-  // ── Game Logic ──
+  // ── Logic ──
   function tapArrow(row, col) {
     if (state !== 'playing') return;
     const idx = arrows.findIndex(a => a.alive && a.row === row && a.col === col);
     if (idx < 0) return;
 
     const arrow = arrows[idx];
-    initAudio();
-    sfxTap();
+    initAudio(); sfxTap();
 
     if (!hasClearPath(row, col, arrow.dir, idx)) {
-      // Blocked — lose a life
-      sfxInvalid();
-      lives--;
-      if (lives <= 0) {
-        state = 'over';
-        sfxLose();
-        if (level > highLevel) {
-          highLevel = level;
-          safeLS('arrowescape_lv', String(highLevel));
-        }
-      }
-      // Shake the arrow
+      // Wrong tap — game over
+      sfxInvalid(); sfxLose();
       arrow.shakeTimer = 0.3;
+      if (level > highLevel) { highLevel = level; safeLS('arrowescape_lv', String(highLevel)); }
+      setTimeout(() => { state = 'title'; }, 500);
+      state = 'animating';
       return;
     }
 
-    // Safe extraction — animate slide
-    state = 'animating';
-    animArrow = arrow;
-    animProgress = 0;
-    sfxSlide();
-    arrow.alive = false;
+    state = 'animating'; animArrow = arrow; animProgress = 0;
+    sfxSlide(); arrow.alive = false;
 
-    // Check if all cleared
     if (arrows.every(a => !a.alive)) {
       setTimeout(() => {
-        state = 'levelComplete';
-        sfxWin();
-        solvedThisSession++;
-        if (level >= highLevel) {
-          highLevel = level + 1;
-          safeLS('arrowescape_lv', String(highLevel));
-        }
+        state = 'levelComplete'; sfxWin();
+        if (level >= highLevel) { highLevel = level+1; safeLS('arrowescape_lv', String(highLevel)); }
       }, 400);
     } else {
-      setTimeout(() => {
-        state = 'playing';
-        animArrow = null;
-      }, 300);
+      setTimeout(() => { state = 'playing'; animArrow = null; }, 300);
     }
   }
 
   function update(dt) {
     const dtC = Math.max(0, Math.min(dt, 0.1));
-
-    // Animation
     if (state === 'animating' && animArrow) {
       animProgress += dtC * 4;
       if (animProgress >= 1) animProgress = 1;
       const d = DIRS[animArrow.dir];
       const { bx, by, cellSize } = getGridBounds();
-      const startX = bx + animArrow.col * cellSize + cellSize / 2;
-      const startY = by + animArrow.row * cellSize + cellSize / 2;
-      const dist = Math.max(gridSize * cellSize, canvas.width);
-      animArrow.slideX = startX + d.dx * dist * animProgress;
-      animArrow.slideY = startY + d.dy * dist * animProgress;
-      animArrow.opacity = clamp(1 - animProgress * 1.2, 0, 1);
+      const sx = bx + animArrow.col*cellSize + cellSize/2;
+      const sy = by + animArrow.row*cellSize + cellSize/2;
+      const dist = Math.max(gridRows*cellSize + gridCols*cellSize, canvas.width);
+      animArrow.slideX = sx + d.dx*dist*animProgress;
+      animArrow.slideY = sy + d.dy*dist*animProgress;
+      animArrow.opacity = clamp(1 - animProgress*1.2, 0, 1);
     }
-
-    // Shake decay
-    arrows.forEach(a => {
-      if (a.shakeTimer > 0) a.shakeTimer -= dtC;
-    });
+    arrows.forEach(a => { if (a.shakeTimer > 0) a.shakeTimer -= dtC; });
   }
 
   function render() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawBackground();
-    drawBoard();
-
-    // Draw safe indicators
-    if (state === 'playing') {
-      arrows.forEach(a => { if (a.alive) drawSafeIndicator(a); });
-    }
+    drawGrid();
 
     // Draw arrows
-    arrows.forEach((a, i) => drawArrow(a, i));
+    arrows.forEach((a, i) => {
+      if (state === 'playing' || state === 'animating' || state === 'over' || state === 'levelComplete')
+        drawArrow(a, i);
+    });
 
-    // Shake effect
+    // Shake red flash
     ctx.save();
     arrows.forEach(a => {
       if (a.shakeTimer > 0) {
-        const sx = (Math.random() - 0.5) * a.shakeTimer * 10;
-        const sy = (Math.random() - 0.5) * a.shakeTimer * 10;
-        // Red flash on the arrow
         const { bx, by, cellSize } = getGridBounds();
-        const cx = bx + a.col * cellSize + cellSize / 2 + sx;
-        const cy = by + a.row * cellSize + cellSize / 2 + sy;
-        ctx.fillStyle = `rgba(255,0,0,${a.shakeTimer * 0.5})`;
-        ctx.beginPath();
-        ctx.arc(cx, cy, cellSize * 0.38, 0, Math.PI * 2);
-        ctx.fill();
+        const cx = bx + a.col*cellSize + cellSize/2 + (Math.random()-0.5)*a.shakeTimer*8;
+        const cy = by + a.row*cellSize + cellSize/2 + (Math.random()-0.5)*a.shakeTimer*8;
+        ctx.fillStyle = `rgba(255,71,87,${a.shakeTimer*0.4})`;
+        ctx.beginPath(); ctx.arc(cx, cy, cellSize*0.38, 0, Math.PI*2); ctx.fill();
       }
     });
     ctx.restore();
 
     if (state === 'playing' || state === 'animating') drawHUD();
     if (state === 'title') drawTitleScreen();
-    if (state === 'over') drawGameOverScreen();
     if (state === 'levelComplete') drawLevelComplete();
     drawMuteButton();
   }
 
   function gameLoop(ts) {
     const dt = (ts - lastFrameTime) / 1000;
-    lastFrameTime = ts;
-    elapsedTime += dt;
-    frameCount++;
-    update(dt);
-    render();
+    lastFrameTime = ts; elapsedTime += dt;
+    update(dt); render();
     requestAnimationFrame(gameLoop);
   }
 
@@ -668,33 +518,18 @@
     for (const t of e.changedTouches) {
       const tx = (t.clientX - rect.left) * (canvas.width / rect.width);
       const ty = (t.clientY - rect.top) * (canvas.height / rect.height);
-
       if (canvas._muteBtn) {
         const b = canvas._muteBtn;
-        if (tx >= b.x && tx <= b.x + b.w && ty >= b.y && ty <= b.y + b.h) {
-          toggleMute(); return;
-        }
+        if (tx>=b.x && tx<=b.x+b.w && ty>=b.y && ty<=b.y+b.h) { toggleMute(); return; }
       }
-
       if (state === 'title' && canvas._startBtn) {
         const b = canvas._startBtn;
-        if (tx >= b.x && tx <= b.x + b.w && ty >= b.y && ty <= b.y + b.h) {
-          startLevel(1); return;
-        }
-      }
-      if (state === 'over' && canvas._restartBtn) {
-        const b = canvas._restartBtn;
-        if (tx >= b.x && tx <= b.x + b.w && ty >= b.y && ty <= b.y + b.h) {
-          startLevel(1); return;
-        }
+        if (tx>=b.x && tx<=b.x+b.w && ty>=b.y && ty<=b.y+b.h) { startLevel(1); return; }
       }
       if (state === 'levelComplete' && canvas._nextBtn) {
         const b = canvas._nextBtn;
-        if (tx >= b.x && tx <= b.x + b.w && ty >= b.y && ty <= b.y + b.h) {
-          startLevel(level + 1); return;
-        }
+        if (tx>=b.x && tx<=b.x+b.w && ty>=b.y && ty<=b.y+b.h) { startLevel(level+1); return; }
       }
-
       if (state === 'playing') {
         const cell = cellFromPoint(tx, ty);
         if (cell) tapArrow(cell.row, cell.col);
@@ -706,38 +541,33 @@
     const rect = canvas.getBoundingClientRect();
     const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
     const my = (e.clientY - rect.top) * (canvas.height / rect.height);
-
     if (canvas._muteBtn) {
       const b = canvas._muteBtn;
-      if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) {
-        toggleMute(); return;
-      }
+      if (mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h) { toggleMute(); return; }
     }
-    if (state === 'title' && canvas._startBtn) {
+    if (state==='title' && canvas._startBtn) {
       const b = canvas._startBtn;
-      if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) startLevel(1);
+      if (mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h) { startLevel(1); return; }
     }
-    if (state === 'over' && canvas._restartBtn) {
-      const b = canvas._restartBtn;
-      if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) startLevel(1);
-    }
-    if (state === 'levelComplete' && canvas._nextBtn) {
+    if (state==='levelComplete' && canvas._nextBtn) {
       const b = canvas._nextBtn;
-      if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) startLevel(level + 1);
+      if (mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h) { startLevel(level+1); return; }
+    }
+    // Arrow tap for desktop/laptop
+    if (state === 'playing') {
+      const cell = cellFromPoint(mx, my);
+      if (cell) tapArrow(cell.row, cell.col);
     }
   });
 
   // ── Init ──
   function init() {
-    const savedMute = safeLS('arrowescape_muted');
-    if (savedMute !== null) muted = savedMute === '1';
-    resize();
-    render();
+    const sm = safeLS('arrowescape_muted');
+    if (sm !== null) muted = sm === '1';
+    resize(); render();
     lastFrameTime = performance.now();
     requestAnimationFrame(gameLoop);
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
-    }
+    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
   }
   init();
 })();
