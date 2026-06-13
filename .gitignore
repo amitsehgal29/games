@@ -14,5 +14,8 @@ Thumbs.db
 
 # Claude skills and agents (installed via npx skills add)
 .agents/
-.claude/skills/
 skills-lock.json
+
+# Marketplace skills (symlinked) — keep project-crafted ones
+.claude/skills/*
+!.claude/skills/master-game-ui/
