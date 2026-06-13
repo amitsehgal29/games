@@ -134,7 +134,21 @@
     if (!audioCtx) {
       try {
         const AC = window.AudioContext || window.webkitAudioContext;
-        if (AC) { audioCtx = new AC(); if (audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{}); }
+        if (AC) {
+          audioCtx = new AC();
+          if (audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
+          // Prime iOS audio with silent buffer
+          const buf = audioCtx.createBuffer(1, 1, 22050);
+          const src = audioCtx.createBufferSource();
+          src.buffer = buf; src.connect(audioCtx.destination);
+          src.start(0);
+          setTimeout(() => {
+            const b2 = audioCtx.createBuffer(1, 1, 22050);
+            const s2 = audioCtx.createBufferSource();
+            s2.buffer = b2; s2.connect(audioCtx.destination);
+            s2.start(0);
+          }, 50);
+        }
       } catch(e) { audioCtx = null; }
     } else if (audioCtx.state === 'suspended') audioCtx.resume().catch(()=>{});
     return audioCtx;
@@ -348,10 +362,23 @@
     ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
     ctx.fillText(`${gridCols}×${gridRows}`, scaleX(18), hudY + hudH/2);
 
-    // Arrow progress gauge — center
+    // Arrow icon next to gauge
     const gaugeW = scaleX(80), gaugeH = scaleV(8);
-    const gaugeX = scaleX(GAME_W / 2) - gaugeW / 2 + scaleX(20);
+    const gaugeX = scaleX(GAME_W / 2) - gaugeW / 2 + scaleX(25);
     const gaugeY = hudY + hudH/2 - gaugeH/2;
+    // Tiny arrow icon
+    ctx.fillStyle = C.textDim;
+    ctx.beginPath();
+    const aIconX = gaugeX - scaleV(12), aIconY = gaugeY + gaugeH/2;
+    ctx.moveTo(aIconX - scaleV(6), aIconY);
+    ctx.lineTo(aIconX + scaleV(2), aIconY - scaleV(5));
+    ctx.lineTo(aIconX + scaleV(2), aIconY - scaleV(2));
+    ctx.lineTo(aIconX + scaleV(7), aIconY - scaleV(2));
+    ctx.lineTo(aIconX + scaleV(7), aIconY + scaleV(3));
+    ctx.lineTo(aIconX + scaleV(2), aIconY + scaleV(3));
+    ctx.lineTo(aIconX + scaleV(2), aIconY + scaleV(6));
+    ctx.closePath();
+    ctx.fill();
     const pct = total > 0 ? alive / total : 0;
     ctx.fillStyle = 'rgba(255,255,255,0.08)';
     roundRect(gaugeX, gaugeY, gaugeW, gaugeH, gaugeH/2);
@@ -392,24 +419,53 @@
     }
 
     // Title
-    const tg = ctx.createLinearGradient(cx, cy - scaleV(30), cx, cy + scaleV(30));
-    tg.addColorStop(0, '#FFFFFF'); tg.addColorStop(0.5, '#A8B0FF'); tg.addColorStop(1, C.accent);
-    ctx.fillStyle = tg;
+    const titleGrad = ctx.createLinearGradient(cx, cy - scaleV(30), cx, cy + scaleV(30));
+    titleGrad.addColorStop(0, '#FFFFFF'); titleGrad.addColorStop(0.5, '#A8B0FF'); titleGrad.addColorStop(1, C.accent);
+    ctx.fillStyle = titleGrad;
     ctx.font = `900 ${scaleV(44)}px 'Outfit', system-ui, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('ARROW', cx, cy - scaleV(18));
     ctx.fillText('ESCAPE', cx, cy + scaleV(32));
 
+    // Decorative lines + diamond dots flanking title
+    const lineY1 = cy - scaleV(18), lineY2 = cy + scaleV(32);
+    const lineL = cx - scaleX(100), lineR = cx + scaleX(100);
+    [lineY1, lineY2].forEach(ly => {
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = scaleV(1.5);
+      ctx.beginPath();
+      ctx.moveTo(lineL, ly); ctx.lineTo(lineL + scaleX(30), ly);
+      ctx.moveTo(lineR, ly); ctx.lineTo(lineR - scaleX(30), ly);
+      ctx.stroke();
+      // Diamond dot at end
+      ctx.fillStyle = C.accent;
+      ctx.beginPath();
+      ctx.moveTo(lineL + scaleX(30), ly);
+      ctx.lineTo(lineL + scaleX(30) + scaleV(6), ly - scaleV(4));
+      ctx.lineTo(lineL + scaleX(30) + scaleV(12), ly);
+      ctx.lineTo(lineL + scaleX(30) + scaleV(6), ly + scaleV(4));
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(lineR - scaleX(30), ly);
+      ctx.lineTo(lineR - scaleX(30) - scaleV(6), ly - scaleV(4));
+      ctx.lineTo(lineR - scaleX(30) - scaleV(12), ly);
+      ctx.lineTo(lineR - scaleX(30) - scaleV(6), ly + scaleV(4));
+      ctx.fill();
+    });
+
     ctx.fillStyle = C.textDim;
     ctx.font = `500 ${scaleV(13)}px 'Outfit', system-ui, sans-serif`;
     ctx.fillText('A sleek logic puzzle', cx, cy + scaleV(72));
 
-    // How to play — clean card
+    // How to play — styled card with accent bar
     const cardW = scaleX(290), cardH = scaleV(72);
     const cardX = cx - cardW/2, cardY = cy + scaleV(95);
     ctx.fillStyle = C.surface; ctx.strokeStyle = C.border;
     ctx.lineWidth = scaleV(1);
     roundRect(cardX, cardY, cardW, cardH, scaleV(14)); ctx.fill(); ctx.stroke();
+    // Colored accent bar at top
+    ctx.fillStyle = C.accent;
+    roundRect(cardX + scaleV(6), cardY - scaleV(2), cardW - scaleV(12), scaleV(5), scaleV(3));
+    ctx.fill();
 
     ctx.fillStyle = C.accent;
     ctx.font = `700 ${scaleV(12)}px 'Outfit', system-ui, sans-serif`;
@@ -481,9 +537,13 @@
     const starCount = level <= 3 ? 3 : level <= 6 ? 2 : 1;
     const starY = cy + scaleV(40);
     for (let i = 0; i < 3; i++) {
-      ctx.fillStyle = i < starCount ? '#FFD93D' : 'rgba(255,255,255,0.1)';
-      ctx.font = `${scaleV(24)}px 'Outfit', system-ui, sans-serif`;
-      ctx.fillText('★', cx + (i - 1) * scaleV(32), starY);
+      const active = i < starCount;
+      const sx = cx + (i - 1) * scaleV(32);
+      if (active) {
+        drawSparkleStar(sx, starY, scaleV(13), '#FFD93D', 1);
+      } else {
+        drawSparkleStar(sx, starY, scaleV(13), '#FFF', 0.1);
+      }
     }
 
     ctx.fillStyle = C.text;
@@ -509,6 +569,35 @@
     ctx.font = `800 ${scaleV(18)}px 'Outfit', system-ui, sans-serif`;
     ctx.fillText('NEXT LEVEL', cx, btnY + btnH/2);
     canvas._nextBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
+
+    // Menu button
+    const menuY = btnY + btnH + scaleV(12);
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    roundRect(btnX, menuY, btnW, btnH, btnH/2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = scaleV(1.5);
+    ctx.stroke();
+    ctx.fillStyle = C.textDim;
+    ctx.font = `700 ${scaleV(14)}px 'Outfit', system-ui, sans-serif`;
+    ctx.fillText('MENU', cx, menuY + btnH/2);
+    canvas._menuBtn = { x: btnX, y: menuY, w: btnW, h: btnH };
+  }
+
+  // Custom-drawn sparkle star (replaces unicode ★)
+  function drawSparkleStar(cx, cy, s, color, alpha) {
+    ctx.save();
+    ctx.globalAlpha = alpha || 1;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 - Math.PI / 2;
+      const r = i % 2 === 0 ? s : s * 0.38;
+      const px = cx + Math.cos(a) * r, py = cy + Math.sin(a) * r;
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#FFF';
+    ctx.beginPath(); ctx.arc(cx, cy, s * 0.22, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
   }
 
   let muteToggledByTouch = false;
@@ -650,9 +739,15 @@
         const b = canvas._startBtn;
         if (tx>=b.x && tx<=b.x+b.w && ty>=b.y && ty<=b.y+b.h) { startLevel(1); return; }
       }
-      if (state === 'levelComplete' && canvas._nextBtn) {
-        const b = canvas._nextBtn;
-        if (tx>=b.x && tx<=b.x+b.w && ty>=b.y && ty<=b.y+b.h) { startLevel(level+1); return; }
+      if (state === 'levelComplete') {
+        if (canvas._nextBtn) {
+          const b = canvas._nextBtn;
+          if (tx>=b.x && tx<=b.x+b.w && ty>=b.y && ty<=b.y+b.h) { startLevel(level+1); return; }
+        }
+        if (canvas._menuBtn) {
+          const b = canvas._menuBtn;
+          if (tx>=b.x && tx<=b.x+b.w && ty>=b.y && ty<=b.y+b.h) { state = 'title'; return; }
+        }
       }
       if (state === 'playing') {
         const cell = cellFromPoint(tx, ty);
@@ -660,6 +755,10 @@
       }
     }
   }, { passive: false });
+
+  canvas.addEventListener('touchcancel', e => {
+    muteToggledByTouch = false;
+  });
 
   canvas.addEventListener('click', e => {
     if (muteToggledByTouch) { muteToggledByTouch = false; return; }
@@ -674,9 +773,15 @@
       const b = canvas._startBtn;
       if (mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h) { startLevel(1); return; }
     }
-    if (state==='levelComplete' && canvas._nextBtn) {
-      const b = canvas._nextBtn;
-      if (mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h) { startLevel(level+1); return; }
+    if (state==='levelComplete') {
+      if (canvas._nextBtn) {
+        const b = canvas._nextBtn;
+        if (mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h) { startLevel(level+1); return; }
+      }
+      if (canvas._menuBtn) {
+        const b = canvas._menuBtn;
+        if (mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h) { state = 'title'; return; }
+      }
     }
     // Arrow tap for desktop/laptop
     if (state === 'playing') {
