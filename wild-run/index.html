@@ -61,8 +61,8 @@
   const PLAYER_Y_RATIO = 0.80;
   const BASE_SPEED  = 140;
   const MAX_SPEED   = 700;
-  const SPEED_STEP  = 12;
-  const DIST_PER_STEP = 1000;
+  const SPEED_STEP  = 22;
+  const DIST_PER_STEP = 1200;
 
   const FUEL_MAX     = 100;
   const FUEL_DRAIN   = 3.0;
@@ -71,7 +71,7 @@
   const OBSTACLE_MIN_GAP = 0.50;
   const COLLECTIBLE_CHANCE = 0.19;
   const GAP_DIST_BASE = OBSTACLE_MIN_GAP * BASE_SPEED * 1.2;
-  const GAP_DIST_MIN = 22;
+  const GAP_DIST_MIN = 30;
   const LANE_SWITCH_SPEED = 14;
 
   // ═══════════════════════════════════════
@@ -194,26 +194,41 @@
 
   // Prime audio on iOS — silent switch mutes Web Audio unless a buffer is played
   function primeAudioIOS() {
-    if (!audioCtx || muted) return;
+    if (!audioCtx || muted || audioCtx.state === 'closed') return;
     try {
-      const buf = audioCtx.createBuffer(1, 1, 22050);
+      // Longer silent buffer (0.1s) to properly warm up iOS audio hardware
+      const len = Math.floor(audioCtx.sampleRate * 0.1);
+      const buf = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
       const src = audioCtx.createBufferSource();
       src.buffer = buf;
       src.connect(audioCtx.destination);
       src.start(0);
-      src.stop(audioCtx.currentTime + 0.001);
+      src.stop(audioCtx.currentTime + 0.1);
     } catch(e) { /* ignore */ }
   }
+
+  let audioWarmedUp = false;
 
   // Call on any first user interaction to unlock audio on mobile
   function unlockAudio() {
     if (!audioCtx) initAudio();
     else if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
-    primeAudioIOS();
+    // Aggressive warm-up: burst multiple buffers to prime iOS audio immediately
+    if (!audioWarmedUp && audioCtx && !muted) {
+      audioWarmedUp = true;
+      primeAudioIOS();
+      setTimeout(() => primeAudioIOS(), 30);
+      setTimeout(() => primeAudioIOS(), 80);
+      setTimeout(() => primeAudioIOS(), 150);
+      setTimeout(() => { audioWarmedUp = false; }, 5000); // re-arm for next session
+    } else {
+      primeAudioIOS();
+    }
   }
 
   function playTone(freq, endFreq, duration, type, vol, rampDown) {
     if (muted || !audioCtx) return;
+    if (audioCtx.state === 'suspended') { unlockAudio(); }
     const t = audioCtx.currentTime;
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
@@ -230,6 +245,7 @@
 
   function playNoise(duration, vol, lowFreq, highFreq) {
     if (muted || !audioCtx) return;
+    if (audioCtx.state === 'suspended') { unlockAudio(); }
     const t = audioCtx.currentTime;
     const bufferSize = Math.floor(audioCtx.sampleRate * duration);
     const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
@@ -348,7 +364,7 @@
     } else {
       unlockAudio();
       sfxClick();
-      if (state === 'playing') setTimeout(() => { if (!muted) startEngine(); }, 150);
+      if (state === 'playing') startEngine();
     }
   }
 
@@ -1909,10 +1925,14 @@
     }
 
     // ── Spawn obstacles ──
-    // Difficulty scales continuously to 50,000m — never blocks all lanes
-    const progress = clamp(distance / 50000, 0, 1); // 0..1 over full range
-    const maxObs = Math.min(1 + Math.floor(distance / 5000), LANES - 1);
-    const gapDist = clamp(GAP_DIST_BASE * (1 - progress * 0.75), GAP_DIST_MIN, GAP_DIST_BASE);
+    // Difficulty scales per table: 0→50,000m
+    let maxObs;
+    if (distance < 3000) maxObs = 1;
+    else if (distance < 8000) maxObs = 2;
+    else if (distance < 25000) maxObs = 3;
+    else maxObs = 4;
+    const progress = clamp(distance / 50000, 0, 1);
+    const gapDist = clamp(GAP_DIST_BASE - Math.pow(progress, 0.55) * (GAP_DIST_BASE - GAP_DIST_MIN), GAP_DIST_MIN, GAP_DIST_BASE);
 
     if (distance - lastObstacleDist > gapDist && obstacles.length < maxObs) {
       spawnObstacle();
@@ -2202,8 +2222,7 @@
     resetGame();
     state = 'playing';
     unlockAudio();
-    // Delay engine start slightly — mobile browsers need time to resume AudioContext
-    if (!muted) setTimeout(() => { if (state === 'playing' && !muted) startEngine(); }, 150);
+    if (!muted) startEngine();
     lastFrameTime = performance.now();
   }
 
