@@ -465,7 +465,7 @@
       const { bx, by, cellSize } = getGridBounds();
       const sx = bx + animArrow.col*cellSize + cellSize/2;
       const sy = by + animArrow.row*cellSize + cellSize/2;
-      const dist = Math.max(gridSize*cellSize, canvas.width);
+      const dist = Math.max(gridRows*cellSize + gridCols*cellSize, canvas.width);
       animArrow.slideX = sx + d.dx*dist*animProgress;
       animArrow.slideY = sy + d.dy*dist*animProgress;
       animArrow.opacity = clamp(1 - animProgress*1.2, 0, 1);
