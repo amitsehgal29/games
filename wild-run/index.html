@@ -153,6 +153,156 @@
   let lastFrameTime = performance.now();
   let laneSwitchCooldown = 0;
 
+  // Audio
+  let audioCtx = null;
+  let muted = true;                 // default muted
+  let engineNodes = [];
+  let engineGain = null;
+
+  // ═══════════════════════════════════════
+  // AUDIO — synthesized sound effects
+  // ═══════════════════════════════════════
+  function initAudio() {
+    if (!audioCtx) {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  function playTone(freq, endFreq, duration, type, vol, rampDown) {
+    if (muted || !audioCtx) return;
+    const t = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, t);
+    if (endFreq) osc.frequency.linearRampToValueAtTime(endFreq, t + duration);
+    gain.gain.setValueAtTime(vol || 0.15, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + (rampDown || duration));
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + duration);
+  }
+
+  function playNoise(duration, vol, lowFreq, highFreq) {
+    if (muted || !audioCtx) return;
+    const t = audioCtx.currentTime;
+    const bufferSize = Math.floor(audioCtx.sampleRate * duration);
+    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+    const source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    const bandpass = audioCtx.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.value = (lowFreq + highFreq) / 2;
+    bandpass.Q.value = 1.5;
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(vol || 0.1, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+    source.connect(bandpass);
+    bandpass.connect(gain);
+    gain.connect(audioCtx.destination);
+    source.start(t);
+    source.stop(t + duration);
+  }
+
+  function sfxSwitch() {
+    playNoise(0.1, 0.07, 200, 800);
+    playTone(150, 300, 0.08, 'sawtooth', 0.035, 0.08);
+  }
+
+  function sfxPickup() {
+    playTone(660, 880, 0.12, 'sine', 0.12, 0.12);
+    setTimeout(() => { if (!muted && audioCtx) playTone(880, 1100, 0.1, 'sine', 0.1, 0.1); }, 60);
+  }
+
+  function sfxFuelPickup() {
+    playTone(330, 440, 0.15, 'triangle', 0.1, 0.15);
+    playTone(440, 550, 0.12, 'sine', 0.07, 0.12);
+  }
+
+  function sfxCrash() {
+    playTone(60, 30, 0.4, 'sawtooth', 0.22, 0.4);
+    playNoise(0.3, 0.15, 50, 300);
+  }
+
+  function sfxNearMiss() {
+    playNoise(0.08, 0.04, 400, 1200);
+  }
+
+  function sfxClick() {
+    playTone(800, 600, 0.04, 'sine', 0.06, 0.04);
+  }
+
+  function startEngine() {
+    if (muted || !audioCtx || engineNodes.length > 0) return;
+    const t = audioCtx.currentTime;
+
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.value = 55;
+    engineNodes.push(osc);
+
+    const osc2 = audioCtx.createOscillator();
+    osc2.type = 'triangle';
+    osc2.frequency.value = 82;
+    engineNodes.push(osc2);
+
+    const bs = audioCtx.createBufferSource();
+    const bufSize = audioCtx.sampleRate * 2;
+    const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) d[i] = Math.random() * 2 - 1;
+    bs.buffer = buf;
+    bs.loop = true;
+    const noiseFilter = audioCtx.createBiquadFilter();
+    noiseFilter.type = 'lowpass';
+    noiseFilter.frequency.value = 200;
+    engineNodes.push(bs);
+
+    engineGain = audioCtx.createGain();
+    engineGain.gain.setValueAtTime(0.04, t);
+
+    osc.connect(engineGain);
+    osc2.connect(engineGain);
+    bs.connect(noiseFilter);
+    noiseFilter.connect(engineGain);
+    engineGain.connect(audioCtx.destination);
+
+    osc.start(t);
+    osc2.start(t);
+    bs.start(t);
+  }
+
+  function stopEngine() {
+    engineNodes.forEach(n => { try { n.stop(); } catch(e) {} });
+    engineNodes = [];
+    engineGain = null;
+  }
+
+  function updateEngine(spd) {
+    if (muted || !audioCtx || engineNodes.length === 0) return;
+    const freq = 50 + (spd / MAX_SPEED) * 80;
+    const vol = 0.02 + (spd / MAX_SPEED) * 0.06;
+    engineNodes.forEach(n => {
+      if (n.frequency) n.frequency.setValueAtTime(freq, audioCtx.currentTime);
+    });
+    if (engineGain) engineGain.gain.setValueAtTime(vol, audioCtx.currentTime);
+  }
+
+  function toggleMute() {
+    muted = !muted;
+    localStorage.setItem('wildrun_muted', muted ? '1' : '0');
+    if (muted) {
+      stopEngine();
+    } else {
+      initAudio();
+      if (state === 'playing') startEngine();
+    }
+  }
+
   // ═══════════════════════════════════════
   // HELPERS
   // ═══════════════════════════════════════
@@ -1296,6 +1446,26 @@
     canvas._restartBtn = { x: cx - scaleX(82), y: btnY, w: scaleX(164), h: scaleV(44) };
   }
 
+  function drawMuteButton() {
+    const r = scaleV(18);
+    const x = scaleX(GAME_W - GRASS_W - 4) - r;
+    const y = scaleV(46);
+    canvas._muteBtn = { x: x - r, y: y - r, w: r * 2, h: r * 2 };
+
+    // Background circle
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Speaker icon
+    ctx.fillStyle = '#FFF';
+    ctx.font = `${r * 1.1}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(muted ? '🔇' : '🔊', x, y);
+  }
+
   // ═══════════════════════════════════════
   // GAME LOGIC
   // ═══════════════════════════════════════
@@ -1320,6 +1490,7 @@
     shakeTimer = 0;
     nearMissTimer = 0;
     laneSwitchCooldown = 0;
+    stopEngine();
   }
 
   function update(dt) {
@@ -1352,6 +1523,7 @@
     // Detect lane switch for effects
     if (playerLane !== prevLane) {
       switchDustTimer = 0.15;
+      sfxSwitch();
       prevLane = playerLane;
     }
     if (switchDustTimer > 0) switchDustTimer -= dtC;
@@ -1423,7 +1595,10 @@
       const nearDist = scaleV(18);
       if (obs.lanes.includes(playerLane) && oy > sy - ph && oy < sy + ph) {
         const dist = Math.abs(oy - sy);
-        if (dist < nearDist + ph / 2) nearMissTimer = 0.15;
+        if (dist < nearDist + ph / 2) {
+          if (nearMissTimer <= 0) sfxNearMiss();
+          nearMissTimer = 0.15;
+        }
       }
     }
 
@@ -1436,9 +1611,11 @@
         if (c.type === 'fruit') {
           score += 100;
           spawnCollectFX(cx, cy, '#FF6B35');
+          sfxPickup();
         } else {
           fuel = clamp(fuel + FUEL_PICKUP, 0, FUEL_MAX);
           spawnCollectFX(cx, cy, '#D9442F');
+          sfxFuelPickup();
         }
         collectibles.splice(i, 1);
       }
@@ -1454,6 +1631,7 @@
     if (nearMissTimer > 0) nearMissTimer -= dtC;
     if (shakeTimer > 0) shakeTimer -= dtC;
     updateParticles(dtC);
+    updateEngine(effectiveSpeed);
 
     // ── Move atmosphere ──
     treesL.forEach(t => { t.y += scrollSpeed * 0.13 * dtC; if (t.y > canvas.height + 80) t.y = -80; });
@@ -1468,6 +1646,8 @@
 
   function endGame() {
     state = 'over';
+    stopEngine();
+    sfxCrash();
     if (score > highScore) { highScore = score; localStorage.setItem('wildrun_hs', highScore); }
     if (distance > highDist) { highDist = Math.floor(distance); localStorage.setItem('wildrun_hd', highDist); }
     shakeTimer = 0.35;
@@ -1554,6 +1734,7 @@
     if (state === 'playing') drawHUD();
     if (state === 'title') drawTitleScreen();
     if (state === 'over') drawGameOverScreen();
+    drawMuteButton();
   }
 
   // ═══════════════════════════════════════
@@ -1626,6 +1807,18 @@
   canvas.addEventListener('click', e => {
     const rect = canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+
+    // Mute button (always clickable)
+    if (canvas._muteBtn) {
+      const b = canvas._muteBtn;
+      if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) {
+        initAudio();
+        sfxClick();
+        toggleMute();
+        return;
+      }
+    }
+
     if (state === 'title' && canvas._startBtn) {
       const b = canvas._startBtn;
       if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) startGame();
@@ -1636,12 +1829,22 @@
     }
   });
 
-  function startGame() { resetGame(); state = 'playing'; lastFrameTime = performance.now(); }
+  function startGame() {
+    resetGame();
+    state = 'playing';
+    initAudio();
+    if (!muted) startEngine();
+    lastFrameTime = performance.now();
+  }
 
   // ═══════════════════════════════════════
   // INIT
   // ═══════════════════════════════════════
   function init() {
+    // Restore mute preference
+    const savedMute = localStorage.getItem('wildrun_muted');
+    if (savedMute !== null) muted = savedMute === '1';
+
     resize();
     playerY = canvas.height * PLAYER_Y_RATIO;
     playerX = LANE_CX[playerLane];
