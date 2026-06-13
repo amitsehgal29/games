@@ -622,19 +622,32 @@
 
   function drawPauseOverlay() {
     ctx.fillStyle = C.overlay; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    const cx = canvas.width / 2, cy = canvas.height * 0.4;
+    const cx = canvas.width / 2, cy = canvas.height * 0.35;
     ctx.fillStyle = C.text;
     ctx.font = `900 ${scaleV(36)}px 'Outfit', system-ui, sans-serif`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('PAUSED', cx, cy);
-    const btnW = scaleX(200), btnH = scaleV(52);
-    const btnX = cx - btnW/2, btnY = cy + scaleV(40);
-    ctx.fillStyle = C.surface; ctx.strokeStyle = C.borderGlow; ctx.lineWidth = scaleV(2);
-    roundRect(btnX, btnY, btnW, btnH, btnH/2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = C.text;
-    ctx.font = `800 ${scaleV(18)}px 'Outfit', system-ui, sans-serif`;
-    ctx.fillText('RESUME', cx, btnY + btnH/2);
-    canvas._resumeBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
+
+    const btnW = scaleX(200), btnH = scaleV(48);
+    const btnX = cx - btnW/2;
+    // Resume — purple gradient, matching arrow-escape theme
+    const resumeY = cy + scaleV(42);
+    const bg = ctx.createLinearGradient(btnX, resumeY, btnX, resumeY+btnH);
+    bg.addColorStop(0, C.accent); bg.addColorStop(1, '#5A52D5');
+    ctx.fillStyle = bg; roundRect(btnX, resumeY, btnW, btnH, btnH/2); ctx.fill();
+    ctx.fillStyle = '#FFF';
+    ctx.font = `800 ${scaleV(17)}px 'Outfit', system-ui, sans-serif`;
+    ctx.fillText('RESUME', cx, resumeY + btnH/2);
+    canvas._resumeBtn = { x: btnX, y: resumeY, w: btnW, h: btnH };
+
+    // Menu button
+    const menuY = resumeY + btnH + scaleV(12);
+    ctx.fillStyle = C.surface; ctx.strokeStyle = C.borderGlow; ctx.lineWidth = scaleV(1.5);
+    roundRect(btnX, menuY, btnW, btnH, btnH/2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = C.textDim;
+    ctx.font = `700 ${scaleV(14)}px 'Outfit', system-ui, sans-serif`;
+    ctx.fillText('MENU', cx, menuY + btnH/2);
+    canvas._menuBtn = { x: btnX, y: menuY, w: btnW, h: btnH };
   }
 
   function drawPauseButton() {
@@ -805,10 +818,17 @@
         const b = canvas._homeBtn;
         if (tx>=b.x && tx<=b.x+b.w && ty>=b.y && ty<=b.y+b.h) { window.location.href = '../index.html'; return; }
       }
-      // Pause overlay resume
-      if (paused && canvas._resumeBtn) {
-        const b = canvas._resumeBtn;
-        if (tx>=b.x && tx<=b.x+b.w && ty>=b.y && ty<=b.y+b.h) { togglePause(); return; }
+      // Pause overlay
+      if (paused) {
+        if (canvas._resumeBtn) {
+          const b = canvas._resumeBtn;
+          if (tx>=b.x && tx<=b.x+b.w && ty>=b.y && ty<=b.y+b.h) { togglePause(); return; }
+        }
+        if (canvas._menuBtn) {
+          const b = canvas._menuBtn;
+          if (tx>=b.x && tx<=b.x+b.w && ty>=b.y && ty<=b.y+b.h) { paused = false; window.location.href = '../index.html'; return; }
+        }
+        return;
       }
       // Pause button
       if (canvas._pauseBtn) {
@@ -856,10 +876,17 @@
       const b = canvas._homeBtn;
       if (mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h) { window.location.href = '../index.html'; return; }
     }
-    // Pause overlay resume
-    if (paused && canvas._resumeBtn) {
-      const b = canvas._resumeBtn;
-      if (mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h) { togglePause(); return; }
+    // Pause overlay
+    if (paused) {
+      if (canvas._resumeBtn) {
+        const b = canvas._resumeBtn;
+        if (mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h) { togglePause(); return; }
+      }
+      if (canvas._menuBtn) {
+        const b = canvas._menuBtn;
+        if (mx>=b.x && mx<=b.x+b.w && my>=b.y && my<=b.y+b.h) { paused = false; window.location.href = '../index.html'; return; }
+      }
+      return;
     }
     // Pause button
     if (canvas._pauseBtn) {
