@@ -348,7 +348,7 @@
     } else {
       unlockAudio();
       sfxClick();
-      if (state === 'playing') startEngine();
+      if (state === 'playing') setTimeout(() => { if (!muted) startEngine(); }, 150);
     }
   }
 
@@ -2261,7 +2261,8 @@
     resetGame();
     state = 'playing';
     unlockAudio();
-    if (!muted) startEngine();
+    // Delay engine start slightly — mobile browsers need time to resume AudioContext
+    if (!muted) setTimeout(() => { if (state === 'playing' && !muted) startEngine(); }, 150);
     lastFrameTime = performance.now();
   }
 
