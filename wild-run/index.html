@@ -61,7 +61,7 @@
 
   const FUEL_MAX     = 100;
   const FUEL_DRAIN   = 3.0;
-  const FUEL_PICKUP  = 18;
+  const FUEL_PICKUP  = 60;
 
   const OBSTACLE_MIN_GAP = 0.50;
   const COLLECTIBLE_CHANCE = 0.19;
@@ -1948,8 +1948,8 @@
     }
 
     // ── Spawn obstacles ──
-    // Gentle continuous difficulty: +1 obstacle every 1000m, gap shrinks slowly
-    const maxObs = 1 + Math.floor(distance / 1000);
+    // Gentle continuous difficulty: +1 obstacle every 1000m, never block all lanes
+    const maxObs = Math.min(1 + Math.floor(distance / 1000), LANES - 1);
     const gapDist = GAP_DIST_BASE / (1 + distance / 800);
 
     if (distance - lastObstacleDist > gapDist && obstacles.length < maxObs) {
