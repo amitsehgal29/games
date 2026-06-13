@@ -70,7 +70,7 @@
     try {
       if (val !== undefined) { localStorage.setItem(key, String(val)); return; }
       return localStorage.getItem(key);
-    } catch(e) { return val !== undefined ? null : null; }
+    } catch(e) { return null; }
   }
 
   // ── Colors — Dark theme with neon accents ──
@@ -413,16 +413,33 @@
     canvas._nextBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
   }
 
+  let muteToggledByTouch = false;
+
+  function drawSpeakerIcon(x, y, s, isMuted) {
+    ctx.fillStyle = C.text;
+    ctx.fillRect(x - s*0.35, y - s*0.18, s*0.2, s*0.36);
+    ctx.beginPath();
+    ctx.moveTo(x - s*0.15, y - s*0.24); ctx.lineTo(x + s*0.12, y - s*0.4);
+    ctx.lineTo(x + s*0.12, y + s*0.4); ctx.lineTo(x - s*0.15, y + s*0.24);
+    ctx.closePath(); ctx.fill();
+    if (!isMuted) {
+      ctx.strokeStyle = C.text; ctx.lineWidth = s*0.08; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(x + s*0.22, y, s*0.22, -0.4, 0.4); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x + s*0.32, y, s*0.38, -0.4, 0.4); ctx.stroke();
+    } else {
+      ctx.strokeStyle = C.btnDanger; ctx.lineWidth = s*0.08; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(x + s*0.24, y - s*0.25); ctx.lineTo(x + s*0.44, y + s*0.25); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + s*0.44, y - s*0.25); ctx.lineTo(x + s*0.24, y + s*0.25); ctx.stroke();
+    }
+  }
+
   function drawMuteButton() {
-    const r = scaleV(18), x = scaleX(GAME_W - 20) - r, y = scaleV(85);
-    canvas._muteBtn = { x: x-r, y: y-r, w: r*2, h: r*2 };
+    const r = scaleV(22), x = scaleX(GAME_W - 20) - r, y = scaleV(85);
+    canvas._muteBtn = { x: x-r*1.5, y: y-r*1.5, w: r*3, h: r*3 };
     ctx.fillStyle = C.surface; ctx.strokeStyle = C.border;
     ctx.lineWidth = scaleV(1);
     ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = C.textDim;
-    ctx.font = `${r*0.9}px system-ui, sans-serif`;
-    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(muted ? '🔇' : '🔊', x, y);
+    drawSpeakerIcon(x, y, r*0.7, muted);
   }
 
   // ── Logic ──
@@ -435,10 +452,9 @@
     initAudio(); sfxTap();
 
     if (!hasClearPath(row, col, arrow.dir, idx)) {
-      // Wrong tap — game over
+      // Wrong tap — game over (don't save progress on failure)
       sfxInvalid(); sfxLose();
       arrow.shakeTimer = 0.3;
-      if (level > highLevel) { highLevel = level; safeLS('arrowescape_lv', String(highLevel)); }
       setTimeout(() => { state = 'title'; }, 500);
       state = 'animating';
       return;
@@ -481,7 +497,7 @@
 
     // Draw arrows
     arrows.forEach((a, i) => {
-      if (state === 'playing' || state === 'animating' || state === 'over' || state === 'levelComplete')
+      if (state === 'playing' || state === 'animating' || state === 'levelComplete')
         drawArrow(a, i);
     });
 
@@ -520,7 +536,7 @@
       const ty = (t.clientY - rect.top) * (canvas.height / rect.height);
       if (canvas._muteBtn) {
         const b = canvas._muteBtn;
-        if (tx>=b.x && tx<=b.x+b.w && ty>=b.y && ty<=b.y+b.h) { toggleMute(); return; }
+        if (tx>=b.x && tx<=b.x+b.w && ty>=b.y && ty<=b.y+b.h) { muteToggledByTouch = true; toggleMute(); return; }
       }
       if (state === 'title' && canvas._startBtn) {
         const b = canvas._startBtn;
@@ -538,6 +554,7 @@
   }, { passive: false });
 
   canvas.addEventListener('click', e => {
+    if (muteToggledByTouch) { muteToggledByTouch = false; return; }
     const rect = canvas.getBoundingClientRect();
     const mx = (e.clientX - rect.left) * (canvas.width / rect.width);
     const my = (e.clientY - rect.top) * (canvas.height / rect.height);
