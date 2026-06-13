@@ -1140,10 +1140,11 @@
   }
 
   function drawFuelCan(x, y, w, h) {
+    const s = Math.max(w, h) * 0.7; // unified scale
     // Shadow
     ctx.fillStyle = 'rgba(0,0,0,0.22)';
     ctx.beginPath();
-    ctx.ellipse(x + w * 0.04, y + h * 0.2, w / 2.2, h / 3, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + s*0.05, y + s*0.35, s*0.3, s*0.1, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Outer glow ring
@@ -1151,47 +1152,57 @@
     ctx.globalAlpha = glowPulse;
     ctx.fillStyle = '#8B0000';
     ctx.beginPath();
-    ctx.arc(x, y, Math.max(w, h) * 0.8, 0, Math.PI * 2);
+    ctx.arc(x, y, s*0.9, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    // Jerrycan body — bold red
-    const grad = ctx.createLinearGradient(x - w / 2, y, x + w / 2, y);
+    // Gas pump nozzle — pistol grip body
+    const grad = ctx.createLinearGradient(x - s*0.3, y, x + s*0.3, y);
     grad.addColorStop(0, '#B22222');
     grad.addColorStop(0.3, '#E83535');
     grad.addColorStop(0.7, '#DC2626');
     grad.addColorStop(1, '#991111');
     ctx.fillStyle = grad;
-    roundRect(x - w / 2, y - h / 2, w, h, w * 0.15);
+    ctx.beginPath();
+    ctx.moveTo(x - s*0.15, y + s*0.35);
+    ctx.lineTo(x + s*0.1, y + s*0.35);
+    ctx.lineTo(x + s*0.18, y + s*0.15);
+    ctx.lineTo(x + s*0.25, y + s*0.05);
+    ctx.lineTo(x + s*0.28, y - s*0.1);
+    ctx.lineTo(x + s*0.12, y - s*0.18);
+    ctx.lineTo(x - s*0.22, y + s*0.05);
+    ctx.lineTo(x - s*0.18, y + s*0.22);
+    ctx.closePath();
     ctx.fill();
 
-    // Yellow stripe
-    ctx.fillStyle = '#FFD700';
-    ctx.fillRect(x - w * 0.35, y - h * 0.08, w * 0.7, h * 0.12);
+    // Nozzle spout
+    ctx.fillStyle = '#555';
+    ctx.fillRect(x + s*0.1, y - s*0.28, s*0.28, s*0.14);
+    ctx.fillStyle = '#333';
+    ctx.fillRect(x + s*0.34, y - s*0.26, s*0.06, s*0.1);
 
-    // Handle on top
+    // Yellow stripe on grip
+    ctx.fillStyle = '#FFD700';
+    ctx.fillRect(x - s*0.1, y + s*0.08, s*0.15, s*0.06);
+
+    // Trigger guard
     ctx.strokeStyle = '#DC2626';
-    ctx.lineWidth = w * 0.08;
+    ctx.lineWidth = s*0.06;
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.arc(x, y - h * 0.2, w * 0.22, Math.PI * 0.9, Math.PI * 0.1);
+    ctx.arc(x + s*0.08, y + s*0.2, s*0.14, 0, Math.PI);
     ctx.stroke();
 
-    // Spout top-right
-    ctx.fillStyle = '#991111';
-    ctx.fillRect(x + w * 0.3, y - h * 0.32, w * 0.08, h * 0.16);
+    // Hose at bottom
     ctx.fillStyle = '#333';
-    ctx.fillRect(x + w * 0.28, y - h * 0.34, w * 0.12, w * 0.06);
-    ctx.fillStyle = '#555';
-    roundRect(x - w * 0.08, y - h / 2 - h * 0.1, w * 0.16, h * 0.06, 2);
-    ctx.fill();
+    ctx.fillRect(x - s*0.08, y + s*0.32, s*0.12, s*0.12);
 
-    // White reflection/shine on left side
-    ctx.fillStyle = 'rgba(255,255,255,0.18)';
-    roundRect(x - w * 0.42, y - h * 0.4, w * 0.12, h * 0.5, 2);
-    ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.15)';
-    roundRect(x - w * 0.3, y - h * 0.38, w * 0.25, h * 0.1, 2);
+    // Highlight shine
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.beginPath();
+    ctx.moveTo(x - s*0.1, y + s*0.28);
+    ctx.lineTo(x + s*0.04, y + s*0.2);
+    ctx.lineTo(x + s*0.08, y + s*0.28);
     ctx.fill();
   }
 
@@ -1378,32 +1389,43 @@
 
   function drawFuelIcon(x, y, s, color) {
     const c = color || '#D32F2F';
-    // Jerrycan body
+    // Fuel dispenser handle (gas pump nozzle) — pistol grip shape
     ctx.fillStyle = c;
-    roundRect(x - s*0.25, y - s*0.1, s*0.5, s*0.35, s*0.05);
+    // Main grip body
+    ctx.beginPath();
+    ctx.moveTo(x - s*0.12, y + s*0.35);  // bottom of grip
+    ctx.lineTo(x + s*0.08, y + s*0.35);
+    ctx.lineTo(x + s*0.12, y + s*0.15);
+    ctx.lineTo(x + s*0.2, y + s*0.08);
+    ctx.lineTo(x + s*0.22, y - s*0.05);  // top of nozzle
+    ctx.lineTo(x + s*0.1, y - s*0.1);
+    ctx.lineTo(x - s*0.18, y + s*0.1);
+    ctx.lineTo(x - s*0.15, y + s*0.22);
+    ctx.closePath();
     ctx.fill();
-    // Body highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    roundRect(x - s*0.2, y - s*0.06, s*0.35, s*0.08, s*0.03);
-    ctx.fill();
-    // Handle on top
+    // Nozzle spout (thin extension at top)
+    ctx.fillStyle = '#555';
+    ctx.fillRect(x + s*0.1, y - s*0.22, s*0.24, s*0.14);
+    ctx.fillStyle = '#333';
+    ctx.fillRect(x + s*0.3, y - s*0.2, s*0.06, s*0.1);
+    // Trigger guard
     ctx.strokeStyle = c;
-    ctx.lineWidth = s*0.06;
+    ctx.lineWidth = s*0.05;
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.arc(x, y - s*0.12, s*0.16, Math.PI, 0);
+    ctx.arc(x + s*0.05, y + s*0.18, s*0.12, 0, Math.PI);
     ctx.stroke();
-    // Spout (small rectangle top-right)
-    ctx.fillStyle = c;
-    ctx.fillRect(x + s*0.18, y - s*0.2, s*0.06, s*0.12);
-    // Spout cap
+    // Hose at bottom
     ctx.fillStyle = '#333';
-    ctx.fillRect(x + s*0.17, y - s*0.22, s*0.08, s*0.04);
-    // Cross/plus symbol on body for fuel
+    ctx.fillRect(x - s*0.06, y + s*0.33, s*0.1, s*0.1);
+    // Highlight
     if (c !== '#FFF') {
-      ctx.fillStyle = 'rgba(255,255,255,0.4)';
-      ctx.fillRect(x - s*0.02, y + s*0.02, s*0.04, s*0.18);
-      ctx.fillRect(x - s*0.09, y + s*0.09, s*0.18, s*0.04);
+      ctx.fillStyle = 'rgba(255,255,255,0.3)';
+      ctx.beginPath();
+      ctx.moveTo(x - s*0.08, y + s*0.28);
+      ctx.lineTo(x + s*0.02, y + s*0.22);
+      ctx.lineTo(x + s*0.06, y + s*0.28);
+      ctx.fill();
     }
   }
 
@@ -1468,8 +1490,8 @@
     ctx.textBaseline = 'middle';
 
     ctx.textAlign = 'left';
-    drawFruitIcon(pad + scaleV(8), scaleV(25) - scaleV(7), scaleV(17));
-    ctx.fillText(`${score}`, pad + scaleV(28), scaleV(25));
+    drawFruitIcon(pad + scaleV(10), scaleV(25) - scaleV(7), scaleV(34));
+    ctx.fillText(`${score}`, pad + scaleV(44), scaleV(25));
 
     ctx.textAlign = 'center';
     ctx.fillText(`${Math.floor(distance)}m`, scaleX(GAME_W / 2), scaleV(25));
@@ -1478,10 +1500,10 @@
     const fuelW = scaleV(112), fuelH = scaleV(14);
     const fuelY = scaleV(48);
     const fuelIconX = pad + scaleV(3);
-    const fuelX = fuelIconX + scaleV(25);
+    const fuelX = fuelIconX + scaleV(38);
 
-    // Fuel icon (drawn droplet)
-    drawFuelIcon(fuelIconX + scaleV(6), fuelY + fuelH / 2, scaleV(14));
+    // Fuel icon (gas pump nozzle)
+    drawFuelIcon(fuelIconX + scaleV(8), fuelY + fuelH / 2, scaleV(28));
 
     // Fuel bar background
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
