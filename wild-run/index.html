@@ -1163,80 +1163,55 @@
     ctx.ellipse(x + s*0.05, y + s*0.35, s*0.4, s*0.12, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Outer glow
+    // Outer glow — red pulse
     const glowPulse = 0.35 + Math.sin(elapsedTime * 5.5) * 0.2;
     ctx.globalAlpha = glowPulse;
     ctx.fillStyle = '#8B0000';
     ctx.beginPath(); ctx.arc(x, y, s*1.0, 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = 1;
 
-    // Hose
-    ctx.fillStyle = '#1A1A1A';
-    roundRect(x - s*0.08, y + s*0.26, s*0.14, s*0.18, s*0.03);
-    ctx.fill();
-    ctx.fillStyle = '#333';
-    roundRect(x - s*0.06, y + s*0.26, s*0.05, s*0.18, s*0.02);
-    ctx.fill();
+    // Gas pump body — same design as icon
+    const bw = s * 0.5, bh = s * 1.0;
+    const bx = x - bw/2, by = y - bh/2;
 
-    // Red grip body — gradient for depth
-    const grad = ctx.createLinearGradient(x - s*0.2, y, x + s*0.2, y);
-    grad.addColorStop(0, '#B71C1C');
-    grad.addColorStop(0.3, '#E53935');
-    grad.addColorStop(0.6, '#DC2626');
-    grad.addColorStop(1, '#8B0000');
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.moveTo(x - s*0.2, y + s*0.2);
-    ctx.lineTo(x + s*0.14, y + s*0.28);
-    ctx.lineTo(x + s*0.26, y + s*0.06);
-    ctx.lineTo(x + s*0.32, y - s*0.14);
-    ctx.lineTo(x + s*0.22, y - s*0.24);
-    ctx.lineTo(x - s*0.08, y + s*0.08);
-    ctx.lineTo(x - s*0.2, y + s*0.12);
-    ctx.closePath();
-    ctx.fill();
-
-    // Grip highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.22)';
-    ctx.beginPath();
-    ctx.moveTo(x - s*0.1, y + s*0.16);
-    ctx.lineTo(x + s*0.02, y + s*0.22);
-    ctx.lineTo(x + s*0.1, y + s*0.14);
-    ctx.lineTo(x - s*0.02, y + s*0.1);
-    ctx.fill();
-
-    // Metal nozzle
-    ctx.fillStyle = '#777';
-    roundRect(x + s*0.14, y - s*0.24, s*0.42, s*0.1, s*0.02);
-    ctx.fill();
-    ctx.fillStyle = '#999';
-    roundRect(x + s*0.14, y - s*0.24, s*0.42, s*0.04, s*0.02);
-    ctx.fill();
-    // Nozzle tip
-    ctx.fillStyle = '#444';
-    roundRect(x + s*0.54, y - s*0.26, s*0.05, s*0.14, s*0.02);
-    ctx.fill();
-
-    // Rubber boot
-    ctx.fillStyle = '#222';
-    roundRect(x + s*0.12, y - s*0.2, s*0.08, s*0.1, s*0.02);
-    ctx.fill();
-    ctx.fillStyle = '#3A3A3A';
-    roundRect(x + s*0.12, y - s*0.2, s*0.08, s*0.04, s*0.02);
-    ctx.fill();
-
-    // Trigger + guard
+    // Pump body — dark frame
     ctx.fillStyle = '#2A2A2A';
-    roundRect(x + s*0.1, y + s*0.06, s*0.06, s*0.18, s*0.02);
+    roundRect(bx, by, bw, bh, bw * 0.25);
     ctx.fill();
-    ctx.fillStyle = '#444';
-    roundRect(x + s*0.11, y + s*0.06, s*0.03, s*0.18, s*0.01);
+
+    // Red painted panel
+    const redGrad = ctx.createLinearGradient(bx, by, bx + bw, by);
+    redGrad.addColorStop(0, '#B71C1C'); redGrad.addColorStop(0.5, '#E53935');
+    redGrad.addColorStop(1, '#8B0000');
+    ctx.fillStyle = redGrad;
+    roundRect(bx + bw*0.1, by + bh*0.45, bw*0.8, bh*0.48, bw*0.1);
     ctx.fill();
-    ctx.strokeStyle = '#3A3A3A';
-    ctx.lineWidth = s*0.05; ctx.lineCap = 'round';
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    roundRect(bx + bw*0.1, by + bh*0.45, bw*0.8, bh*0.12, bw*0.08);
+    ctx.fill();
+
+    // Display screen
+    ctx.fillStyle = '#1A1A1A';
+    roundRect(bx + bw*0.15, by + bh*0.12, bw*0.7, bh*0.28, bw*0.08);
+    ctx.fill();
+    ctx.fillStyle = '#3A5A3A';
+    roundRect(bx + bw*0.2, by + bh*0.16, bw*0.6, bh*0.2, bw*0.06);
+    ctx.fill();
+
+    // Base
+    ctx.fillStyle = '#333';
+    roundRect(bx - bw*0.08, by + bh*0.92, bw*1.16, bh*0.1, bw*0.1);
+    ctx.fill();
+
+    // Hose
+    ctx.strokeStyle = '#1A1A1A';
+    ctx.lineWidth = s * 0.07; ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.arc(x + s*0.14, y + s*0.18, s*0.14, 0, Math.PI);
+    ctx.moveTo(x + bw*0.5, y + bh*0.25);
+    ctx.quadraticCurveTo(x + bw*0.9, y + bh*0.25, x + bw*0.85, y + bh*0.55);
     ctx.stroke();
+    ctx.fillStyle = '#444';
+    ctx.beginPath(); ctx.arc(x + bw*0.85, y + bh*0.55, s*0.06, 0, Math.PI*2); ctx.fill();
   }
 
   // ═══════════════════════════════════════
@@ -1422,81 +1397,55 @@
 
   function drawFuelIcon(x, y, s, color) {
     const c = color || '#D32F2F';
-    // Gas pump nozzle — polished realistic proportions
+    // Gas station pump — tall unit with display, red body, hose
+    const bw = s * 0.36, bh = s * 0.9;
+    const bx = x - bw/2, by = y - bh/2;
 
-    // Hose at bottom
+    // Pump body — dark frame
+    ctx.fillStyle = '#2A2A2A';
+    roundRect(bx, by, bw, bh, bw * 0.25);
+    ctx.fill();
+
+    // Red painted panel (lower portion)
+    ctx.fillStyle = c;
+    roundRect(bx + bw*0.1, by + bh*0.45, bw*0.8, bh*0.5, bw*0.1);
+    ctx.fill();
+    // Red panel highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    roundRect(bx + bw*0.1, by + bh*0.45, bw*0.8, bh*0.15, bw*0.08);
+    ctx.fill();
+
+    // Display screen (upper portion)
     ctx.fillStyle = '#1A1A1A';
-    roundRect(x - s*0.08, y + s*0.28, s*0.16, s*0.18, s*0.03);
+    roundRect(bx + bw*0.15, by + bh*0.12, bw*0.7, bh*0.28, bw*0.08);
     ctx.fill();
-    // Hose highlight
+    // Screen glow
+    ctx.fillStyle = '#3A5A3A';
+    roundRect(bx + bw*0.2, by + bh*0.16, bw*0.6, bh*0.2, bw*0.06);
+    ctx.fill();
+    // Screen digits
+    ctx.fillStyle = '#6FA86F';
+    ctx.font = `900 ${s*0.2}px monospace`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('88', x, by + bh*0.26);
+
+    // Base
     ctx.fillStyle = '#333';
-    roundRect(x - s*0.06, y + s*0.28, s*0.06, s*0.18, s*0.02);
+    roundRect(bx - bw*0.08, by + bh*0.92, bw*1.16, bh*0.1, bw*0.1);
     ctx.fill();
 
-    // Main grip body — tapered pistol handle, red gradient
-    const gripGrad = ctx.createLinearGradient(x - s*0.2, y, x + s*0.2, y);
-    gripGrad.addColorStop(0, '#B71C1C');
-    gripGrad.addColorStop(0.3, '#E53935');
-    gripGrad.addColorStop(0.6, c);
-    gripGrad.addColorStop(1, '#8B0000');
-    ctx.fillStyle = gripGrad;
+    // Hose from right side curving down
+    ctx.strokeStyle = '#1A1A1A';
+    ctx.lineWidth = s * 0.06; ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(x - s*0.18, y + s*0.18);
-    ctx.lineTo(x - s*0.04, y + s*0.28);
-    ctx.lineTo(x + s*0.12, y + s*0.28);
-    ctx.lineTo(x + s*0.24, y + s*0.06);
-    ctx.lineTo(x + s*0.3,  y - s*0.12);
-    ctx.lineTo(x + s*0.2,  y - s*0.22);
-    ctx.lineTo(x - s*0.1,  y + s*0.06);
-    ctx.lineTo(x - s*0.2,  y + s*0.12);
-    ctx.closePath();
-    ctx.fill();
-
-    // Grip highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.22)';
-    ctx.beginPath();
-    ctx.moveTo(x - s*0.1, y + s*0.16);
-    ctx.lineTo(x + s*0.02, y + s*0.22);
-    ctx.lineTo(x + s*0.1, y + s*0.14);
-    ctx.lineTo(x - s*0.02, y + s*0.1);
-    ctx.fill();
-
-    // Metal nozzle spout
-    ctx.fillStyle = '#777';
-    roundRect(x + s*0.12, y - s*0.22, s*0.42, s*0.1, s*0.02);
-    ctx.fill();
-    // Nozzle highlight
-    ctx.fillStyle = '#999';
-    roundRect(x + s*0.12, y - s*0.22, s*0.42, s*0.04, s*0.02);
-    ctx.fill();
+    ctx.moveTo(x + bw*0.5, y + bh*0.25);
+    ctx.quadraticCurveTo(x + bw*0.9, y + bh*0.25, x + bw*0.85, y + bh*0.55);
+    ctx.stroke();
     // Nozzle tip
     ctx.fillStyle = '#444';
-    roundRect(x + s*0.52, y - s*0.24, s*0.05, s*0.14, s*0.02);
-    ctx.fill();
-
-    // Rubber boot (connector between grip and nozzle)
-    ctx.fillStyle = '#222';
-    roundRect(x + s*0.1, y - s*0.2, s*0.1, s*0.1, s*0.02);
-    ctx.fill();
-    ctx.fillStyle = '#3A3A3A';
-    roundRect(x + s*0.1, y - s*0.2, s*0.1, s*0.04, s*0.02);
-    ctx.fill();
-
-    // Trigger lever
-    ctx.fillStyle = '#2A2A2A';
-    roundRect(x + s*0.09, y + s*0.06, s*0.06, s*0.2, s*0.02);
-    ctx.fill();
-    ctx.fillStyle = '#444';
-    roundRect(x + s*0.1, y + s*0.06, s*0.03, s*0.2, s*0.01);
-    ctx.fill();
-
-    // Trigger guard ring
-    ctx.strokeStyle = '#3A3A3A';
-    ctx.lineWidth = s*0.05;
-    ctx.lineCap = 'round';
-    ctx.beginPath();
-    ctx.arc(x + s*0.13, y + s*0.2, s*0.15, 0, Math.PI);
-    ctx.stroke();
+    ctx.beginPath(); ctx.arc(x + bw*0.85, y + bh*0.55, s*0.05, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#666';
+    ctx.beginPath(); ctx.arc(x + bw*0.85, y + bh*0.55, s*0.03, 0, Math.PI*2); ctx.fill();
   }
 
   function drawSpeakerIcon(x, y, s, isMuted) {
