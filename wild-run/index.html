@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>🏞️ Wild Run</title>
+  <title>Wild Run</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
@@ -60,11 +60,11 @@
   const FUEL_DRAIN   = 3.0;
   const FUEL_PICKUP  = 18;
 
-  const OBSTACLE_MIN_GAP = 0.60;
+  const OBSTACLE_MIN_GAP = 0.40;
   const COLLECTIBLE_CHANCE = 0.38;
-  const MAX_OBSTACLES_EARLY = 1;
-  const MAX_OBSTACLES_MID   = 2;
-  const MAX_OBSTACLES_LATE  = 3;
+  const MAX_OBSTACLES_EARLY = 2;
+  const MAX_OBSTACLES_MID   = 3;
+  const MAX_OBSTACLES_LATE  = 5;
   const LANE_SWITCH_SPEED = 14; // lerp speed for smooth lane changes
 
   // ═══════════════════════════════════════
@@ -241,8 +241,8 @@
     const t = audioCtx.currentTime;
 
     const osc = audioCtx.createOscillator();
-    osc.type = 'sawtooth';
-    osc.frequency.value = 55;
+    osc.type = 'sine';
+    osc.frequency.value = 45;
     engineNodes.push(osc);
 
     const osc2 = audioCtx.createOscillator();
@@ -259,16 +259,19 @@
     bs.loop = true;
     const noiseFilter = audioCtx.createBiquadFilter();
     noiseFilter.type = 'lowpass';
-    noiseFilter.frequency.value = 200;
+    noiseFilter.frequency.value = 60;
+    const noiseGain = audioCtx.createGain();
+    noiseGain.gain.setValueAtTime(0.3, t);
     engineNodes.push(bs);
 
     engineGain = audioCtx.createGain();
-    engineGain.gain.setValueAtTime(0.04, t);
+    engineGain.gain.setValueAtTime(0.018, t);
 
     osc.connect(engineGain);
     osc2.connect(engineGain);
     bs.connect(noiseFilter);
-    noiseFilter.connect(engineGain);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(engineGain);
     engineGain.connect(audioCtx.destination);
 
     osc.start(t);
@@ -284,8 +287,8 @@
 
   function updateEngine(spd) {
     if (muted || !audioCtx || engineNodes.length === 0) return;
-    const freq = 50 + (spd / MAX_SPEED) * 80;
-    const vol = 0.02 + (spd / MAX_SPEED) * 0.06;
+    const freq = 40 + (spd / MAX_SPEED) * 35;
+    const vol = 0.006 + (spd / MAX_SPEED) * 0.022;
     engineNodes.forEach(n => {
       if (n.frequency) n.frequency.setValueAtTime(freq, audioCtx.currentTime);
     });
@@ -1244,15 +1247,8 @@
     roundRect(x - w * 0.42, y + h * 0.15, w * 0.12, h * 0.22, 2);
     ctx.fill();
 
-    // Label — brighter with shadow
-    ctx.fillStyle = '#FFF';
-    ctx.font = `bold ${w * 0.46}px system-ui, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    ctx.shadowBlur = 4;
-    ctx.fillText('⛽', x, y + h * 0.02);
-    ctx.shadowBlur = 0;
+    // Fuel symbol on can (drawn fuel droplet)
+    drawFuelIcon(x, y + h * 0.02, w * 0.22, '#FFF');
   }
 
   // ═══════════════════════════════════════
@@ -1322,7 +1318,7 @@
   // ═══════════════════════════════════════
   // GAME OBJECT SPAWNING
   // ═══════════════════════════════════════
-  const OBSTACLE_TYPES = ['boulder', 'log'];
+  const OBSTACLE_TYPES = ['boulder', 'deer', 'puddle'];
 
   // Returns set of lanes occupied near the spawn zone (top of screen)
   function getBusyLanes() {
@@ -1361,7 +1357,7 @@
   }
 
   function spawnObstacle() {
-    const type = OBSTACLE_TYPES[randInt(0, 1)];
+    const type = OBSTACLE_TYPES[randInt(0, 2)];
     const lane = pickFreeLane();
     const x = LANE_CX[lane];
     let w = 0, h = 0, r = 0;
@@ -1370,9 +1366,12 @@
       case 'boulder':
         r = rand(14, 22);
         break;
-      case 'log':
-        w = rand(42, 58);
-        h = rand(12, 18);
+      case 'deer':
+        w = rand(35, 50);
+        break;
+      case 'puddle':
+        w = rand(50, 75);
+        h = rand(30, 45);
         break;
     }
 
@@ -1410,6 +1409,81 @@
   }
 
   // ═══════════════════════════════════════
+  // DRAWN ICONS — consistent cross-platform replacements for emoji
+  // ═══════════════════════════════════════
+  function drawFruitIcon(x, y, s) {
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.beginPath(); ctx.arc(x + s*0.08, y + s*0.1, s*0.42, 0, Math.PI*2); ctx.fill();
+    const g = ctx.createRadialGradient(x - s*0.1, y - s*0.1, s*0.03, x, y, s*0.45);
+    g.addColorStop(0, '#FFE066'); g.addColorStop(0.4, '#FF9500');
+    g.addColorStop(0.8, '#FF5E00'); g.addColorStop(1, '#CC2200');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, s*0.4, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.beginPath(); ctx.arc(x - s*0.1, y - s*0.12, s*0.13, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#43A047';
+    ctx.beginPath(); ctx.ellipse(x + s*0.18, y - s*0.32, s*0.22, s*0.1, 0.4, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#2E7D32'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x + s*0.02, y - s*0.28); ctx.lineTo(x + s*0.12, y - s*0.2); ctx.stroke();
+  }
+
+  function drawFuelIcon(x, y, s, color) {
+    const c = color || '#D32F2F';
+    ctx.fillStyle = c;
+    ctx.beginPath();
+    ctx.moveTo(x, y - s*0.35);
+    ctx.quadraticCurveTo(x + s*0.32, y + s*0.05, x + s*0.18, y + s*0.32);
+    ctx.quadraticCurveTo(x, y + s*0.42, x - s*0.18, y + s*0.32);
+    ctx.quadraticCurveTo(x - s*0.32, y + s*0.05, x, y - s*0.35);
+    ctx.fill();
+    if (c !== '#FFF' && c !== '#FFFFFF') {
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      ctx.beginPath(); ctx.ellipse(x - s*0.06, y, s*0.08, s*0.15, -0.3, 0, Math.PI*2); ctx.fill();
+    }
+  }
+
+  function drawSpeakerIcon(x, y, s, isMuted) {
+    ctx.fillStyle = '#FFF';
+    ctx.beginPath();
+    ctx.moveTo(x - s*0.2, y - s*0.15); ctx.lineTo(x - s*0.05, y - s*0.15);
+    ctx.lineTo(x + s*0.15, y - s*0.35); ctx.lineTo(x + s*0.15, y + s*0.35);
+    ctx.lineTo(x - s*0.05, y + s*0.15); ctx.lineTo(x - s*0.2, y + s*0.15);
+    ctx.closePath(); ctx.fill();
+    if (!isMuted) {
+      ctx.strokeStyle = '#FFF'; ctx.lineWidth = s*0.06; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(x + s*0.22, y, s*0.2, -0.5, 0.5); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x + s*0.3, y, s*0.35, -0.5, 0.5); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x + s*0.38, y, s*0.5, -0.45, 0.45); ctx.stroke();
+    } else {
+      ctx.strokeStyle = '#FFF'; ctx.lineWidth = s*0.08; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(x + s*0.28, y - s*0.22); ctx.lineTo(x + s*0.48, y + s*0.22); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + s*0.48, y - s*0.22); ctx.lineTo(x + s*0.28, y + s*0.22); ctx.stroke();
+    }
+  }
+
+  function drawStarIcon(x, y, s) {
+    ctx.fillStyle = '#FFD700';
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 - Math.PI / 2;
+      const r = i % 2 === 0 ? s*0.5 : s*0.18;
+      if (i === 0) ctx.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+      else ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+    }
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#FFF';
+    ctx.beginPath(); ctx.arc(x, y, s*0.08, 0, Math.PI*2); ctx.fill();
+  }
+
+  function drawPlayTriangle(x, y, s) {
+    ctx.fillStyle = '#FFF';
+    ctx.beginPath();
+    ctx.moveTo(x - s*0.35, y - s*0.42);
+    ctx.lineTo(x + s*0.4, y);
+    ctx.lineTo(x - s*0.35, y + s*0.42);
+    ctx.closePath(); ctx.fill();
+  }
+
+  // ═══════════════════════════════════════
   // HUD
   // ═══════════════════════════════════════
   function drawHUD() {
@@ -1427,7 +1501,8 @@
     ctx.textBaseline = 'middle';
 
     ctx.textAlign = 'left';
-    ctx.fillText(`🍎 ${score}`, pad + scaleV(2), scaleV(18));
+    drawFruitIcon(pad + scaleV(6), scaleV(18) - scaleV(5), scaleV(10));
+    ctx.fillText(`${score}`, pad + scaleV(16), scaleV(18));
 
     ctx.textAlign = 'center';
     ctx.fillText(`${Math.floor(distance)}m`, scaleX(GAME_W / 2), scaleV(18));
@@ -1438,10 +1513,8 @@
     const fuelIconX = pad + scaleV(2);
     const fuelX = fuelIconX + scaleV(18);
 
-    // Fuel icon
-    ctx.textAlign = 'left';
-    ctx.font = `${fs * 0.65}px system-ui, sans-serif`;
-    ctx.fillText('⛽', fuelIconX, fuelY + fuelH / 2);
+    // Fuel icon (drawn droplet)
+    drawFuelIcon(fuelIconX + scaleV(4), fuelY + fuelH / 2, scaleV(7));
 
     // Fuel bar background
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
@@ -1490,7 +1563,7 @@
     ctx.font = `bold ${scaleV(40)}px system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('🏞️ Wild Run', cx, cy - scaleV(45));
+    ctx.fillText('Wild Run', cx, cy - scaleV(45));
 
     ctx.fillStyle = '#D8E8C8';
     ctx.font = `${scaleV(15)}px system-ui, sans-serif`;
@@ -1505,11 +1578,11 @@
     ctx.fillStyle = '#EEE';
     ctx.font = `${scaleV(13)}px system-ui, sans-serif`;
     [
-      '⬅ ➡  Switch lanes to dodge',
-      '⬆  Hold for nitro boost',
-      '🍎 Fruit = points  ⛽ Fuel = life',
+      '< >  Switch lanes to dodge',
+      '^  Hold for nitro boost',
+      '* Fruit = points  # Fuel = life',
       '',
-      '📱 Tap sides to steer',
+      'Tap sides to steer',
     ].forEach((l, i) => ctx.fillText(l, cx, boxY + scaleV(20) + i * scaleV(21)));
 
     // Start button
@@ -1528,12 +1601,14 @@
 
     ctx.fillStyle = '#FFF';
     ctx.font = `bold ${scaleV(18)}px system-ui, sans-serif`;
-    ctx.fillText('▶  START', cx, btnY + scaleV(22));
+    drawPlayTriangle(cx - scaleV(40), btnY + scaleV(22), scaleV(12));
+    ctx.fillText('START', cx + scaleV(4), btnY + scaleV(22));
 
     if (highScore > 0) {
       ctx.fillStyle = '#FFD93D';
       ctx.font = `${scaleV(12)}px system-ui, sans-serif`;
-      ctx.fillText(`🏆 Best: ${highScore} pts  •  ${highDist}m`, cx, btnY + scaleV(62));
+      drawStarIcon(cx - scaleX(74), btnY + scaleV(62), scaleV(7));
+      ctx.fillText(`Best: ${highScore} pts  •  ${highDist}m`, cx, btnY + scaleV(62));
     }
 
     canvas._startBtn = { x: cx - scaleX(72), y: btnY, w: scaleX(144), h: scaleV(44) };
@@ -1555,10 +1630,11 @@
     const statsY = cy + scaleV(28);
     ctx.fillStyle = '#FFF';
     ctx.font = `bold ${scaleV(20)}px system-ui, sans-serif`;
-    ctx.fillText(`🍎 ${score}`, cx, statsY);
+    drawFruitIcon(cx - scaleV(28), statsY - scaleV(1), scaleV(11));
+    ctx.fillText(`${score}`, cx + scaleV(6), statsY);
     ctx.fillStyle = '#CCC';
     ctx.font = `${scaleV(16)}px system-ui, sans-serif`;
-    ctx.fillText(`📏 ${Math.floor(distance)}m`, cx, statsY + scaleV(32));
+    ctx.fillText(`${Math.floor(distance)}m`, cx, statsY + scaleV(32));
 
     let newBest = false;
     if (score > highScore) {
@@ -1574,7 +1650,9 @@
     if (newBest) {
       ctx.fillStyle = '#FFD93D';
       ctx.font = `bold ${scaleV(17)}px system-ui, sans-serif`;
-      ctx.fillText('🌟 New High Score! 🌟', cx, statsY + scaleV(65));
+      drawStarIcon(cx - scaleV(80), statsY + scaleV(65), scaleV(9));
+      ctx.fillText('New High Score!', cx, statsY + scaleV(65));
+      drawStarIcon(cx + scaleV(80), statsY + scaleV(65), scaleV(9));
     }
 
     const btnY = statsY + scaleV(95);
@@ -1587,7 +1665,7 @@
 
     ctx.fillStyle = '#FFF';
     ctx.font = `bold ${scaleV(17)}px system-ui, sans-serif`;
-    ctx.fillText('🔄  PLAY AGAIN', cx, btnY + scaleV(22));
+    ctx.fillText('PLAY AGAIN', cx, btnY + scaleV(22));
 
     canvas._restartBtn = { x: cx - scaleX(82), y: btnY, w: scaleX(164), h: scaleV(44) };
   }
@@ -1604,12 +1682,8 @@
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
 
-    // Speaker icon
-    ctx.fillStyle = '#FFF';
-    ctx.font = `${r * 1.1}px system-ui, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(muted ? '🔇' : '🔊', x, y);
+    // Speaker icon (drawn)
+    drawSpeakerIcon(x, y, r * 0.9, muted);
   }
 
   // ═══════════════════════════════════════
@@ -1700,11 +1774,11 @@
     // ── Spawn obstacles ──
     // Determine max simultaneous obstacles based on distance
     let maxObs;
-    if (distance < 600) maxObs = MAX_OBSTACLES_EARLY;
-    else if (distance < 1800) maxObs = MAX_OBSTACLES_MID;
+    if (distance < 400) maxObs = MAX_OBSTACLES_EARLY;
+    else if (distance < 1200) maxObs = MAX_OBSTACLES_MID;
     else maxObs = MAX_OBSTACLES_LATE;
 
-    const gapSec = OBSTACLE_MIN_GAP * (BASE_SPEED / speed);
+    const gapSec = OBSTACLE_MIN_GAP * (BASE_SPEED / speed) * (BASE_SPEED / speed);
     if (distance - lastObstacleDist > speed * gapSec * 1.2 && obstacles.length < maxObs) {
       // Check which lanes are blocked near the spawn zone (top of screen)
       const nearSpawn = obstacles.filter(o => o.y < canvas.height * 0.25);
@@ -1911,7 +1985,7 @@
     }
   }
   function boostOn() {
-    if (state === 'playing') { nitroActive = true; if (nitroFuel <= 0) nitroFuel = 100; }
+    if (state === 'playing') { nitroActive = true; if (nitroFuel <= 0) nitroFuel = 60; }
   }
   function boostOff() { nitroActive = false; }
 
