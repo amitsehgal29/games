@@ -138,6 +138,7 @@
   // GAME STATE
   // ═══════════════════════════════════════
   let state = 'title';
+  let paused = false;
   let score = 0;
   let distance = 0;
   let speed = BASE_SPEED;
@@ -1159,71 +1160,82 @@
     // Shadow
     ctx.fillStyle = 'rgba(0,0,0,0.22)';
     ctx.beginPath();
-    ctx.ellipse(x + s*0.05, y + s*0.38, s*0.45, s*0.14, 0, 0, Math.PI*2);
+    ctx.ellipse(x + s*0.05, y + s*0.35, s*0.4, s*0.12, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // Outer glow
     const glowPulse = 0.35 + Math.sin(elapsedTime * 5.5) * 0.2;
     ctx.globalAlpha = glowPulse;
     ctx.fillStyle = '#8B0000';
-    ctx.beginPath(); ctx.arc(x, y, s*1.0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x, y, s*1.0, 0, Math.PI * 2); ctx.fill();
     ctx.globalAlpha = 1;
 
-    // Hose stub
+    // Hose
     ctx.fillStyle = '#1A1A1A';
-    ctx.beginPath();
-    ctx.ellipse(x - s*0.06, y + s*0.36, s*0.1, s*0.07, 0, 0, Math.PI*2);
+    roundRect(x - s*0.08, y + s*0.26, s*0.14, s*0.18, s*0.03);
+    ctx.fill();
+    ctx.fillStyle = '#333';
+    roundRect(x - s*0.06, y + s*0.26, s*0.05, s*0.18, s*0.02);
     ctx.fill();
 
-    // Red grip body
-    const grad = ctx.createLinearGradient(x - s*0.22, y, x + s*0.22, y);
-    grad.addColorStop(0, '#B22222'); grad.addColorStop(0.3, '#E83535');
-    grad.addColorStop(0.7, '#DC2626'); grad.addColorStop(1, '#991111');
+    // Red grip body — gradient for depth
+    const grad = ctx.createLinearGradient(x - s*0.2, y, x + s*0.2, y);
+    grad.addColorStop(0, '#B71C1C');
+    grad.addColorStop(0.3, '#E53935');
+    grad.addColorStop(0.6, '#DC2626');
+    grad.addColorStop(1, '#8B0000');
     ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.moveTo(x - s*0.22, y + s*0.22);
-    ctx.lineTo(x - s*0.06, y + s*0.32);
-    ctx.lineTo(x + s*0.14, y + s*0.32);
-    ctx.lineTo(x + s*0.26, y + s*0.08);
-    ctx.lineTo(x + s*0.32, y - s*0.12);
-    ctx.lineTo(x + s*0.12, y - s*0.18);
-    ctx.lineTo(x - s*0.14, y + s*0.04);
-    ctx.lineTo(x - s*0.24, y + s*0.14);
+    ctx.moveTo(x - s*0.2, y + s*0.2);
+    ctx.lineTo(x + s*0.14, y + s*0.28);
+    ctx.lineTo(x + s*0.26, y + s*0.06);
+    ctx.lineTo(x + s*0.32, y - s*0.14);
+    ctx.lineTo(x + s*0.22, y - s*0.24);
+    ctx.lineTo(x - s*0.08, y + s*0.08);
+    ctx.lineTo(x - s*0.2, y + s*0.12);
     ctx.closePath();
     ctx.fill();
 
     // Grip highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
     ctx.beginPath();
-    ctx.moveTo(x - s*0.14, y + s*0.2);
-    ctx.lineTo(x + s*0.06, y + s*0.26);
-    ctx.lineTo(x + s*0.14, y + s*0.2);
-    ctx.lineTo(x - s*0.06, y + s*0.16);
+    ctx.moveTo(x - s*0.1, y + s*0.16);
+    ctx.lineTo(x + s*0.02, y + s*0.22);
+    ctx.lineTo(x + s*0.1, y + s*0.14);
+    ctx.lineTo(x - s*0.02, y + s*0.1);
     ctx.fill();
 
     // Metal nozzle
-    ctx.fillStyle = '#888';
-    ctx.fillRect(x + s*0.12, y - s*0.22, s*0.48, s*0.14);
-    ctx.fillStyle = '#AAA';
-    ctx.fillRect(x + s*0.12, y - s*0.22, s*0.48, s*0.05);
-    ctx.fillStyle = '#555';
-    ctx.fillRect(x + s*0.58, y - s*0.24, s*0.05, s*0.18);
+    ctx.fillStyle = '#777';
+    roundRect(x + s*0.14, y - s*0.24, s*0.42, s*0.1, s*0.02);
+    ctx.fill();
+    ctx.fillStyle = '#999';
+    roundRect(x + s*0.14, y - s*0.24, s*0.42, s*0.04, s*0.02);
+    ctx.fill();
+    // Nozzle tip
+    ctx.fillStyle = '#444';
+    roundRect(x + s*0.54, y - s*0.26, s*0.05, s*0.14, s*0.02);
+    ctx.fill();
 
     // Rubber boot
+    ctx.fillStyle = '#222';
+    roundRect(x + s*0.12, y - s*0.2, s*0.08, s*0.1, s*0.02);
+    ctx.fill();
+    ctx.fillStyle = '#3A3A3A';
+    roundRect(x + s*0.12, y - s*0.2, s*0.08, s*0.04, s*0.02);
+    ctx.fill();
+
+    // Trigger + guard
     ctx.fillStyle = '#2A2A2A';
-    ctx.fillRect(x + s*0.1, y - s*0.18, s*0.1, s*0.1);
-
-    // Trigger
-    ctx.fillStyle = '#333';
-    ctx.fillRect(x + s*0.1, y + s*0.06, s*0.07, s*0.24);
-    ctx.fillStyle = '#555';
-    ctx.fillRect(x + s*0.11, y + s*0.06, s*0.04, s*0.22);
-
-    // Trigger guard
-    ctx.strokeStyle = '#444';
+    roundRect(x + s*0.1, y + s*0.06, s*0.06, s*0.18, s*0.02);
+    ctx.fill();
+    ctx.fillStyle = '#444';
+    roundRect(x + s*0.11, y + s*0.06, s*0.03, s*0.18, s*0.01);
+    ctx.fill();
+    ctx.strokeStyle = '#3A3A3A';
     ctx.lineWidth = s*0.05; ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.arc(x + s*0.14, y + s*0.26, s*0.18, 0, Math.PI);
+    ctx.arc(x + s*0.14, y + s*0.18, s*0.14, 0, Math.PI);
     ctx.stroke();
   }
 
@@ -1410,63 +1422,80 @@
 
   function drawFuelIcon(x, y, s, color) {
     const c = color || '#D32F2F';
-    // Gas pump nozzle — side view, realistic proportions
+    // Gas pump nozzle — polished realistic proportions
 
-    // Hose stub at bottom-rear
+    // Hose at bottom
     ctx.fillStyle = '#1A1A1A';
-    ctx.beginPath();
-    ctx.ellipse(x - s*0.05, y + s*0.32, s*0.08, s*0.06, 0, 0, Math.PI*2);
+    roundRect(x - s*0.08, y + s*0.28, s*0.16, s*0.18, s*0.03);
+    ctx.fill();
+    // Hose highlight
+    ctx.fillStyle = '#333';
+    roundRect(x - s*0.06, y + s*0.28, s*0.06, s*0.18, s*0.02);
     ctx.fill();
 
-    // Main handle body — thick angled grip, red
-    ctx.fillStyle = c;
+    // Main grip body — tapered pistol handle, red gradient
+    const gripGrad = ctx.createLinearGradient(x - s*0.2, y, x + s*0.2, y);
+    gripGrad.addColorStop(0, '#B71C1C');
+    gripGrad.addColorStop(0.3, '#E53935');
+    gripGrad.addColorStop(0.6, c);
+    gripGrad.addColorStop(1, '#8B0000');
+    ctx.fillStyle = gripGrad;
     ctx.beginPath();
-    ctx.moveTo(x - s*0.2, y + s*0.2);    // bottom-left of grip
-    ctx.lineTo(x - s*0.05, y + s*0.28);   // bottom curve
-    ctx.lineTo(x + s*0.12, y + s*0.28);   // bottom of grip
-    ctx.lineTo(x + s*0.22, y + s*0.08);   // up to main body
-    ctx.lineTo(x + s*0.28, y - s*0.1);    // top of main body
-    ctx.lineTo(x + s*0.1, y - s*0.15);    // back to nozzle base
-    ctx.lineTo(x - s*0.12, y + s*0.05);   // back down
-    ctx.lineTo(x - s*0.22, y + s*0.12);   // back to grip top
+    ctx.moveTo(x - s*0.18, y + s*0.18);
+    ctx.lineTo(x - s*0.04, y + s*0.28);
+    ctx.lineTo(x + s*0.12, y + s*0.28);
+    ctx.lineTo(x + s*0.24, y + s*0.06);
+    ctx.lineTo(x + s*0.3,  y - s*0.12);
+    ctx.lineTo(x + s*0.2,  y - s*0.22);
+    ctx.lineTo(x - s*0.1,  y + s*0.06);
+    ctx.lineTo(x - s*0.2,  y + s*0.12);
     ctx.closePath();
     ctx.fill();
 
-    // Grip highlight/shine
-    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    // Grip highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
     ctx.beginPath();
-    ctx.moveTo(x - s*0.12, y + s*0.18);
-    ctx.lineTo(x + s*0.02, y + s*0.24);
-    ctx.lineTo(x + s*0.1, y + s*0.2);
-    ctx.lineTo(x - s*0.06, y + s*0.15);
+    ctx.moveTo(x - s*0.1, y + s*0.16);
+    ctx.lineTo(x + s*0.02, y + s*0.22);
+    ctx.lineTo(x + s*0.1, y + s*0.14);
+    ctx.lineTo(x - s*0.02, y + s*0.1);
     ctx.fill();
 
-    // Metal nozzle spout — long, silver
-    ctx.fillStyle = '#888';
-    ctx.fillRect(x + s*0.1, y - s*0.2, s*0.45, s*0.12);
+    // Metal nozzle spout
+    ctx.fillStyle = '#777';
+    roundRect(x + s*0.12, y - s*0.22, s*0.42, s*0.1, s*0.02);
+    ctx.fill();
     // Nozzle highlight
-    ctx.fillStyle = '#AAA';
-    ctx.fillRect(x + s*0.1, y - s*0.2, s*0.45, s*0.04);
+    ctx.fillStyle = '#999';
+    roundRect(x + s*0.12, y - s*0.22, s*0.42, s*0.04, s*0.02);
+    ctx.fill();
     // Nozzle tip
-    ctx.fillStyle = '#555';
-    ctx.fillRect(x + s*0.53, y - s*0.22, s*0.04, s*0.16);
+    ctx.fillStyle = '#444';
+    roundRect(x + s*0.52, y - s*0.24, s*0.05, s*0.14, s*0.02);
+    ctx.fill();
 
-    // Rubber connector boot
+    // Rubber boot (connector between grip and nozzle)
+    ctx.fillStyle = '#222';
+    roundRect(x + s*0.1, y - s*0.2, s*0.1, s*0.1, s*0.02);
+    ctx.fill();
+    ctx.fillStyle = '#3A3A3A';
+    roundRect(x + s*0.1, y - s*0.2, s*0.1, s*0.04, s*0.02);
+    ctx.fill();
+
+    // Trigger lever
     ctx.fillStyle = '#2A2A2A';
-    ctx.fillRect(x + s*0.08, y - s*0.15, s*0.1, s*0.08);
+    roundRect(x + s*0.09, y + s*0.06, s*0.06, s*0.2, s*0.02);
+    ctx.fill();
+    ctx.fillStyle = '#444';
+    roundRect(x + s*0.1, y + s*0.06, s*0.03, s*0.2, s*0.01);
+    ctx.fill();
 
-    // Trigger underneath
-    ctx.fillStyle = '#333';
-    ctx.fillRect(x + s*0.08, y + s*0.06, s*0.06, s*0.22);
-    ctx.fillStyle = '#555';
-    ctx.fillRect(x + s*0.09, y + s*0.06, s*0.03, s*0.2);
-
-    // Trigger guard loop
-    ctx.strokeStyle = '#444';
-    ctx.lineWidth = s*0.04;
+    // Trigger guard ring
+    ctx.strokeStyle = '#3A3A3A';
+    ctx.lineWidth = s*0.05;
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.arc(x + s*0.12, y + s*0.22, s*0.14, 0, Math.PI);
+    ctx.arc(x + s*0.13, y + s*0.2, s*0.15, 0, Math.PI);
     ctx.stroke();
   }
 
@@ -1511,6 +1540,50 @@
     ctx.lineTo(x + s*0.4, y);
     ctx.lineTo(x - s*0.35, y + s*0.42);
     ctx.closePath(); ctx.fill();
+  }
+
+  function drawPauseIcon(x, y, s) {
+    ctx.fillStyle = '#FFF';
+    const bw = s * 0.22, bh = s * 0.55, gap = s * 0.14;
+    roundRect(x - gap/2 - bw, y - bh/2, bw, bh, s * 0.06); ctx.fill();
+    roundRect(x + gap/2, y - bh/2, bw, bh, s * 0.06); ctx.fill();
+  }
+
+  function drawHomeIcon(x, y, s) {
+    ctx.fillStyle = '#FFF';
+    // House body
+    ctx.fillRect(x - s*0.3, y + s*0.02, s*0.6, s*0.45);
+    // Roof
+    ctx.beginPath();
+    ctx.moveTo(x, y - s*0.48);
+    ctx.lineTo(x - s*0.45, y + s*0.02);
+    ctx.lineTo(x + s*0.45, y + s*0.02);
+    ctx.closePath(); ctx.fill();
+    // Door
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    roundRect(x - s*0.1, y + s*0.15, s*0.2, s*0.3, s*0.04); ctx.fill();
+  }
+
+  function drawPauseOverlay() {
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const cx = canvas.width / 2, cy = canvas.height * 0.4;
+    ctx.fillStyle = '#FFF';
+    ctx.font = `900 ${scaleV(36)}px 'Fredoka One', system-ui, sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('PAUSED', cx, cy);
+
+    // Resume button
+    const btnW = scaleX(200), btnH = scaleV(52);
+    const btnX = cx - btnW/2, btnY = cy + scaleV(40);
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    roundRect(btnX, btnY, btnW, btnH, btnH/2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = scaleV(2);
+    ctx.stroke();
+    ctx.fillStyle = '#FFF';
+    ctx.font = `800 ${scaleV(18)}px 'Fredoka One', system-ui, sans-serif`;
+    ctx.fillText('RESUME', cx, btnY + btnH/2);
+    canvas._resumeBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
   }
 
   // ═══════════════════════════════════════
@@ -1816,57 +1889,79 @@
   }
 
   function drawGameOverScreen() {
-    ctx.fillStyle = 'rgba(0,0,0,0.62)';
+    // Deeper overlay for contrast
+    ctx.fillStyle = 'rgba(0,0,0,0.72)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const cx = canvas.width / 2;
-    const cy = canvas.height * 0.33;
+    const cy = canvas.height * 0.30;
 
-    ctx.fillStyle = '#FF6B35';
-    ctx.font = `900 ${scaleV(36)}px 'Fredoka One', system-ui, sans-serif`;
+    // Title — warm orange gradient matching title screen style
+    const titleGrad = ctx.createLinearGradient(cx, cy - scaleV(24), cx, cy + scaleV(24));
+    titleGrad.addColorStop(0, '#FFB74D');
+    titleGrad.addColorStop(0.5, '#FF8A3D');
+    titleGrad.addColorStop(1, '#E65100');
+    ctx.fillStyle = titleGrad;
+    ctx.font = `900 ${scaleV(42)}px 'Fredoka One', system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('Game Over', cx, cy - scaleV(18));
+    ctx.fillText('Game Over', cx, cy);
 
-    const statsY = cy + scaleV(28);
+    // Stats — matching HUD sizing
+    const statsY = cy + scaleV(38);
     ctx.fillStyle = '#FFF';
-    ctx.font = `bold ${scaleV(20)}px 'Fredoka', system-ui, sans-serif`;
-    drawFruitIcon(cx - scaleV(28), statsY - scaleV(1), scaleV(11));
-    ctx.fillText(`${score}`, cx + scaleV(6), statsY);
-    ctx.fillStyle = '#CCC';
-    ctx.font = `600 ${scaleV(16)}px 'Fredoka', system-ui, sans-serif`;
-    ctx.fillText(`${Math.floor(distance)}m`, cx, statsY + scaleV(32));
+    ctx.font = `bold ${scaleV(22)}px 'Fredoka', system-ui, sans-serif`;
+    drawFruitIcon(cx - scaleV(34), statsY - scaleV(2), scaleV(20));
+    ctx.fillText(`${score}`, cx + scaleV(10), statsY);
+
+    ctx.fillStyle = '#FFF';
+    ctx.font = `600 ${scaleV(18)}px 'Fredoka', system-ui, sans-serif`;
+    ctx.fillText(`${Math.floor(distance)}m`, cx, statsY + scaleV(34));
 
     const prevHigh = highScore;
     const newBest = score > prevHigh;
 
     if (newBest) {
       ctx.fillStyle = '#FFD93D';
-      ctx.font = `bold ${scaleV(17)}px 'Fredoka One', system-ui, sans-serif`;
-      drawStarIcon(cx - scaleV(80), statsY + scaleV(65), scaleV(9));
-      ctx.fillText('New High Score!', cx, statsY + scaleV(65));
-      drawStarIcon(cx + scaleV(80), statsY + scaleV(65), scaleV(9));
+      ctx.font = `bold ${scaleV(18)}px 'Fredoka One', system-ui, sans-serif`;
+      drawStarIcon(cx - scaleV(80), statsY + scaleV(60), scaleV(10));
+      ctx.fillText('New High Score!', cx, statsY + scaleV(60));
+      drawStarIcon(cx + scaleV(80), statsY + scaleV(60), scaleV(10));
     }
 
+    // PLAY AGAIN button — orange, matching title screen START button
     const btnW = scaleX(200), btnH = scaleV(58);
-    const btnY = statsY + scaleV(90);
+    const btnY = statsY + scaleV(80);
+    const pulse = 1 + Math.sin(elapsedTime * 3.5) * 0.04;
+    ctx.shadowColor = 'rgba(255,140,0,0.5)';
+    ctx.shadowBlur = scaleV(22) * pulse;
     const btnGrad = ctx.createLinearGradient(cx, btnY, cx, btnY + btnH);
-    btnGrad.addColorStop(0, '#5CB860');
-    btnGrad.addColorStop(1, '#3D8B40');
+    btnGrad.addColorStop(0, '#FF9800');
+    btnGrad.addColorStop(0.5, '#FF6D00');
+    btnGrad.addColorStop(1, '#E65100');
     ctx.fillStyle = btnGrad;
     roundRect(cx - btnW / 2, btnY, btnW, btnH, btnH / 2);
     ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
 
     // Shine
     ctx.fillStyle = 'rgba(255,255,255,0.2)';
     roundRect(cx - btnW / 2 + scaleV(4), btnY + scaleV(2), btnW - scaleV(8), btnH / 2.5, btnH / 4);
     ctx.fill();
 
+    // Border
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = scaleV(2.5);
+    roundRect(cx - btnW / 2, btnY, btnW, btnH, btnH / 2);
+    ctx.stroke();
+
     ctx.fillStyle = '#FFF';
     ctx.font = `900 ${scaleV(22)}px 'Fredoka One', system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('PLAY AGAIN', cx, btnY + btnH / 2);
+    drawPlayTriangle(cx - scaleV(60), btnY + btnH / 2, scaleV(16));
+    ctx.fillText('PLAY AGAIN', cx + scaleV(8), btnY + btnH / 2);
 
     canvas._restartBtn = { x: cx - btnW / 2, y: btnY, w: btnW, h: btnH };
   }
@@ -1892,6 +1987,36 @@
 
     // Speaker icon (drawn)
     drawSpeakerIcon(x, y, r * 0.75, muted);
+  }
+
+  function drawPauseButton() {
+    if (state !== 'playing' && state !== 'over') return;
+    const r = scaleV(22);
+    const x = scaleX(GAME_W - GRASS_W - 4) - r;
+    const y = scaleV(100) + scaleV(62);
+    const touchR = Math.max(r, scaleV(22));
+    canvas._pauseBtn = { x: x - touchR, y: y - touchR, w: touchR * 2, h: touchR * 2 };
+
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = scaleV(2);
+    ctx.stroke();
+    drawPauseIcon(x, y, r * 0.65);
+  }
+
+  function drawHomeButton() {
+    if (state !== 'title') return;
+    const r = scaleV(22);
+    const x = scaleX(GRASS_W + 4) + r;
+    const y = scaleV(100);
+    const touchR = Math.max(r, scaleV(22));
+    canvas._homeBtn = { x: x - touchR, y: y - touchR, w: touchR * 2, h: touchR * 2 };
+
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = scaleV(2);
+    ctx.stroke();
+    drawHomeIcon(x, y, r * 0.6);
   }
 
   // ═══════════════════════════════════════
@@ -2174,6 +2299,9 @@
     if (state === 'title') drawTitleScreen();
     if (state === 'over') drawGameOverScreen();
     drawMuteButton();
+    drawPauseButton();
+    drawHomeButton();
+    if (paused && state === 'playing') drawPauseOverlay();
   }
 
   // ═══════════════════════════════════════
@@ -2182,9 +2310,12 @@
   function gameLoop(ts) {
     const dt = (ts - lastFrameTime) / 1000;
     lastFrameTime = ts;
-    frameCount++;
     elapsedTime += dt;
-    update(dt);
+    if (!paused) {
+      frameCount++;
+      update(dt);
+    }
+    lastDt = dt;
     render();
     requestAnimationFrame(gameLoop);
   }
@@ -2216,6 +2347,9 @@
     if (e.key === ' ' || e.key === 'Enter') {
       if (state === 'title' || state === 'over') { startGame(); e.preventDefault(); }
     }
+    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+      if (state === 'playing') { togglePause(); e.preventDefault(); }
+    }
   });
   window.addEventListener('keyup', e => {
     if (e.key === 'ArrowUp' || e.key === 'w') boostOff();
@@ -2240,11 +2374,35 @@
         }
       }
 
+      // Home button on title screen
+      if (state === 'title' && canvas._homeBtn) {
+        const b = canvas._homeBtn;
+        if (tx >= b.x && tx <= b.x + b.w && ty >= b.y && ty <= b.y + b.h) { window.location.href = '../index.html'; return; }
+      }
+
+      // Pause overlay resume button
+      if (paused && canvas._resumeBtn) {
+        const b = canvas._resumeBtn;
+        if (tx >= b.x && tx <= b.x + b.w && ty >= b.y && ty <= b.y + b.h) { togglePause(); return; }
+      }
+
+      // Pause button (always check after mute/home)
+      if (canvas._pauseBtn) {
+        const b = canvas._pauseBtn;
+        if (tx >= b.x && tx <= b.x + b.w && ty >= b.y && ty <= b.y + b.h) { togglePause(); return; }
+      }
+
       touchStartY = t.clientY;
       boostSwipeActive = false;
 
+      if (paused) return;
+
       if (state === 'title' || state === 'over') { startGame(); return; }
       if (state === 'playing') {
+        if (canvas._pauseBtn) {
+          const b = canvas._pauseBtn;
+          if (tx >= b.x && tx <= b.x + b.w && ty >= b.y && ty <= b.y + b.h) { togglePause(); return; }
+        }
         if (steerApplied) continue;
         steerApplied = true;
         if (tx < rect.width / 2) moveLeft();
@@ -2277,6 +2435,24 @@
       }
     }
 
+    // Home button on title
+    if (state === 'title' && canvas._homeBtn) {
+      const b = canvas._homeBtn;
+      if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) { window.location.href = '../index.html'; return; }
+    }
+
+    // Pause overlay resume
+    if (paused && canvas._resumeBtn) {
+      const b = canvas._resumeBtn;
+      if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) { togglePause(); return; }
+    }
+
+    // Pause button
+    if (canvas._pauseBtn) {
+      const b = canvas._pauseBtn;
+      if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) { togglePause(); return; }
+    }
+
     if (state === 'title' && canvas._startBtn) {
       const b = canvas._startBtn;
       if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) startGame();
@@ -2287,8 +2463,16 @@
     }
   });
 
+  function togglePause() {
+    if (state !== 'playing') return;
+    paused = !paused;
+    if (paused) { stopEngine(); }
+    else { if (!muted) startEngine(); lastFrameTime = performance.now(); }
+  }
+
   function startGame() {
     resetGame();
+    paused = false;
     state = 'playing';
     unlockAudio();
     if (!muted) startEngine();

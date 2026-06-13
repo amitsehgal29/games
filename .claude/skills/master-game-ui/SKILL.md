@@ -124,6 +124,7 @@ When building a new game for this repo, choose a visual theme distinct from exis
 - Prominent START button: gradient fill, pulsing shadow glow, rounded pill shape
 - Show high score/best level if one exists
 - Mute button always visible and accessible from title screen
+- **Home button**: small house icon in top-left or near mute button. Navigates to `../index.html` (the repo landing page). Use `window.location.href = '../index.html'`
 
 ---
 
@@ -141,6 +142,7 @@ When building a new game for this repo, choose a visual theme distinct from exis
 - Row 2: fuel/health icon + gauge bar (left), speed/stat (right)
 - Gauge bar: gradient that shifts green → amber → red as resource depletes, with shine overlay
 - All icons custom-drawn (fruit, fuel can, speaker, star) — never emoji
+- **Pause button**: visible during gameplay, positioned near mute button. Draw as two vertical bars (⏸) inside a circle. Toggles `paused` state. Show "PAUSED" overlay with a RESUME button when active. Timer and game loop freeze while paused.
 
 ---
 
@@ -167,6 +169,8 @@ All icons must be canvas-drawn — no emoji, no images.
 - **Play triangle**: filled right-pointing triangle
 - **Arrow (direction)**: stem + triangular head, rotated for up/down/left/right
 - **Tea leaf**: bezier-curve oval, center vein, tiny stem
+- **Pause**: two vertical rounded rectangles (⏸) inside a circle
+- **Home**: simple house shape — rectangle body + triangle roof
 
 ---
 
