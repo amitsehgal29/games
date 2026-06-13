@@ -349,7 +349,7 @@
       x: rand(-120, GAME_W + 60),
       y: rand(10, canvas.height * 0.2),
       w: rand(50, 110),
-      speed: rand(8, 20),
+      speed: rand(25, 60),
       opacity: rand(0.4, 0.85),
     };
   }
@@ -1982,8 +1982,8 @@
     updateEngine(effectiveSpeed);
 
     // ── Move atmosphere ──
-    treesL.forEach(t => { t.y += scrollSpeed * 0.13 * dtC; if (t.y > canvas.height + 80) t.y = -80; });
-    treesR.forEach(t => { t.y += scrollSpeed * 0.13 * dtC; if (t.y > canvas.height + 80) t.y = -80; });
+    treesL.forEach(t => { t.y += scrollSpeed * 3.2 * dtC; if (t.y > canvas.height + 80) t.y = -80; });
+    treesR.forEach(t => { t.y += scrollSpeed * 3.2 * dtC; if (t.y > canvas.height + 80) t.y = -80; });
 
     birds.forEach(b => {
       b.x += b.speed * dtC;
@@ -2205,7 +2205,7 @@
         x: rand(-40, GAME_W + 40),
         y: rand(canvas.height * 0.08, canvas.height * 0.22),
         size: rand(8, 16),
-        speed: rand(15, 35) * (Math.random() < 0.5 ? 1 : -1),
+        speed: rand(35, 70) * (Math.random() < 0.5 ? 1 : -1),
         flapSpeed: rand(8, 14),
         phase: rand(0, Math.PI * 2),
       });
