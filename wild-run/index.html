@@ -1598,66 +1598,217 @@
   // SCREENS
   // ═══════════════════════════════════════
   function drawTitleScreen() {
-    ctx.fillStyle = 'rgba(0,0,0,0.58)';
+    const cx = canvas.width / 2;
+    const cy = canvas.height * 0.32;
+
+    // ── Background overlay — deep forest gradient ──
+    const bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    bgGrad.addColorStop(0, 'rgba(15,30,15,0.82)');
+    bgGrad.addColorStop(0.5, 'rgba(20,40,20,0.78)');
+    bgGrad.addColorStop(1, 'rgba(10,20,10,0.88)');
+    ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const cx = canvas.width / 2;
-    const cy = canvas.height * 0.36;
-
-    // Title
-    ctx.fillStyle = '#FFF';
-    ctx.font = `bold ${scaleV(40)}px system-ui, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('Wild Run', cx, cy - scaleV(45));
-
-    ctx.fillStyle = '#D8E8C8';
-    ctx.font = `${scaleV(15)}px system-ui, sans-serif`;
-    ctx.fillText('Race through the wilderness', cx, cy + scaleV(2));
-
-    // Instructions
-    const boxY = cy + scaleV(32);
-    ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    roundRect(cx - scaleX(145), boxY, scaleX(290), scaleV(125), scaleV(12));
-    ctx.fill();
-
-    ctx.fillStyle = '#EEE';
-    ctx.font = `${scaleV(13)}px system-ui, sans-serif`;
-    [
-      '< >  Switch lanes to dodge',
-      '^  Hold for nitro boost',
-      '* Fruit = points  # Fuel = life',
-      '',
-      'Tap sides to steer',
-    ].forEach((l, i) => ctx.fillText(l, cx, boxY + scaleV(20) + i * scaleV(21)));
-
-    // Start button
-    const btnY = boxY + scaleV(145);
-    const btnGrad = ctx.createLinearGradient(cx, btnY, cx, btnY + scaleV(44));
-    btnGrad.addColorStop(0, '#FF7B45');
-    btnGrad.addColorStop(1, '#E0552B');
-    ctx.fillStyle = btnGrad;
-    roundRect(cx - scaleX(72), btnY, scaleX(144), scaleV(44), scaleV(22));
-    ctx.fill();
-    ctx.shadowColor = 'rgba(255,107,53,0.4)';
-    ctx.shadowBlur = 20;
-    roundRect(cx - scaleX(72), btnY, scaleX(144), scaleV(44), scaleV(22));
-    ctx.fill();
-    ctx.shadowBlur = 0;
-
-    ctx.fillStyle = '#FFF';
-    ctx.font = `bold ${scaleV(18)}px system-ui, sans-serif`;
-    drawPlayTriangle(cx - scaleV(40), btnY + scaleV(22), scaleV(12));
-    ctx.fillText('START', cx + scaleV(4), btnY + scaleV(22));
-
-    if (highScore > 0) {
-      ctx.fillStyle = '#FFD93D';
-      ctx.font = `${scaleV(12)}px system-ui, sans-serif`;
-      drawStarIcon(cx - scaleX(74), btnY + scaleV(62), scaleV(7));
-      ctx.fillText(`Best: ${highScore} pts  •  ${highDist}m`, cx, btnY + scaleV(62));
+    // ── Decorative tree silhouettes on sides ──
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    for (let i = 0; i < 5; i++) {
+      const tx = scaleV(15 + i * 22);
+      const th = scaleV(50 + Math.sin(i * 1.7) * 30);
+      ctx.beginPath();
+      ctx.moveTo(tx, canvas.height * 0.55);
+      ctx.lineTo(tx - scaleV(18), canvas.height * 0.55 - th);
+      ctx.lineTo(tx + scaleV(18), canvas.height * 0.55 - th);
+      ctx.closePath();
+      ctx.fill();
+      // Right side
+      const rx = canvas.width - tx;
+      ctx.beginPath();
+      ctx.moveTo(rx, canvas.height * 0.55);
+      ctx.lineTo(rx - scaleV(18), canvas.height * 0.55 - th);
+      ctx.lineTo(rx + scaleV(18), canvas.height * 0.55 - th);
+      ctx.closePath();
+      ctx.fill();
     }
 
-    canvas._startBtn = { x: cx - scaleX(72), y: btnY, w: scaleX(144), h: scaleV(44) };
+    // ── Floating particles (animated) ──
+    for (let i = 0; i < 12; i++) {
+      const px = (Math.sin(frameCount * 0.015 + i * 1.7) * 0.4 + 0.5) * canvas.width;
+      const py = (Math.cos(frameCount * 0.02 + i * 2.1) * 0.3 + 0.5) * canvas.height * 0.7;
+      const alpha = 0.15 + Math.sin(frameCount * 0.03 + i) * 0.08;
+      ctx.fillStyle = `rgba(255,220,150,${alpha})`;
+      ctx.beginPath();
+      ctx.arc(px, py, scaleV(2), 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // ── Title — big, bold, gradient with decorative lines ──
+    const titleY = cy - scaleV(50);
+    // Decorative line left
+    const lineW = scaleX(50);
+    const lineGap = scaleV(14);
+    ctx.strokeStyle = '#FFD54F';
+    ctx.lineWidth = scaleV(2.5);
+    ctx.beginPath();
+    ctx.moveTo(cx - scaleX(120), titleY);
+    ctx.lineTo(cx - lineW - lineGap, titleY);
+    ctx.stroke();
+    // Diamond dot left
+    ctx.fillStyle = '#FFD54F';
+    ctx.beginPath();
+    ctx.moveTo(cx - lineW - lineGap, titleY);
+    ctx.lineTo(cx - lineW - lineGap - scaleV(5), titleY - scaleV(4));
+    ctx.lineTo(cx - lineW - lineGap, titleY - scaleV(8));
+    ctx.lineTo(cx - lineW - lineGap + scaleV(5), titleY - scaleV(4));
+    ctx.closePath();
+    ctx.fill();
+
+    // Decorative line right
+    ctx.strokeStyle = '#FFD54F';
+    ctx.beginPath();
+    ctx.moveTo(cx + scaleX(120), titleY);
+    ctx.lineTo(cx + lineW + lineGap, titleY);
+    ctx.stroke();
+    // Diamond dot right
+    ctx.fillStyle = '#FFD54F';
+    ctx.beginPath();
+    ctx.moveTo(cx + lineW + lineGap, titleY);
+    ctx.lineTo(cx + lineW + lineGap - scaleV(5), titleY - scaleV(4));
+    ctx.lineTo(cx + lineW + lineGap, titleY - scaleV(8));
+    ctx.lineTo(cx + lineW + lineGap + scaleV(5), titleY - scaleV(4));
+    ctx.closePath();
+    ctx.fill();
+
+    // Title text with gradient
+    const titleGrad = ctx.createLinearGradient(cx, titleY - scaleV(20), cx, titleY + scaleV(20));
+    titleGrad.addColorStop(0, '#FFE082');
+    titleGrad.addColorStop(0.4, '#FFD54F');
+    titleGrad.addColorStop(0.7, '#FFB300');
+    titleGrad.addColorStop(1, '#FF8F00');
+    ctx.fillStyle = titleGrad;
+    ctx.font = `900 ${scaleV(44)}px system-ui, -apple-system, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('WILD RUN', cx, titleY);
+
+    // Title shadow/outline for depth
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+    ctx.lineWidth = scaleV(3);
+    ctx.strokeText('WILD RUN', cx, titleY);
+
+    // ── Subtitle ──
+    const subY = titleY + scaleV(36);
+    ctx.fillStyle = '#C8E6A0';
+    ctx.font = `600 ${scaleV(14)}px system-ui, -apple-system, sans-serif`;
+    ctx.fillText('Race through the wilderness', cx, subY);
+
+    // ── Control cards ──
+    const cardY = subY + scaleV(28);
+    const cardW = scaleX(125);
+    const cardH = scaleV(72);
+    const cardGap = scaleV(10);
+    const leftCardX = cx - cardW - cardGap / 2;
+    const rightCardX = cx + cardGap / 2;
+
+    // Card backgrounds
+    [leftCardX, rightCardX].forEach((cardX, ci) => {
+      const cardGrad = ctx.createLinearGradient(cardX, cardY, cardX, cardY + cardH);
+      cardGrad.addColorStop(0, 'rgba(255,255,255,0.12)');
+      cardGrad.addColorStop(1, 'rgba(255,255,255,0.04)');
+      ctx.fillStyle = cardGrad;
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+      ctx.lineWidth = scaleV(1.5);
+      roundRect(cardX, cardY, cardW, cardH, scaleV(10));
+      ctx.fill();
+      ctx.stroke();
+    });
+
+    // Left card: Controls
+    ctx.fillStyle = '#FFF';
+    ctx.font = `bold ${scaleV(11)}px system-ui, sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText('🎮  CONTROLS', leftCardX + scaleV(10), cardY + scaleV(18));
+    ctx.fillStyle = '#D0D0D0';
+    ctx.font = `${scaleV(10)}px system-ui, sans-serif`;
+    const lh = scaleV(16);
+    ctx.fillText('<  >   Arrow keys to steer', leftCardX + scaleV(10), cardY + scaleV(16) + lh);
+    ctx.fillText('^       Hold for nitro boost', leftCardX + scaleV(10), cardY + scaleV(16) + lh * 2);
+
+    // Right card: Collectibles
+    ctx.fillStyle = '#FFF';
+    ctx.font = `bold ${scaleV(11)}px system-ui, sans-serif`;
+    ctx.fillText('🎯  COLLECT', rightCardX + scaleV(10), cardY + scaleV(18));
+    ctx.fillStyle = '#D0D0D0';
+    ctx.font = `${scaleV(10)}px system-ui, sans-serif`;
+    drawFruitIcon(rightCardX + scaleV(10), cardY + scaleV(22) + lh, scaleV(6));
+    ctx.fillText('   Fruit = points', rightCardX + scaleV(10), cardY + scaleV(16) + lh);
+    drawFuelIcon(rightCardX + scaleV(10), cardY + scaleV(24) + lh * 2, scaleV(8), '#D32F2F');
+    ctx.fillText('    Fuel can = keep going', rightCardX + scaleV(10), cardY + scaleV(16) + lh * 2);
+
+    // ── Dodge tip line ──
+    const tipY = cardY + cardH + scaleV(16);
+    ctx.fillStyle = '#FFCC80';
+    ctx.font = `600 ${scaleV(11)}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText('Dodge bears, deer & foxes crossing the road!', cx, tipY);
+
+    // ── START button — big, pulsing, game-like ──
+    const btnW = scaleX(170);
+    const btnH = scaleV(50);
+    const btnX = cx - btnW / 2;
+    const btnY = tipY + scaleV(24);
+    const pulse = 1 + Math.sin(frameCount * 0.06) * 0.04;
+
+    // Outer glow
+    ctx.shadowColor = 'rgba(255,140,0,0.5)';
+    ctx.shadowBlur = scaleV(18) * pulse;
+
+    // Button gradient
+    const btnGrad = ctx.createLinearGradient(btnX, btnY, btnX, btnY + btnH);
+    btnGrad.addColorStop(0, '#FF9800');
+    btnGrad.addColorStop(0.5, '#FF6D00');
+    btnGrad.addColorStop(1, '#E65100');
+    ctx.fillStyle = btnGrad;
+    roundRect(btnX, btnY, btnW, btnH, btnH / 2);
+    ctx.fill();
+
+    // Button top shine
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    roundRect(btnX + scaleV(4), btnY + scaleV(2), btnW - scaleV(8), btnH / 2, btnH / 3);
+    ctx.fill();
+
+    ctx.shadowBlur = 0;
+
+    // Button border
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = scaleV(2);
+    roundRect(btnX, btnY, btnW, btnH, btnH / 2);
+    ctx.stroke();
+
+    // Button text
+    ctx.fillStyle = '#FFF';
+    ctx.font = `900 ${scaleV(20)}px system-ui, -apple-system, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    drawPlayTriangle(cx - scaleV(48), btnY + btnH / 2, scaleV(14));
+    ctx.fillText('START', cx + scaleV(8), btnY + btnH / 2);
+
+    // ── High score ──
+    if (highScore > 0) {
+      const hsY = btnY + btnH + scaleV(22);
+      ctx.fillStyle = '#FFE082';
+      ctx.font = `600 ${scaleV(11)}px system-ui, sans-serif`;
+      drawStarIcon(cx - scaleX(54), hsY, scaleV(6));
+      ctx.fillText(`Best: ${highScore} pts   •   ${highDist}m`, cx + scaleV(4), hsY);
+    }
+
+    // ── Footer line ──
+    const footerY = canvas.height - scaleV(18);
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.font = `${scaleV(9)}px system-ui, sans-serif`;
+    ctx.fillText('Tap screen or press SPACE to start', cx, footerY);
+
+    // Store button bounds for click detection
+    canvas._startBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
   }
 
   function drawGameOverScreen() {
