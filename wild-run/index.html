@@ -172,7 +172,11 @@
         if (AC) audioCtx = new AC();
       } catch(e) { audioCtx = null; }
     }
-    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+    // Mobile browsers require resume() from a user gesture — return promise
+    if (audioCtx && audioCtx.state === 'suspended') {
+      return audioCtx.resume();
+    }
+    return Promise.resolve();
   }
 
   function playTone(freq, endFreq, duration, type, vol, rampDown) {
@@ -307,8 +311,10 @@
     if (muted) {
       stopEngine();
     } else {
-      initAudio();
-      if (state === 'playing') startEngine();
+      initAudio().then(() => {
+        sfxClick();
+        if (!muted && state === 'playing') startEngine();
+      });
     }
   }
 
@@ -2199,8 +2205,6 @@
     if (canvas._muteBtn) {
       const b = canvas._muteBtn;
       if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) {
-        initAudio();
-        sfxClick();
         toggleMute();
         return;
       }
@@ -2219,8 +2223,9 @@
   function startGame() {
     resetGame();
     state = 'playing';
-    initAudio();
-    if (!muted) startEngine();
+    initAudio().then(() => {
+      if (!muted) startEngine();
+    });
     lastFrameTime = performance.now();
   }
 
