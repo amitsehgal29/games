@@ -15,11 +15,7 @@
       -webkit-tap-highlight-color: transparent;
       user-select: none; -webkit-user-select: none;
     }
-    canvas {
-      display: block;
-      max-width: 500px; width: 100%;
-      image-rendering: auto;
-    }
+    canvas { display: block; max-width: 500px; width: 100%; }
   </style>
 </head>
 <body>
@@ -28,105 +24,118 @@
 (function() {
   "use strict";
 
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
   // CANVAS SETUP
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
-
   const MAX_W = 480;
-  const GAME_W = 400;  // internal game width
+  const GAME_W = 400;
 
   function resize() {
     const w = Math.min(window.innerWidth, MAX_W);
-    const h = window.innerHeight;
     canvas.width = w;
-    canvas.height = h;
+    canvas.height = window.innerHeight;
   }
   window.addEventListener('resize', resize);
   resize();
 
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
   // CONSTANTS
-  // ──────────────────────────────────────
-  const GRASS_W = 55;
+  // ═══════════════════════════════════════
+  const GRASS_W = 60;
   const ROAD_X  = GRASS_W;
   const LANES   = 4;
   const ROAD_W  = GAME_W - GRASS_W * 2;
   const LANE_W  = ROAD_W / LANES;
   const LANE_CX = Array.from({length: LANES}, (_, i) => ROAD_X + LANE_W * i + LANE_W / 2);
 
-  const PLAYER_Y_RATIO = 0.78;   // player vertical position
-  const BASE_SPEED  = 180;        // px/s at 60fps → 3 px/frame
-  const MAX_SPEED   = 540;        // 9 px/frame
-  const SPEED_STEP  = 30;         // speed increase per 500m
+  const PLAYER_Y_RATIO = 0.80;
+  const BASE_SPEED  = 180;
+  const MAX_SPEED   = 540;
+  const SPEED_STEP  = 30;
   const DIST_PER_STEP = 500;
 
   const FUEL_MAX     = 100;
-  const FUEL_DRAIN   = 2.4;       // % per second at base speed (scales with speed)
-  const FUEL_PICKUP  = 28;        // fuel gained from can
+  const FUEL_DRAIN   = 2.4;
+  const FUEL_PICKUP  = 28;
 
-  const OBSTACLE_MIN_GAP = 0.45;  // seconds between obstacles at base speed
+  const OBSTACLE_MIN_GAP = 0.45;
   const COLLECTIBLE_CHANCE = 0.28;
+  const LANE_SWITCH_SPEED = 14; // lerp speed for smooth lane changes
 
-  const PARTICLE_COUNT = 5;       // dust particles per frame
-
-  // ──────────────────────────────────────
-  // COLORS — nature palette
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
+  // COLOR PALETTE — rich nature tones
+  // ═══════════════════════════════════════
   const C = {
-    sky:       '#87CEEB',
-    skyTop:    '#9DD5F0',
-    skyBot:    '#E8F0D5',
-    mountain1: '#7B9E6D',
-    mountain2: '#8DB580',
-    dirt:      '#C4A35A',
-    dirtDark:  '#B8944A',
-    grass1:    '#5D8A3C',
-    grass2:    '#4A7A2E',
-    gravel:    'rgba(139,119,70,0.4)',
-    line:      'rgba(255,255,255,0.55)',
-    jeepBody:  '#6B8E4A',
-    jeepTop:   '#4A6B30',
+    skyTop:    '#7EC8E3',
+    skyMid:    '#B5DCE8',
+    skyBot:    '#DCE8D0',
+    cloud:     'rgba(255,255,255,0.85)',
+    cloudShad: 'rgba(200,210,215,0.5)',
+    mtFar:     '#8DAF80',
+    mtNear:    '#6B9B5C',
+    mtSnow:    '#E8F0F0',
+    grass1:    '#5A8F3C',
+    grass2:    '#4A7A2C',
+    grassEdg:  '#6B9E48',
+    dirt:      '#C8A862',
+    dirtDark:  '#B89440',
+    dirtEdge:  '#A08038',
+    gravel:    'rgba(145,120,70,0.35)',
+    line:      'rgba(255,255,255,0.50)',
+    jeepBody:  '#D4B68C',
+    jeepDark:  '#B8946A',
+    jeepCabin: '#8B6B4A',
     jeepBump:  '#555',
-    wheel:     '#2C2C2C',
-    wheelHub:  '#888',
-    boulder1:  '#8B8680',
-    boulder2:  '#7A7570',
-    log:       '#8B6914',
-    logDark:   '#6B4F10',
-    deerBody:  '#C4956A',
-    deerSpot:  '#F5E6D3',
-    puddle1:   '#7BA7C9',
-    puddle2:   '#8CB8D8',
+    jeepCage:  '#3A3A3A',
+    wheel:     '#2A2A2A',
+    wheelTread:'#1A1A1A',
+    wheelHub:  '#999',
+    boulder1:  '#9B8E82',
+    boulder2:  '#7A7068',
+    boulderMos:'#6B8E4A',
+    log:       '#A0724A',
+    logDark:   '#7A5030',
+    logEnd:    '#C4A484',
+    deerBody:  '#C49A6C',
+    deerBelly: '#F0E0CC',
+    deerLeg:   '#8B6840',
+    puddle1:   '#7BAAC8',
+    puddle2:   '#90C0D8',
+    puddleRim: '#6B9AB8',
     fruit:     '#FF6B35',
-    fruit2:    '#FF8C42',
+    fruitGlow: '#FF9B55',
     leaf:      '#5D9C3E',
     fuelCan:   '#D9442F',
-    fuelCap:   '#333',
-    dust:      'rgba(180,160,120,0.7)',
-    hudBg:     'rgba(0,0,0,0.45)',
+    fuelLabel: '#FFF',
+    hudBg:     'rgba(0,0,0,0.55)',
     hudText:   '#FFF',
     danger:    '#E74C3C',
     warning:   '#F39C12',
+    safe:      '#4CAF50',
   };
 
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
   // GAME STATE
-  // ──────────────────────────────────────
-  let state = 'title';   // title | playing | over
+  // ═══════════════════════════════════════
+  let state = 'title';
   let score = 0;
   let distance = 0;
   let speed = BASE_SPEED;
   let fuel = FUEL_MAX;
-  let playerLane = 1;    // 0..3
-  let playerX = LANE_CX[1];
+  let playerLane = 1;
+  let playerX = LANE_CX[1];         // target position (game-space)
+  let displayX = LANE_CX[1];        // visual position (smoothed)
+  let tiltAngle = 0;                // jeep lean
   let playerY = 0;
   let obstacles = [];
   let collectibles = [];
   let particles = [];
-  let treesL = [];       // left side trees
-  let treesR = [];       // right side trees
+  let clouds = [];
+  let birds = [];
+  let treesL = [];
+  let treesR = [];
   let frameCount = 0;
   let highScore = parseInt(localStorage.getItem('wildrun_hs')) || 0;
   let highDist  = parseInt(localStorage.getItem('wildrun_hd')) || 0;
@@ -134,30 +143,21 @@
   let nitroActive = false;
   let nitroFuel = 0;
   let shakeTimer = 0;
+  let nearMissTimer = 0;
   let lastFrameTime = performance.now();
   let laneSwitchCooldown = 0;
 
-  // Input tracking
-  let keys = {};
-  let touchLeft = false;
-  let touchRight = false;
-  let touchUp = false;
-
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
   // HELPERS
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
   function rand(min, max) { return min + Math.random() * (max - min); }
   function randInt(min, max) { return Math.floor(rand(min, max + 1)); }
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
-  function easeOutQuad(t) { return t * (2 - t); }
-
+  function lerp(a, b, t) { return a + (b - a) * t; }
   function scaleX(x) { return x * (canvas.width / GAME_W); }
   function scaleY(y) { return y * (canvas.width / GAME_W); }
   function scaleV(v) { return v * (canvas.width / GAME_W); }
 
-  // ──────────────────────────────────────
-  // DRAWING HELPERS
-  // ──────────────────────────────────────
   function roundRect(x, y, w, h, r) {
     ctx.beginPath();
     ctx.moveTo(x + r, y);
@@ -172,62 +172,149 @@
     ctx.closePath();
   }
 
-  // ──────────────────────────────────────
-  // DRAWING — SCENERY
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
+  // DRAWING — SKY & ATMOSPHERE
+  // ═══════════════════════════════════════
+  function spawnCloud() {
+    return {
+      x: rand(-120, GAME_W + 60),
+      y: rand(10, canvas.height * 0.2),
+      w: rand(50, 110),
+      speed: rand(8, 20),
+      opacity: rand(0.4, 0.85),
+    };
+  }
+
   function drawSky() {
     const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
     grad.addColorStop(0, C.skyTop);
-    grad.addColorStop(0.45, C.skyBot);
-    grad.addColorStop(0.7, C.dirt);
+    grad.addColorStop(0.4, C.skyMid);
+    grad.addColorStop(0.65, C.skyBot);
+    grad.addColorStop(0.8, C.dirt);
     grad.addColorStop(1, C.grass2);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
 
+  function drawClouds(dt) {
+    clouds.forEach(c => {
+      c.x += c.speed * dt;
+      if (c.x > GAME_W + 140) c.x = -140;
+      const cx = scaleX(c.x), cy = c.y;
+      const w = scaleV(c.w), h = w * 0.4;
+
+      ctx.globalAlpha = c.opacity;
+      // Cloud body (overlapping ellipses)
+      ctx.fillStyle = C.cloud;
+      ctx.beginPath();
+      ctx.arc(cx, cy, h * 0.7, 0, Math.PI * 2);
+      ctx.arc(cx - w * 0.25, cy + h * 0.1, h * 0.55, 0, Math.PI * 2);
+      ctx.arc(cx + w * 0.22, cy + h * 0.05, h * 0.6, 0, Math.PI * 2);
+      ctx.arc(cx - w * 0.12, cy - h * 0.2, h * 0.5, 0, Math.PI * 2);
+      ctx.arc(cx + w * 0.1, cy - h * 0.15, h * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Shadow
+      ctx.fillStyle = C.cloudShad;
+      ctx.beginPath();
+      ctx.arc(cx, cy + h * 0.2, h * 0.55, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    });
+  }
+
   function drawMountains() {
-    // Distant mountains
-    ctx.fillStyle = C.mountain1;
+    // Far mountains with snow caps
+    ctx.fillStyle = C.mtFar;
     ctx.beginPath();
-    ctx.moveTo(0, canvas.height * 0.28);
+    ctx.moveTo(0, canvas.height * 0.32);
     for (let x = 0; x <= canvas.width; x += 2) {
-      const y = canvas.height * 0.28 - Math.sin(x * 0.018) * 28 - Math.sin(x * 0.007 + 1) * 22 - Math.sin(x * 0.04) * 10;
+      const y = canvas.height * 0.32
+        - Math.sin(x * 0.015) * 32
+        - Math.sin(x * 0.007 + 1.2) * 26
+        - Math.sin(x * 0.035) * 12;
       ctx.lineTo(x, y);
     }
-    ctx.lineTo(canvas.width, canvas.height * 0.35);
-    ctx.lineTo(0, canvas.height * 0.35);
+    ctx.lineTo(canvas.width, canvas.height * 0.4);
+    ctx.lineTo(0, canvas.height * 0.4);
     ctx.closePath();
     ctx.fill();
 
-    // Closer hills
-    ctx.fillStyle = C.mountain2;
+    // Snow caps on far peaks
+    ctx.fillStyle = C.mtSnow;
     ctx.beginPath();
-    ctx.moveTo(0, canvas.height * 0.38);
+    ctx.moveTo(0, canvas.height * 0.32);
     for (let x = 0; x <= canvas.width; x += 2) {
-      const y = canvas.height * 0.38 - Math.sin(x * 0.022 + 2) * 18 - Math.sin(x * 0.009) * 14;
+      const baseY = canvas.height * 0.32
+        - Math.sin(x * 0.015) * 32
+        - Math.sin(x * 0.007 + 1.2) * 26
+        - Math.sin(x * 0.035) * 12;
+      const snowY = baseY + 18;
+      ctx.lineTo(x, Math.min(baseY, snowY - Math.sin(x * 0.02) * 8));
+    }
+    ctx.lineTo(canvas.width, canvas.height * 0.4);
+    ctx.lineTo(0, canvas.height * 0.4);
+    ctx.closePath();
+    ctx.fill();
+
+    // Near hills
+    ctx.fillStyle = C.mtNear;
+    ctx.beginPath();
+    ctx.moveTo(0, canvas.height * 0.42);
+    for (let x = 0; x <= canvas.width; x += 2) {
+      const y = canvas.height * 0.42
+        - Math.sin(x * 0.02 + 2.5) * 22
+        - Math.sin(x * 0.008) * 16
+        - Math.sin(x * 0.05 + 1) * 8;
       ctx.lineTo(x, y);
     }
-    ctx.lineTo(canvas.width, canvas.height * 0.48);
-    ctx.lineTo(0, canvas.height * 0.48);
+    ctx.lineTo(canvas.width, canvas.height * 0.54);
+    ctx.lineTo(0, canvas.height * 0.54);
     ctx.closePath();
     ctx.fill();
   }
 
+  function drawBirds() {
+    birds.forEach(b => {
+      const bx = scaleX(b.x), by = b.y;
+      const wingSpan = scaleV(b.size);
+      const wingUp = Math.sin(frameCount * b.flapSpeed + b.phase) * wingSpan * 0.4;
+
+      ctx.strokeStyle = '#3A3A3A';
+      ctx.lineWidth = scaleV(1.5);
+      ctx.lineCap = 'round';
+      // Left wing
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.quadraticCurveTo(bx - wingSpan * 0.5, by - wingUp, bx - wingSpan, by * 1.02);
+      ctx.stroke();
+      // Right wing
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.quadraticCurveTo(bx + wingSpan * 0.5, by - wingUp, bx + wingSpan, by * 1.02);
+      ctx.stroke();
+    });
+  }
+
+  // ═══════════════════════════════════════
+  // DRAWING — LANDSCAPE
+  // ═══════════════════════════════════════
   function drawGrass(x, w) {
     const grad = ctx.createLinearGradient(x, 0, x + w, 0);
     grad.addColorStop(0, C.grass1);
-    grad.addColorStop(0.5, C.grass2);
+    grad.addColorStop(0.3, C.grassEdg);
+    grad.addColorStop(0.7, C.grassEdg);
     grad.addColorStop(1, C.grass1);
     ctx.fillStyle = grad;
     ctx.fillRect(x, 0, w, canvas.height);
 
-    // Grass texture lines
-    ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+    // Subtle texture
+    ctx.strokeStyle = 'rgba(0,0,0,0.04)';
     ctx.lineWidth = 1;
-    for (let yy = 0; yy < canvas.height; yy += 6) {
+    for (let yy = 0; yy < canvas.height; yy += 5) {
       ctx.beginPath();
       ctx.moveTo(x, yy);
-      ctx.lineTo(x + w, yy + (Math.sin(yy * 0.3 + x) * 3));
+      ctx.lineTo(x + w, yy + Math.sin(yy * 0.35 + x) * 2.5);
       ctx.stroke();
     }
   }
@@ -236,41 +323,56 @@
     const sx = scaleX(ROAD_X);
     const sw = scaleX(ROAD_W);
 
-    // Road surface
+    // Main surface
     const grad = ctx.createLinearGradient(sx, 0, sx + sw, 0);
-    grad.addColorStop(0, C.dirtDark);
-    grad.addColorStop(0.15, C.dirt);
-    grad.addColorStop(0.5, C.dirt);
-    grad.addColorStop(0.85, C.dirt);
-    grad.addColorStop(1, C.dirtDark);
+    grad.addColorStop(0, C.dirtEdge);
+    grad.addColorStop(0.12, C.dirtDark);
+    grad.addColorStop(0.3, C.dirt);
+    grad.addColorStop(0.7, C.dirt);
+    grad.addColorStop(0.88, C.dirtDark);
+    grad.addColorStop(1, C.dirtEdge);
     ctx.fillStyle = grad;
     ctx.fillRect(sx, 0, sw, canvas.height);
 
-    // Gravel texture
-    ctx.fillStyle = C.gravel;
-    const dotSpacing = 15;
-    for (let yy = (frameCount * 3) % dotSpacing; yy < canvas.height; yy += dotSpacing) {
-      for (let xx = sx + 8; xx < sx + sw - 8; xx += dotSpacing + rand(-4, 4)) {
+    // Gravel specks
+    const dotSpacing = 14;
+    for (let yy = (frameCount * 4) % dotSpacing; yy < canvas.height; yy += dotSpacing) {
+      for (let xx = sx + 10; xx < sx + sw - 10; xx += dotSpacing + rand(-5, 5)) {
+        ctx.fillStyle = C.gravel;
         ctx.beginPath();
-        ctx.arc(xx, yy, 0.8 + Math.random() * 0.8, 0, Math.PI * 2);
+        ctx.arc(xx + rand(-1.5, 1.5), yy + rand(-1.5, 1.5), 0.6 + Math.random() * 0.9, 0, Math.PI * 2);
         ctx.fill();
       }
     }
 
-    // Road edge lines (solid)
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-    ctx.lineWidth = scaleV(2.5);
-    [sx + scaleV(2), sx + sw - scaleV(2)].forEach(ex => {
+    // Road edge — solid white lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.40)';
+    ctx.lineWidth = scaleV(3);
+    [sx + scaleV(1.5), sx + sw - scaleV(1.5)].forEach(ex => {
       ctx.beginPath();
       ctx.moveTo(ex, 0);
       ctx.lineTo(ex, canvas.height);
       ctx.stroke();
     });
 
+    // Grass tufts at road edge
+    ctx.fillStyle = C.grassEdg;
+    for (let yy = (frameCount * 4) % 30; yy < canvas.height; yy += 30) {
+      const lx = sx + rand(-2, 3);
+      const rx = sx + sw + rand(-3, 2);
+      [lx, rx].forEach(gx => {
+        ctx.beginPath();
+        ctx.moveTo(gx, yy);
+        ctx.lineTo(gx + rand(-5, 5), yy - rand(6, 14));
+        ctx.lineTo(gx + rand(-3, 3), yy);
+        ctx.fill();
+      });
+    }
+
     // Lane dashes
     ctx.strokeStyle = C.line;
-    ctx.lineWidth = scaleV(2);
-    ctx.setLineDash([scaleV(22), scaleV(18)]);
+    ctx.lineWidth = scaleV(2.2);
+    ctx.setLineDash([scaleV(24), scaleV(16)]);
     for (let i = 1; i < LANES; i++) {
       const lx = scaleX(ROAD_X + LANE_W * i);
       ctx.beginPath();
@@ -281,263 +383,520 @@
     ctx.setLineDash([]);
   }
 
+  // ═══════════════════════════════════════
+  // DRAWING — TREES (two varieties)
+  // ═══════════════════════════════════════
   function spawnTree(side) {
+    const xRange = side === 'L' ? [6, GRASS_W - 8] : [GAME_W - GRASS_W + 8, GAME_W - 6];
     return {
-      x: side === 'L' ? rand(5, GRASS_W - 5) : rand(GAME_W - GRASS_W + 5, GAME_W - 5),
-      y: rand(-200, canvas.height + 100),
-      size: rand(14, 32),
+      x: rand(xRange[0], xRange[1]),
+      y: rand(-250, canvas.height + 120),
+      size: rand(16, 36),
       sway: rand(0, Math.PI * 2),
+      type: Math.random() < 0.55 ? 'round' : 'pine',
     };
   }
 
   function drawTree(tree, scrollSpeed) {
-    tree.y += scrollSpeed * 0.15;
-    if (tree.y > canvas.height + 60) tree.y = -60;
-    if (tree.y < -60) tree.y = canvas.height + 60;
+    tree.y += scrollSpeed * 0.14;
+    if (tree.y > canvas.height + 80) tree.y = -80;
+    if (tree.y < -80) tree.y = canvas.height + 80;
 
-    const x = scaleX(tree.x);
-    const y = tree.y;
-    const s = scaleV(tree.size);
+    const x = scaleX(tree.x), y = tree.y, s = scaleV(tree.size);
+    const sway = Math.sin(frameCount * 0.018 + tree.sway) * s * 0.06;
 
     // Trunk
     ctx.fillStyle = '#6B4226';
-    ctx.fillRect(x - s * 0.15, y, s * 0.3, s * 0.6);
+    const trunkW = s * 0.18, trunkH = s * 0.7;
+    ctx.fillRect(x - trunkW / 2 + sway * 0.3, y - trunkH * 0.2, trunkW, trunkH);
+    // Trunk highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    ctx.fillRect(x - trunkW / 2 + sway * 0.3, y - trunkH * 0.2, trunkW * 0.35, trunkH);
 
-    // Canopy layers
-    const swayOffset = Math.sin(frameCount * 0.02 + tree.sway) * s * 0.08;
-    ctx.fillStyle = '#3D6B24';
-    ctx.beginPath();
-    ctx.arc(x + swayOffset, y - s * 0.1, s * 0.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#4A8230';
-    ctx.beginPath();
-    ctx.arc(x + swayOffset + s * 0.1, y - s * 0.15, s * 0.38, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#5A9E38';
-    ctx.beginPath();
-    ctx.arc(x + swayOffset - s * 0.05, y - s * 0.2, s * 0.32, 0, Math.PI * 2);
-    ctx.fill();
+    if (tree.type === 'pine') {
+      // Pine tree — triangular layers
+      const layerH = s * 0.42;
+      for (let i = 0; i < 3; i++) {
+        const lw = s * (1.1 - i * 0.28);
+        const ly = y - s * 0.25 - i * layerH * 0.55;
+        const shade = 0.22 + i * 0.08;
+        ctx.fillStyle = `rgb(${Math.floor(30 * shade + 25)},${Math.floor(80 * shade + 50)},${Math.floor(35 * shade + 20)})`;
+        ctx.beginPath();
+        ctx.moveTo(x + sway, ly - layerH);
+        ctx.lineTo(x - lw / 2 + sway * 0.5, ly);
+        ctx.lineTo(x + lw / 2 + sway * 0.5, ly);
+        ctx.closePath();
+        ctx.fill();
+      }
+    } else {
+      // Round canopy tree
+      const cx = x + sway, cy = y - s * 0.1;
+      ctx.fillStyle = '#3D7028';
+      ctx.beginPath();
+      ctx.arc(cx, cy, s * 0.48, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#4A8632';
+      ctx.beginPath();
+      ctx.arc(cx + s * 0.08, cy - s * 0.08, s * 0.38, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#5A9E3C';
+      ctx.beginPath();
+      ctx.arc(cx - s * 0.04, cy - s * 0.14, s * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
-  // ──────────────────────────────────────
-  // DRAWING — PLAYER JEEP
-  // ──────────────────────────────────────
-  function drawJeep(x, y, w, h) {
+  // ═══════════════════════════════════════
+  // DRAWING — SAFARI JEEP (top-down with perspective)
+  // ═══════════════════════════════════════
+  function drawJeep(x, y, w, h, tilt) {
     ctx.save();
     ctx.translate(x, y);
+    if (tilt) ctx.rotate(tilt);
 
     const bw = w, bh = h;
 
-    // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    // ── Shadow ──
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
     ctx.beginPath();
-    ctx.ellipse(0, bh * 0.08, bw * 0.46, bh * 0.08, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, bh * 0.06, bw * 0.48, bh * 0.09, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Wheels
-    const wheelW = bw * 0.18, wheelH = bh * 0.22;
-    const wheelY = bh * 0.12;
-    const wheelOffsets = [-bw * 0.32, bw * 0.32];
-    wheelOffsets.forEach(wx => {
-      ctx.fillStyle = C.wheel;
-      roundRect(wx - wheelW / 2, wheelY, wheelW, wheelH, wheelW * 0.25);
+    // ── Rear spare tire ──
+    const spareY = -bh * 0.08;
+    ctx.fillStyle = C.wheel;
+    ctx.beginPath();
+    ctx.arc(0, spareY, bw * 0.12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = C.wheelHub;
+    ctx.beginPath();
+    ctx.arc(0, spareY, bw * 0.04, 0, Math.PI * 2);
+    ctx.fill();
+    // Spare mount
+    ctx.strokeStyle = C.jeepBump;
+    ctx.lineWidth = bw * 0.04;
+    ctx.beginPath();
+    ctx.moveTo(-bw * 0.06, spareY - bw * 0.12);
+    ctx.lineTo(0, -bh * 0.25);
+    ctx.lineTo(bw * 0.06, spareY - bw * 0.12);
+    ctx.stroke();
+
+    // ── Wheels (4, visible at sides) ──
+    const wheelW = bw * 0.19, wheelH = bh * 0.24;
+    const wheelY = bh * 0.08;
+    [-bw * 0.33, bw * 0.33].forEach(wx => {
+      // Tire
+      ctx.fillStyle = C.wheelTread;
+      roundRect(wx - wheelW / 2, wheelY, wheelW, wheelH, wheelW * 0.22);
       ctx.fill();
+      // Tread lines
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.lineWidth = 1;
+      for (let ty = wheelY + 2; ty < wheelY + wheelH - 2; ty += 3) {
+        ctx.beginPath();
+        ctx.moveTo(wx - wheelW / 2 + 2, ty);
+        ctx.lineTo(wx + wheelW / 2 - 2, ty);
+        ctx.stroke();
+      }
+      // Hub
       ctx.fillStyle = C.wheelHub;
       ctx.beginPath();
       ctx.arc(wx, wheelY + wheelH / 2, wheelW * 0.28, 0, Math.PI * 2);
       ctx.fill();
+      ctx.fillStyle = '#555';
+      ctx.beginPath();
+      ctx.arc(wx, wheelY + wheelH / 2, wheelW * 0.12, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // ── Main body ──
+    ctx.fillStyle = C.jeepBody;
+    roundRect(-bw * 0.45, -bh * 0.18, bw * 0.9, bh * 0.58, bw * 0.09);
+    ctx.fill();
+    // Body highlight (top edge)
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    roundRect(-bw * 0.42, -bh * 0.16, bw * 0.84, bh * 0.15, bw * 0.06);
+    ctx.fill();
+
+    // ── Lower body trim ──
+    ctx.fillStyle = C.jeepDark;
+    ctx.fillRect(-bw * 0.45, bh * 0.1, bw * 0.9, bh * 0.12);
+
+    // ── Fender flares ──
+    [-bw * 0.33, bw * 0.33].forEach(fx => {
+      ctx.fillStyle = C.jeepDark;
+      ctx.beginPath();
+      ctx.arc(fx, bh * 0.03, bw * 0.16, Math.PI, 0);
+      ctx.fill();
+    });
+
+    // ── Cabin ──
+    ctx.fillStyle = C.jeepCabin;
+    roundRect(-bw * 0.2, -bh * 0.42, bw * 0.4, bh * 0.44, bw * 0.06);
+    ctx.fill();
+
+    // ── Windshield ──
+    ctx.fillStyle = '#C8E0F0';
+    roundRect(-bw * 0.16, -bh * 0.38, bw * 0.32, bh * 0.16, bw * 0.04);
+    ctx.fill();
+    // Glass reflection
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.beginPath();
+    ctx.moveTo(-bw * 0.12, -bh * 0.38);
+    ctx.lineTo(-bw * 0.04, -bh * 0.26);
+    ctx.lineTo(bw * 0.1, -bh * 0.26);
+    ctx.lineTo(bw * 0.1, -bh * 0.38);
+    ctx.fill();
+
+    // ── Roll cage bars ──
+    ctx.strokeStyle = C.jeepCage;
+    ctx.lineWidth = bw * 0.04;
+    ctx.lineCap = 'round';
+    // Main hoop
+    ctx.beginPath();
+    ctx.moveTo(-bw * 0.18, -bh * 0.1);
+    ctx.quadraticCurveTo(-bw * 0.18, -bh * 0.55, 0, -bh * 0.58);
+    ctx.quadraticCurveTo(bw * 0.18, -bh * 0.55, bw * 0.18, -bh * 0.1);
+    ctx.stroke();
+    // Cross bar
+    ctx.beginPath();
+    ctx.moveTo(-bw * 0.16, -bh * 0.3);
+    ctx.lineTo(bw * 0.16, -bh * 0.3);
+    ctx.stroke();
+
+    // ── Snorkel ──
+    ctx.strokeStyle = C.jeepCage;
+    ctx.lineWidth = bw * 0.035;
+    ctx.beginPath();
+    ctx.moveTo(bw * 0.38, -bh * 0.1);
+    ctx.lineTo(bw * 0.38, -bh * 0.48);
+    ctx.stroke();
+    ctx.fillStyle = '#444';
+    ctx.beginPath();
+    ctx.arc(bw * 0.38, -bh * 0.5, bw * 0.04, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ── Roof rack ──
+    ctx.fillStyle = C.jeepCage;
+    ctx.fillRect(-bw * 0.22, -bh * 0.55, bw * 0.44, bw * 0.04);
+    ctx.fillRect(-bw * 0.22, -bh * 0.48, bw * 0.04, bw * 0.08);
+    ctx.fillRect(bw * 0.18, -bh * 0.48, bw * 0.04, bw * 0.08);
+
+    // ── Front bumper ──
+    ctx.fillStyle = C.jeepBump;
+    roundRect(-bw * 0.43, -bh * 0.24, bw * 0.86, bh * 0.1, bw * 0.05);
+    ctx.fill();
+    // Bumper highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    roundRect(-bw * 0.4, -bh * 0.23, bw * 0.8, bh * 0.04, bw * 0.03);
+    ctx.fill();
+
+    // ── Headlights ──
+    [-bw * 0.38, bw * 0.38].forEach(hx => {
+      // Housing
+      ctx.fillStyle = '#444';
+      ctx.beginPath();
+      ctx.arc(hx, -bh * 0.12, bw * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+      // Lens
+      ctx.fillStyle = '#FFECB3';
+      ctx.beginPath();
+      ctx.arc(hx, -bh * 0.12, bw * 0.055, 0, Math.PI * 2);
+      ctx.fill();
+      // Glow
+      ctx.fillStyle = 'rgba(255,250,220,0.4)';
+      ctx.beginPath();
+      ctx.arc(hx, -bh * 0.12, bw * 0.1, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // ── Taillights ──
+    [-bw * 0.32, bw * 0.32].forEach(tx => {
+      ctx.fillStyle = '#C0392B';
+      ctx.beginPath();
+      ctx.arc(tx, bh * 0.22, bw * 0.04, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // ── Side mirrors ──
+    [-bw * 0.22, bw * 0.22].forEach(mx => {
+      ctx.fillStyle = '#444';
+      ctx.fillRect(mx - bw * 0.02, -bh * 0.34, bw * 0.08, bw * 0.04);
+      ctx.fillStyle = '#B8D8E8';
+      ctx.fillRect(mx + bw * 0.02, -bh * 0.33, bw * 0.03, bw * 0.03);
+    });
+
+    ctx.restore();
+  }
+
+  // ═══════════════════════════════════════
+  // DRAWING — OBSTACLES (improved)
+  // ═══════════════════════════════════════
+  function drawBoulder(x, y, r) {
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.beginPath();
+    ctx.ellipse(x + r * 0.12, y + r * 0.18, r * 0.9, r * 0.35, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Main body
+    const grad = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, r * 0.05, x, y, r);
+    grad.addColorStop(0, C.boulder1);
+    grad.addColorStop(0.6, C.boulder1);
+    grad.addColorStop(1, C.boulder2);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    // Slightly irregular shape
+    const segs = 12;
+    for (let i = 0; i < segs; i++) {
+      const angle = (i / segs) * Math.PI * 2;
+      const rr = r * (0.85 + Math.sin(i * 2.3) * 0.15 + Math.sin(i * 3.7) * 0.08);
+      const bx = x + Math.cos(angle) * rr;
+      const by = y + Math.sin(angle) * rr;
+      if (i === 0) ctx.moveTo(bx, by);
+      else ctx.lineTo(bx, by);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // Highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.10)';
+    ctx.beginPath();
+    ctx.arc(x - r * 0.25, y - r * 0.3, r * 0.35, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Cracks
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    ctx.moveTo(x - r * 0.3, y - r * 0.4);
+    ctx.lineTo(x + r * 0.05, y - r * 0.1);
+    ctx.lineTo(x + r * 0.1, y + r * 0.2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + r * 0.2, y - r * 0.5);
+    ctx.lineTo(x + r * 0.35, y + r * 0.1);
+    ctx.stroke();
+
+    // Moss patch
+    ctx.fillStyle = C.boulderMos;
+    ctx.beginPath();
+    ctx.arc(x + r * 0.25, y + r * 0.15, r * 0.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawLog(x, y, w, h) {
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.beginPath();
+    ctx.ellipse(x + w * 0.03, y + h * 0.3, w / 2, h / 2.8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Main log body
+    const grad = ctx.createLinearGradient(x, y - h / 2, x, y + h / 2);
+    grad.addColorStop(0, C.logEnd);
+    grad.addColorStop(0.3, C.log);
+    grad.addColorStop(0.7, C.log);
+    grad.addColorStop(1, C.logDark);
+    ctx.fillStyle = grad;
+    roundRect(x - w / 2, y - h / 2, w, h, h / 3);
+    ctx.fill();
+
+    // Bark texture
+    ctx.strokeStyle = C.logDark;
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 5; i++) {
+      const lx = x - w / 2 + (w / 6) * (i + 0.5);
+      ctx.beginPath();
+      ctx.moveTo(lx + Math.sin(i * 2.1) * 3, y - h / 2 + 3);
+      ctx.lineTo(lx + Math.sin(i * 1.7 + 1) * 3, y + h / 2 - 3);
+      ctx.stroke();
+    }
+
+    // End grain (left)
+    const egg = ctx.createRadialGradient(x - w / 2 + 2, y, h * 0.05, x - w / 2 + 2, y, h / 2);
+    egg.addColorStop(0, C.logEnd);
+    egg.addColorStop(1, C.logDark);
+    ctx.fillStyle = egg;
+    ctx.beginPath();
+    ctx.arc(x - w / 2 + 2, y, h / 2.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // End grain (right)
+    ctx.fillStyle = egg;
+    ctx.beginPath();
+    ctx.arc(x + w / 2 - 2, y, h / 2.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Small branch stub
+    if (Math.random() < 0.6) {
+      ctx.fillStyle = C.logDark;
+      const bx = x + rand(-w * 0.2, w * 0.2);
+      ctx.beginPath();
+      ctx.moveTo(bx, y - h / 2);
+      ctx.lineTo(bx - rand(4, 8), y - h / 2 - rand(6, 12));
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+  }
+
+  function drawDeer(x, y, s) {
+    ctx.save();
+    // Face slightly left
+    const dir = 1;
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.14)';
+    ctx.beginPath();
+    ctx.ellipse(x, y + s * 0.48, s * 0.38, s * 0.07, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Back legs
+    ctx.strokeStyle = C.deerLeg;
+    ctx.lineWidth = s * 0.08;
+    ctx.lineCap = 'round';
+    [[-0.18, -0.05], [0.08, -0.05]].forEach(([lx, ly]) => {
+      ctx.beginPath();
+      ctx.moveTo(x + lx * s, y + ly * s);
+      ctx.lineTo(x + lx * s, y + s * 0.38);
+      ctx.stroke();
+    });
+    // Front legs
+    [[-0.1, -0.18], [0.16, -0.18]].forEach(([lx, ly]) => {
+      ctx.beginPath();
+      ctx.moveTo(x + lx * s, y + ly * s);
+      ctx.lineTo(x + lx * s, y + s * 0.38);
+      ctx.stroke();
+    });
+    // Hooves
+    ctx.fillStyle = '#3A2A1A';
+    [[-0.18, 0.38], [0.08, 0.38], [-0.1, 0.38], [0.16, 0.38]].forEach(([lx, ly]) => {
+      ctx.fillRect(x + lx * s - s * 0.04, y + ly * s - s * 0.02, s * 0.08, s * 0.06);
     });
 
     // Body
-    ctx.fillStyle = C.jeepBody;
-    roundRect(-bw * 0.44, -bh * 0.15, bw * 0.88, bh * 0.55, bw * 0.08);
-    ctx.fill();
-
-    // Darker bottom trim
-    ctx.fillStyle = C.jeepTop;
-    ctx.fillRect(-bw * 0.44, bh * 0.1, bw * 0.88, bh * 0.1);
-
-    // Cabin (windshield area)
-    ctx.fillStyle = C.jeepTop;
-    roundRect(-bw * 0.18, -bh * 0.4, bw * 0.36, bh * 0.42, bw * 0.05);
-    ctx.fill();
-
-    // Windshield
-    ctx.fillStyle = '#B8D8E8';
-    roundRect(-bw * 0.14, -bh * 0.34, bw * 0.28, bh * 0.18, bw * 0.03);
-    ctx.fill();
-    // Windshield reflection
-    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillStyle = C.deerBody;
     ctx.beginPath();
-    ctx.moveTo(-bw * 0.1, -bh * 0.34);
-    ctx.lineTo(-bw * 0.02, -bh * 0.2);
-    ctx.lineTo(bw * 0.08, -bh * 0.2);
-    ctx.lineTo(bw * 0.08, -bh * 0.34);
+    ctx.ellipse(x, y - s * 0.02, s * 0.42, s * 0.26, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Bumper
-    ctx.fillStyle = C.jeepBump;
-    roundRect(-bw * 0.42, -bh * 0.22, bw * 0.84, bh * 0.1, bw * 0.04);
+    // Belly
+    ctx.fillStyle = C.deerBelly;
+    ctx.beginPath();
+    ctx.ellipse(x, y + s * 0.02, s * 0.3, s * 0.16, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Headlights
-    ctx.fillStyle = '#FFEAA7';
+    // Spots on back
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    for (let i = 0; i < 5; i++) {
+      ctx.beginPath();
+      ctx.arc(x + rand(-s * 0.2, s * 0.2), y - s * 0.08 + rand(-s * 0.1, s * 0.1), s * 0.04, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Neck
+    ctx.fillStyle = C.deerBody;
     ctx.beginPath();
-    ctx.arc(-bw * 0.38, -bh * 0.12, bw * 0.07, 0, Math.PI * 2);
+    ctx.ellipse(x + dir * s * 0.28, y - s * 0.16, s * 0.12, s * 0.26, dir * 0.5, 0, Math.PI * 2);
     ctx.fill();
+
+    // Head
     ctx.beginPath();
-    ctx.arc(bw * 0.38, -bh * 0.12, bw * 0.07, 0, Math.PI * 2);
+    ctx.arc(x + dir * s * 0.34, y - s * 0.34, s * 0.12, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Snout
+    ctx.fillStyle = C.deerBelly;
+    ctx.beginPath();
+    ctx.arc(x + dir * s * 0.41, y - s * 0.31, s * 0.06, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eye
+    ctx.fillStyle = '#111';
+    ctx.beginPath();
+    ctx.arc(x + dir * s * 0.39, y - s * 0.37, s * 0.025, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Ear
+    ctx.fillStyle = C.deerBody;
+    ctx.beginPath();
+    ctx.ellipse(x + dir * s * 0.31, y - s * 0.44, s * 0.05, s * 0.1, -dir * 0.3, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Antlers
+    ctx.strokeStyle = '#5C3D1E';
+    ctx.lineWidth = s * 0.035;
+    ctx.beginPath();
+    ctx.moveTo(x + dir * s * 0.31, y - s * 0.43);
+    ctx.lineTo(x + dir * s * 0.24, y - s * 0.62);
+    ctx.lineTo(x + dir * s * 0.18, y - s * 0.55);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + dir * s * 0.31, y - s * 0.43);
+    ctx.lineTo(x + dir * s * 0.38, y - s * 0.6);
+    ctx.stroke();
+
+    // Tail
+    ctx.fillStyle = C.deerBelly;
+    ctx.beginPath();
+    ctx.arc(x - dir * s * 0.42, y - s * 0.1, s * 0.06, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
   }
 
-  // ──────────────────────────────────────
-  // DRAWING — OBSTACLES
-  // ──────────────────────────────────────
-  function drawBoulder(x, y, r) {
-    // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.2)';
-    ctx.beginPath();
-    ctx.arc(x + r * 0.1, y + r * 0.1, r, 0, Math.PI * 2);
-    ctx.fill();
-    // Body
-    const grad = ctx.createRadialGradient(x - r * 0.25, y - r * 0.25, r * 0.1, x, y, r);
-    grad.addColorStop(0, C.boulder1);
-    grad.addColorStop(1, C.boulder2);
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-    // Highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.12)';
-    ctx.beginPath();
-    ctx.arc(x - r * 0.2, y - r * 0.25, r * 0.35, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  function drawLog(x, y, w, h) {
-    ctx.fillStyle = 'rgba(0,0,0,0.2)';
-    ctx.beginPath();
-    ctx.ellipse(x + w * 0.02, y + h * 0.25, w / 2, h / 2.5, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.fillStyle = C.log;
-    roundRect(x - w / 2, y - h / 2, w, h, h / 3);
-    ctx.fill();
-    // Bark lines
-    ctx.strokeStyle = C.logDark;
-    ctx.lineWidth = 1.2;
-    for (let i = 1; i <= 4; i++) {
-      const lx = x - w / 2 + (w / 5) * i;
-      ctx.beginPath();
-      ctx.moveTo(lx, y - h / 2 + 2);
-      ctx.lineTo(lx, y + h / 2 - 2);
-      ctx.stroke();
-    }
-    // End circles
-    ctx.fillStyle = C.logDark;
-    ctx.beginPath();
-    ctx.arc(x - w / 2 + 1, y, h / 2.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.arc(x + w / 2 - 1, y, h / 2.5, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  function drawDeer(x, y, s) {
-    // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
-    ctx.beginPath();
-    ctx.ellipse(x, y + s * 0.45, s * 0.42, s * 0.08, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Legs
-    ctx.strokeStyle = '#8B6914';
-    ctx.lineWidth = s * 0.08;
-    ctx.lineCap = 'round';
-    [[-0.2, 0.2], [0.1, 0.2], [-0.15, -0.1], [0.15, -0.1]].forEach(([lx, ly]) => {
-      ctx.beginPath();
-      ctx.moveTo(x + lx * s, y - s * 0.05);
-      ctx.lineTo(x + lx * s, y + s * 0.35);
-      ctx.stroke();
-    });
-
-    // Body
-    ctx.fillStyle = C.deerBody;
-    ctx.beginPath();
-    ctx.ellipse(x, y - s * 0.05, s * 0.4, s * 0.25, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Belly
-    ctx.fillStyle = C.deerSpot;
-    ctx.beginPath();
-    ctx.ellipse(x, y, s * 0.28, s * 0.15, 0, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Neck & Head
-    ctx.fillStyle = C.deerBody;
-    ctx.beginPath();
-    ctx.ellipse(x + s * 0.32, y - s * 0.15, s * 0.15, s * 0.28, Math.PI * 0.35, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Head
-    ctx.beginPath();
-    ctx.arc(x + s * 0.38, y - s * 0.34, s * 0.13, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Eye
-    ctx.fillStyle = '#222';
-    ctx.beginPath();
-    ctx.arc(x + s * 0.43, y - s * 0.37, s * 0.03, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Antlers (simple)
-    ctx.strokeStyle = '#5C3D1E';
-    ctx.lineWidth = s * 0.04;
-    ctx.beginPath();
-    ctx.moveTo(x + s * 0.35, y - s * 0.44);
-    ctx.lineTo(x + s * 0.28, y - s * 0.62);
-    ctx.moveTo(x + s * 0.35, y - s * 0.44);
-    ctx.lineTo(x + s * 0.42, y - s * 0.58);
-    ctx.stroke();
-  }
-
   function drawPuddle(x, y, w, h) {
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
+    // Mud rim
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
     ctx.beginPath();
-    ctx.ellipse(x + w * 0.03, y + h * 0.15, w / 2, h / 2, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + w * 0.05, y + h * 0.2, w / 1.8, h / 1.9, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    const grad = ctx.createRadialGradient(x, y, w * 0.1, x, y, w / 1.5);
+    // Water
+    const grad = ctx.createRadialGradient(x - w * 0.08, y - h * 0.08, w * 0.05, x, y, w / 1.5);
     grad.addColorStop(0, C.puddle2);
-    grad.addColorStop(1, C.puddle1);
+    grad.addColorStop(0.7, C.puddle1);
+    grad.addColorStop(1, C.puddleRim);
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.ellipse(x, y, w / 2, h / 2, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Ripple
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-    ctx.lineWidth = 0.8;
+    // Reflection highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
     ctx.beginPath();
-    ctx.ellipse(x - w * 0.1, y - h * 0.1, w * 0.25, h * 0.2, 0, 0, Math.PI * 2);
+    ctx.ellipse(x - w * 0.02, y - h * 0.05, w * 0.28, h * 0.2, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Small ripple
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.ellipse(x - w * 0.05, y - h * 0.08, w * 0.2, h * 0.12, 0, 0, Math.PI * 2);
     ctx.stroke();
   }
 
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
   // DRAWING — COLLECTIBLES
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
   function drawFruit(x, y, r) {
     // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.fillStyle = 'rgba(0,0,0,0.16)';
     ctx.beginPath();
-    ctx.arc(x + r * 0.1, y + r * 0.15, r * 0.8, 0, Math.PI * 2);
+    ctx.arc(x + r * 0.12, y + r * 0.18, r * 0.75, 0, Math.PI * 2);
     ctx.fill();
 
+    // Glow
+    ctx.fillStyle = C.fruitGlow;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 1.2, 0, Math.PI * 2);
+    ctx.globalAlpha = 0.25;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
     // Body
-    const grad = ctx.createRadialGradient(x - r * 0.2, y - r * 0.25, r * 0.1, x, y, r);
-    grad.addColorStop(0, C.fruit2);
+    const grad = ctx.createRadialGradient(x - r * 0.2, y - r * 0.25, r * 0.08, x, y, r);
+    grad.addColorStop(0, C.fruitGlow);
     grad.addColorStop(1, C.fruit);
     ctx.fillStyle = grad;
     ctx.beginPath();
@@ -547,50 +906,68 @@
     // Leaf
     ctx.fillStyle = C.leaf;
     ctx.beginPath();
-    ctx.ellipse(x + r * 0.25, y - r * 0.85, r * 0.5, r * 0.2, Math.PI * 0.3, 0, Math.PI * 2);
+    ctx.ellipse(x + r * 0.3, y - r * 0.82, r * 0.55, r * 0.22, 0.3, 0, Math.PI * 2);
     ctx.fill();
 
     // Highlight
-    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
     ctx.beginPath();
-    ctx.arc(x - r * 0.2, y - r * 0.25, r * 0.25, 0, Math.PI * 2);
+    ctx.arc(x - r * 0.22, y - r * 0.28, r * 0.22, 0, Math.PI * 2);
     ctx.fill();
   }
 
   function drawFuelCan(x, y, w, h) {
-    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.16)';
     ctx.beginPath();
-    ctx.ellipse(x + w * 0.05, y + h * 0.15, w / 2.2, h / 3, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + w * 0.06, y + h * 0.18, w / 2.2, h / 3, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = C.fuelCan;
-    roundRect(x - w / 2, y - h / 2, w, h, w * 0.2);
+    // Body
+    const grad = ctx.createLinearGradient(x, y - h / 2, x, y + h / 2);
+    grad.addColorStop(0, '#E85440');
+    grad.addColorStop(1, C.fuelCan);
+    ctx.fillStyle = grad;
+    roundRect(x - w / 2, y - h / 2, w, h, w * 0.18);
     ctx.fill();
+
+    // Ridges
+    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i <= 3; i++) {
+      const ry = y - h / 2 + (h / 4) * i;
+      ctx.beginPath();
+      ctx.moveTo(x - w / 2 + 4, ry);
+      ctx.lineTo(x + w / 2 - 4, ry);
+      ctx.stroke();
+    }
 
     // Cap
-    ctx.fillStyle = C.fuelCap;
-    ctx.fillRect(x - w * 0.12, y - h / 2 - h * 0.12, w * 0.24, h * 0.14);
+    ctx.fillStyle = '#333';
+    ctx.fillRect(x - w * 0.1, y - h / 2 - h * 0.12, w * 0.2, h * 0.14);
+    roundRect(x - w * 0.12, y - h / 2 - h * 0.1, w * 0.24, h * 0.08, 2);
+    ctx.fill();
 
-    // "F" label
-    ctx.fillStyle = '#FFF';
-    ctx.font = `bold ${w * 0.45}px sans-serif`;
+    // Label
+    ctx.fillStyle = C.fuelLabel;
+    ctx.font = `bold ${w * 0.42}px system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('F', x, y - h * 0.02);
+    ctx.fillText('⛽', x, y - h * 0.02);
   }
 
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
   // PARTICLES
-  // ──────────────────────────────────────
-  function spawnDust(x, y) {
-    for (let i = 0; i < 2; i++) {
+  // ═══════════════════════════════════════
+  function spawnDust(x, y, count) {
+    for (let i = 0; i < count; i++) {
       particles.push({
-        x: x + rand(-12, 12),
-        y: y + rand(-5, 10),
-        vx: rand(-0.6, 0.6),
-        vy: rand(0.3, 1.2),
-        life: rand(0.4, 0.9),
-        maxLife: 0.8,
+        x: x + rand(-16, 16),
+        y: y + rand(-4, 12),
+        vx: rand(-0.5, 0.5),
+        vy: rand(0.4, 1.5),
+        life: rand(0.3, 0.7),
+        maxLife: 0.7,
         size: rand(2, 5),
         type: 'dust',
       });
@@ -598,16 +975,16 @@
   }
 
   function spawnCollectFX(x, y, color) {
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 10; i++) {
       const angle = rand(0, Math.PI * 2);
-      const speed = rand(2, 5);
+      const spd = rand(2.5, 6);
       particles.push({
         x, y,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        life: 0.5,
-        maxLife: 0.5,
-        size: rand(2, 4),
+        vx: Math.cos(angle) * spd,
+        vy: Math.sin(angle) * spd,
+        life: 0.45,
+        maxLife: 0.45,
+        size: rand(2.5, 5),
         type: 'spark',
         color: color,
       });
@@ -627,254 +1004,239 @@
   function drawParticles() {
     particles.forEach(p => {
       const alpha = clamp(p.life / p.maxLife, 0, 1);
+      ctx.globalAlpha = alpha;
       if (p.type === 'dust') {
-        ctx.fillStyle = `rgba(180,150,110,${alpha * 0.6})`;
+        ctx.fillStyle = `rgba(180,150,110,0.7)`;
         ctx.beginPath();
         ctx.arc(scaleX(p.x), p.y, scaleV(p.size), 0, Math.PI * 2);
         ctx.fill();
-      } else if (p.type === 'spark') {
-        ctx.fillStyle = p.color.replace(')', `,${alpha})`).replace('rgb', 'rgba');
-        if (p.color.startsWith('#')) {
-          ctx.fillStyle = p.color; // fallback, slight opacity loss
-          ctx.globalAlpha = alpha;
-        }
+      } else {
+        ctx.fillStyle = p.color;
         ctx.beginPath();
         ctx.arc(scaleX(p.x), p.y, scaleV(p.size), 0, Math.PI * 2);
         ctx.fill();
-        ctx.globalAlpha = 1;
       }
     });
+    ctx.globalAlpha = 1;
   }
 
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
   // GAME OBJECT SPAWNING
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
   const OBSTACLE_TYPES = ['boulder', 'log', 'deer', 'puddle'];
 
   function spawnObstacle() {
-    const type = OBSTACLE_TYPES[randInt(0, OBSTACLE_TYPES.length - 1)];
+    const type = OBSTACLE_TYPES[randInt(0, 3)];
     const lane = randInt(0, LANES - 1);
     const x = LANE_CX[lane];
-    const y = -40;
     let w = 0, h = 0, r = 0;
     let occupiesLanes = [lane];
 
     switch (type) {
       case 'boulder':
-        r = rand(18, 28);
+        r = rand(20, 30);
         break;
       case 'log':
-        w = rand(55, 85);
-        h = rand(14, 22);
-        // Log can span 2 lanes
-        if (Math.random() < 0.3 && lane < LANES - 1) {
+        w = rand(58, 90);
+        h = rand(16, 24);
+        if (Math.random() < 0.35 && lane < LANES - 1) {
           occupiesLanes.push(lane + 1);
           w += LANE_W;
         }
         break;
       case 'deer':
-        w = rand(30, 48);
-        h = rand(35, 50);
+        w = rand(35, 55);  // used as scale
+        h = 0;
         break;
       case 'puddle':
-        w = rand(50, 80);
-        h = rand(30, 45);
-        if (Math.random() < 0.25 && lane < LANES - 1) {
+        w = rand(55, 85);
+        h = rand(35, 50);
+        if (Math.random() < 0.3 && lane < LANES - 1) {
           occupiesLanes.push(lane + 1);
           w += LANE_W * 0.8;
         }
         break;
     }
 
-    obstacles.push({ type, x, y, w, h, r, lanes: occupiesLanes });
+    obstacles.push({ type, x, y: -50, w, h, r, lanes: occupiesLanes });
   }
 
   function spawnCollectible() {
     const lane = randInt(0, LANES - 1);
-    const isFuel = Math.random() < 0.3;
     collectibles.push({
       x: LANE_CX[lane],
       y: -30,
-      type: isFuel ? 'fuel' : 'fruit',
+      type: Math.random() < 0.3 ? 'fuel' : 'fruit',
     });
   }
 
-  // ──────────────────────────────────────
-  // COLLISION DETECTION
-  // ──────────────────────────────────────
-  function checkCollision(ox, oy, ow, oh, or, lanes, playerLane, px, py, pw, ph) {
-    // Lane-based check: player must be in one of the obstacle's lanes
-    if (!lanes.includes(playerLane)) return false;
-
-    // AABB check with some tolerance
+  // ═══════════════════════════════════════
+  // COLLISION
+  // ═══════════════════════════════════════
+  function checkCollision(ox, oy, ow, oh, or, lanes, pLane, px, py, pw, ph) {
+    if (!lanes.includes(pLane)) return false;
     if (or) {
-      // Circle collision
       const cx = ox, cy = oy;
       const closestX = clamp(cx, px - pw / 2, px + pw / 2);
       const closestY = clamp(cy, py - ph / 2, py + ph / 2);
-      const distX = cx - closestX;
-      const distY = cy - closestY;
-      return (distX * distX + distY * distY) < (or * or);
-    } else {
-      // Rectangle collision
-      const margin = pw * 0.2;
-      return (
-        px + pw / 2 - margin > ox - ow / 2 &&
-        px - pw / 2 + margin < ox + ow / 2 &&
-        py + ph / 2 - margin * 0.5 > oy - oh / 2 &&
-        py - ph / 2 + margin * 0.5 < oy + oh / 2
-      );
+      return (cx - closestX) ** 2 + (cy - closestY) ** 2 < or * or;
     }
+    const margin = pw * 0.22;
+    return (
+      px + pw / 2 - margin > ox - ow / 2 &&
+      px - pw / 2 + margin < ox + ow / 2 &&
+      py + ph / 2 - margin * 0.5 > oy - oh / 2 &&
+      py - ph / 2 + margin * 0.5 < oy + oh / 2
+    );
   }
 
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
   // HUD
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
   function drawHUD() {
-    const pad = scaleV(12);
-    const fontSize = scaleV(14);
+    const pad = scaleV(10);
+    const fs = scaleV(14);
 
-    // Background bars
+    // Top bar
     ctx.fillStyle = C.hudBg;
-    roundRect(scaleX(4), 4, scaleX(GAME_W - 8), scaleV(36), scaleV(8));
+    roundRect(scaleX(3), 3, scaleX(GAME_W - 6), scaleV(38), scaleV(10));
     ctx.fill();
 
     // Score
     ctx.fillStyle = C.hudText;
-    ctx.font = `bold ${fontSize}px system-ui, sans-serif`;
+    ctx.font = `bold ${fs}px system-ui, sans-serif`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`🍎 ${score}`, pad + scaleV(4), scaleV(22));
+    ctx.fillText(`🍎 ${score}`, pad + scaleV(2), scaleV(22));
 
     // Distance
     ctx.textAlign = 'center';
     ctx.fillText(`${Math.floor(distance)}m`, scaleX(GAME_W / 2), scaleV(22));
 
-    // High score (small)
+    // Speed badge
+    const speedKph = Math.round(speed / 180 * 60);
+    const speedX = scaleX(GAME_W - GRASS_W - 4);
     ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.font = `${fontSize * 0.75}px system-ui, sans-serif`;
-    ctx.fillText(`Best: ${highScore}`, scaleX(GAME_W / 2), scaleV(34));
+    ctx.font = `${fs * 0.7}px system-ui, sans-serif`;
+    ctx.textAlign = 'right';
+    ctx.fillText(`${speedKph} km/h`, speedX, scaleV(36));
 
     // Fuel gauge
-    const fuelW = scaleV(60), fuelH = scaleV(10);
-    const fuelX = scaleX(GAME_W - GRASS_W - 2) - fuelW, fuelY = scaleV(16);
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    const fuelW = scaleV(64), fuelH = scaleV(11);
+    const fuelX = speedX - fuelW - scaleV(72), fuelY = scaleV(17);
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
     roundRect(fuelX - 1, fuelY - 1, fuelW + 2, fuelH + 2, fuelH / 2 + 1);
     ctx.fill();
 
-    const fuelPct = clamp(fuel / FUEL_MAX, 0, 1);
-    const fuelGrad = ctx.createLinearGradient(fuelX, 0, fuelX + fuelW, 0);
-    if (fuelPct > 0.4) {
-      fuelGrad.addColorStop(0, '#4CAF50');
-      fuelGrad.addColorStop(1, '#66BB6A');
-    } else if (fuelPct > 0.2) {
-      fuelGrad.addColorStop(0, C.warning);
-      fuelGrad.addColorStop(1, '#F5B041');
-    } else {
-      fuelGrad.addColorStop(0, C.danger);
-      fuelGrad.addColorStop(1, '#E74C3C');
-    }
-    ctx.fillStyle = fuelGrad;
-    roundRect(fuelX, fuelY, fuelW * fuelPct, fuelH, fuelH / 2);
+    const pct = clamp(fuel / FUEL_MAX, 0, 1);
+    let fuelColor;
+    if (pct > 0.4) fuelColor = C.safe;
+    else if (pct > 0.2) fuelColor = C.warning;
+    else fuelColor = C.danger;
+
+    const fg = ctx.createLinearGradient(fuelX, 0, fuelX + fuelW, 0);
+    fg.addColorStop(0, fuelColor);
+    fg.addColorStop(1, pct > 0.4 ? '#66BB6A' : pct > 0.2 ? '#F5B041' : '#F06050');
+    ctx.fillStyle = fg;
+    roundRect(fuelX, fuelY, fuelW * pct, fuelH, fuelH / 2);
+    ctx.fill();
+
+    // Fuel bar shine
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    roundRect(fuelX, fuelY, fuelW * pct, fuelH / 2, fuelH / 2);
     ctx.fill();
 
     ctx.fillStyle = C.hudText;
-    ctx.font = `${fontSize * 0.7}px system-ui, sans-serif`;
+    ctx.font = `${fs * 0.65}px system-ui, sans-serif`;
     ctx.textAlign = 'right';
     ctx.fillText('⛽', fuelX - scaleV(4), scaleV(22));
-
-    // Speed indicator
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.font = `${fontSize * 0.7}px system-ui, sans-serif`;
-    ctx.textAlign = 'right';
-    const speedKph = Math.round(speed / 180 * 60);
-    ctx.fillText(`${speedKph} km/h`, scaleX(GAME_W - GRASS_W - 2), scaleV(36));
   }
 
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
   // SCREENS
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
   function drawTitleScreen() {
-    // Dim overlay
-    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillStyle = 'rgba(0,0,0,0.58)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const cx = canvas.width / 2;
-    const cy = canvas.height * 0.38;
+    const cy = canvas.height * 0.36;
 
     // Title
     ctx.fillStyle = '#FFF';
-    ctx.font = `bold ${scaleV(38)}px system-ui, sans-serif`;
+    ctx.font = `bold ${scaleV(40)}px system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('🏞️ Wild Run', cx, cy - scaleV(40));
+    ctx.fillText('🏞️ Wild Run', cx, cy - scaleV(45));
 
-    // Subtitle
-    ctx.fillStyle = '#DFE6C8';
+    ctx.fillStyle = '#D8E8C8';
     ctx.font = `${scaleV(15)}px system-ui, sans-serif`;
-    ctx.fillText('Race through the wilderness', cx, cy + scaleV(4));
+    ctx.fillText('Race through the wilderness', cx, cy + scaleV(2));
 
-    // Instructions box
-    const boxY = cy + scaleV(35);
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    roundRect(cx - scaleX(140), boxY, scaleX(280), scaleV(130), scaleV(12));
+    // Instructions
+    const boxY = cy + scaleV(32);
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    roundRect(cx - scaleX(145), boxY, scaleX(290), scaleV(125), scaleV(12));
     ctx.fill();
 
     ctx.fillStyle = '#EEE';
     ctx.font = `${scaleV(13)}px system-ui, sans-serif`;
-    const instructions = [
-      '⬅ ➡  Switch lanes to dodge obstacles',
+    [
+      '⬅ ➡  Switch lanes to dodge',
       '⬆  Hold for nitro boost',
-      '🍎 Collect fruit for points',
-      '⛽ Grab fuel cans to keep going',
+      '🍎 Fruit = points  ⛽ Fuel = life',
       '',
-      '📱 Tap sides to steer • Swipe up to boost',
-    ];
-    instructions.forEach((line, i) => {
-      ctx.fillText(line, cx, boxY + scaleV(20) + i * scaleV(20));
-    });
+      '📱 Tap sides to steer',
+    ].forEach((l, i) => ctx.fillText(l, cx, boxY + scaleV(20) + i * scaleV(21)));
 
     // Start button
-    const btnY = boxY + scaleV(150);
-    ctx.fillStyle = '#FF6B35';
-    roundRect(cx - scaleX(70), btnY, scaleX(140), scaleV(44), scaleV(22));
+    const btnY = boxY + scaleV(145);
+    const btnGrad = ctx.createLinearGradient(cx, btnY, cx, btnY + scaleV(44));
+    btnGrad.addColorStop(0, '#FF7B45');
+    btnGrad.addColorStop(1, '#E0552B');
+    ctx.fillStyle = btnGrad;
+    roundRect(cx - scaleX(72), btnY, scaleX(144), scaleV(44), scaleV(22));
     ctx.fill();
-    ctx.fillStyle = '#FFF';
-    ctx.font = `bold ${scaleV(17)}px system-ui, sans-serif`;
-    ctx.fillText('START', cx, btnY + scaleV(22));
+    ctx.shadowColor = 'rgba(255,107,53,0.4)';
+    ctx.shadowBlur = 20;
+    roundRect(cx - scaleX(72), btnY, scaleX(144), scaleV(44), scaleV(22));
+    ctx.fill();
+    ctx.shadowBlur = 0;
 
-    // High score
+    ctx.fillStyle = '#FFF';
+    ctx.font = `bold ${scaleV(18)}px system-ui, sans-serif`;
+    ctx.fillText('▶  START', cx, btnY + scaleV(22));
+
     if (highScore > 0) {
       ctx.fillStyle = '#FFD93D';
       ctx.font = `${scaleV(12)}px system-ui, sans-serif`;
-      ctx.fillText(`🏆 Best: ${highScore} pts  •  ${highDist}m`, cx, btnY + scaleV(60));
+      ctx.fillText(`🏆 Best: ${highScore} pts  •  ${highDist}m`, cx, btnY + scaleV(62));
     }
 
-    // Store button area for click detection
-    canvas._startBtn = { x: cx - scaleX(70), y: btnY, w: scaleX(140), h: scaleV(44) };
+    canvas._startBtn = { x: cx - scaleX(72), y: btnY, w: scaleX(144), h: scaleV(44) };
   }
 
   function drawGameOverScreen() {
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillStyle = 'rgba(0,0,0,0.62)';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const cx = canvas.width / 2;
-    const cy = canvas.height * 0.35;
+    const cy = canvas.height * 0.33;
 
     ctx.fillStyle = '#FF6B35';
-    ctx.font = `bold ${scaleV(34)}px system-ui, sans-serif`;
+    ctx.font = `bold ${scaleV(36)}px system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('Game Over', cx, cy - scaleV(20));
+    ctx.fillText('Game Over', cx, cy - scaleV(18));
 
-    // Stats
-    const statsY = cy + scaleV(25);
+    const statsY = cy + scaleV(28);
     ctx.fillStyle = '#FFF';
-    ctx.font = `${scaleV(18)}px system-ui, sans-serif`;
-    ctx.fillText(`🍎 Score: ${score}`, cx, statsY);
-    ctx.fillText(`📏 Distance: ${Math.floor(distance)}m`, cx, statsY + scaleV(30));
+    ctx.font = `bold ${scaleV(20)}px system-ui, sans-serif`;
+    ctx.fillText(`🍎 ${score}`, cx, statsY);
+    ctx.fillStyle = '#CCC';
+    ctx.font = `${scaleV(16)}px system-ui, sans-serif`;
+    ctx.fillText(`📏 ${Math.floor(distance)}m`, cx, statsY + scaleV(32));
 
-    // New best?
     let newBest = false;
     if (score > highScore) {
       newBest = true;
@@ -888,25 +1250,28 @@
 
     if (newBest) {
       ctx.fillStyle = '#FFD93D';
-      ctx.font = `bold ${scaleV(16)}px system-ui, sans-serif`;
-      ctx.fillText('🌟 New High Score! 🌟', cx, statsY + scaleV(60));
+      ctx.font = `bold ${scaleV(17)}px system-ui, sans-serif`;
+      ctx.fillText('🌟 New High Score! 🌟', cx, statsY + scaleV(65));
     }
 
-    // Restart button
-    const btnY = statsY + scaleV(90);
-    ctx.fillStyle = '#4CAF50';
-    roundRect(cx - scaleX(80), btnY, scaleX(160), scaleV(44), scaleV(22));
+    const btnY = statsY + scaleV(95);
+    const btnGrad = ctx.createLinearGradient(cx, btnY, cx, btnY + scaleV(44));
+    btnGrad.addColorStop(0, '#5CB860');
+    btnGrad.addColorStop(1, '#3D8B40');
+    ctx.fillStyle = btnGrad;
+    roundRect(cx - scaleX(82), btnY, scaleX(164), scaleV(44), scaleV(22));
     ctx.fill();
+
     ctx.fillStyle = '#FFF';
     ctx.font = `bold ${scaleV(17)}px system-ui, sans-serif`;
-    ctx.fillText('PLAY AGAIN', cx, btnY + scaleV(22));
+    ctx.fillText('🔄  PLAY AGAIN', cx, btnY + scaleV(22));
 
-    canvas._restartBtn = { x: cx - scaleX(80), y: btnY, w: scaleX(160), h: scaleV(44) };
+    canvas._restartBtn = { x: cx - scaleX(82), y: btnY, w: scaleX(164), h: scaleV(44) };
   }
 
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
   // GAME LOGIC
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
   function resetGame() {
     score = 0;
     distance = 0;
@@ -914,6 +1279,8 @@
     fuel = FUEL_MAX;
     playerLane = 1;
     playerX = LANE_CX[1];
+    displayX = LANE_CX[1];
+    tiltAngle = 0;
     obstacles = [];
     collectibles = [];
     particles = [];
@@ -921,108 +1288,101 @@
     nitroActive = false;
     nitroFuel = 0;
     shakeTimer = 0;
+    nearMissTimer = 0;
     laneSwitchCooldown = 0;
   }
 
   function update(dt) {
     if (state !== 'playing') return;
+    const dtC = Math.min(dt, 0.1);
 
-    // dt is in seconds, clamp to avoid huge jumps
-    const dtClamped = Math.min(dt, 0.1);
-
-    // Speed increases with distance
+    // Speed scaling
     const speedLevel = Math.floor(distance / DIST_PER_STEP);
     speed = clamp(BASE_SPEED + speedLevel * SPEED_STEP, BASE_SPEED, MAX_SPEED);
 
-    // Nitro
+    let effectiveSpeed = speed;
     if (nitroActive && nitroFuel > 0) {
-      const nitroMult = 1.5;
-      const effectiveSpeed = speed * nitroMult;
-      nitroFuel -= dtClamped * 20;
-      distance += effectiveSpeed * dtClamped;
-      fuel -= FUEL_DRAIN * dtClamped * 1.3; // faster fuel drain on nitro
+      effectiveSpeed *= 1.5;
+      nitroFuel -= dtC * 22;
+      fuel -= FUEL_DRAIN * dtC * 1.35;
     } else {
       nitroActive = false;
-      distance += speed * dtClamped;
-      fuel -= FUEL_DRAIN * dtClamped;
+      fuel -= FUEL_DRAIN * dtC;
     }
 
-    if (fuel <= 0) {
-      fuel = 0;
-      endGame();
-      return;
-    }
+    distance += effectiveSpeed * dtC;
 
-    // Cooldown
-    if (laneSwitchCooldown > 0) laneSwitchCooldown -= dtClamped;
+    if (fuel <= 0) { fuel = 0; endGame(); return; }
+    if (laneSwitchCooldown > 0) laneSwitchCooldown -= dtC;
 
-    // Update player position
+    // ── Smooth lane switching ──
     playerY = canvas.height * PLAYER_Y_RATIO;
     playerX = LANE_CX[playerLane];
+    displayX = lerp(displayX, playerX, 1 - Math.exp(-LANE_SWITCH_SPEED * dtC));
 
-    // Move obstacles
-    const scrollSpeed = speed * (nitroActive ? 1.5 : 1);
+    // Tilt based on horizontal velocity (difference between visual and target)
+    const horzDiff = playerX - displayX;
+    const targetTilt = horzDiff * 0.025;
+    tiltAngle = lerp(tiltAngle, targetTilt, 1 - Math.exp(-20 * dtC));
+
+    // ── Move objects ──
+    const scrollSpeed = effectiveSpeed;
     for (let i = obstacles.length - 1; i >= 0; i--) {
-      obstacles[i].y += scrollSpeed * dtClamped;
-      if (obstacles[i].y > canvas.height + 80) {
-        obstacles.splice(i, 1);
-      }
+      obstacles[i].y += scrollSpeed * dtC;
+      if (obstacles[i].y > canvas.height + 100) obstacles.splice(i, 1);
     }
-
-    // Move collectibles
     for (let i = collectibles.length - 1; i >= 0; i--) {
-      collectibles[i].y += scrollSpeed * dtClamped;
-      if (collectibles[i].y > canvas.height + 60) {
-        collectibles.splice(i, 1);
-      }
+      collectibles[i].y += scrollSpeed * dtC;
+      if (collectibles[i].y > canvas.height + 80) collectibles.splice(i, 1);
     }
 
-    // Spawn obstacles
-    const gapSeconds = OBSTACLE_MIN_GAP * (BASE_SPEED / speed);
-    if (distance - lastObstacleDist > speed * gapSeconds * 1.2) {
+    // ── Spawn obstacles ──
+    const gapSec = OBSTACLE_MIN_GAP * (BASE_SPEED / speed);
+    if (distance - lastObstacleDist > speed * gapSec * 1.2) {
       spawnObstacle();
       lastObstacleDist = distance;
-      // Sometimes spawn pairs
       if (Math.random() < 0.3 && speed > BASE_SPEED * 1.3) {
-        setTimeout(() => {
-          if (state === 'playing') spawnObstacle();
-        }, rand(200, 500));
+        setTimeout(() => { if (state === 'playing') spawnObstacle(); }, rand(180, 450));
       }
     }
 
-    // Spawn collectibles
-    if (Math.random() < COLLECTIBLE_CHANCE * dtClamped * (speed / BASE_SPEED)) {
+    // ── Spawn collectibles ──
+    if (Math.random() < COLLECTIBLE_CHANCE * dtC * (speed / BASE_SPEED)) {
       spawnCollectible();
     }
 
-    // Check collisions with obstacles
-    const pw = scaleV(44), ph = scaleV(70);
+    // ── Collisions ──
+    const pw = scaleV(46), ph = scaleV(74);
     for (const obs of obstacles) {
-      const sx = scaleX(obs.x), sy = obs.y;
-      const sw = obs.w ? scaleV(obs.w) : 0;
-      const sh = obs.h ? scaleV(obs.h) : 0;
-      const sr = obs.r ? scaleV(obs.r) : 0;
-      const px = scaleX(playerX), py = playerY;
+      const sx = scaleX(displayX), sy = playerY;
+      const ox = scaleX(obs.x), oy = obs.y;
+      const ow = obs.w ? scaleV(obs.w) : 0;
+      const oh = obs.h ? scaleV(obs.h) : 0;
+      const or = obs.r ? scaleV(obs.r) : 0;
 
-      if (checkCollision(sx, sy, sw, sh, sr, obs.lanes, playerLane, px, py, pw, ph)) {
+      if (checkCollision(ox, oy, ow, oh, or, obs.lanes, playerLane, sx, sy, pw, ph)) {
         endGame();
         return;
       }
+
+      // Near-miss detection
+      const nearDist = scaleV(18);
+      if (obs.lanes.includes(playerLane) && oy > sy - ph && oy < sy + ph) {
+        const dist = Math.abs(oy - sy);
+        if (dist < nearDist + ph / 2) nearMissTimer = 0.15;
+      }
     }
 
-    // Check collectible pickups
+    // ── Pickups ──
     for (let i = collectibles.length - 1; i >= 0; i--) {
       const c = collectibles[i];
       const cx = scaleX(c.x), cy = c.y;
-      const px = scaleX(playerX), py = playerY;
-      const dist = Math.hypot(cx - px, cy - py);
-      const pickupRadius = scaleV(36);
-
-      if (dist < pickupRadius) {
+      const sx = scaleX(displayX), sy = playerY;
+      if (Math.hypot(cx - sx, cy - sy) < scaleV(38)) {
         if (c.type === 'fruit') {
           score += 100;
           spawnCollectFX(cx, cy, '#FF6B35');
-        } else if (c.type === 'fuel') {
+        } else {
           fuel = clamp(fuel + FUEL_PICKUP, 0, FUEL_MAX);
           spawnCollectFX(cx, cy, '#D9442F');
         }
@@ -1030,67 +1390,61 @@
       }
     }
 
-    // Dust particles from player (time-based)
-    if (Math.random() < 40 * dtClamped) {
-      spawnDust(scaleX(playerX), playerY + scaleV(20));
-    }
+    // ── Effects ──
+    if (Math.random() < 45 * dtC) spawnDust(scaleX(displayX), playerY + scaleV(24), 2);
+    if (nearMissTimer > 0) nearMissTimer -= dtC;
+    if (shakeTimer > 0) shakeTimer -= dtC;
+    updateParticles(dtC);
 
-    updateParticles(dtClamped);
+    // ── Move atmosphere ──
+    treesL.forEach(t => { t.y += scrollSpeed * 0.13 * dtC; if (t.y > canvas.height + 80) t.y = -80; });
+    treesR.forEach(t => { t.y += scrollSpeed * 0.13 * dtC; if (t.y > canvas.height + 80) t.y = -80; });
 
-    // Screen shake decay
-    if (shakeTimer > 0) shakeTimer -= dtClamped;
-
-    // Update trees (parallax)
-    const treeSpeed = scrollSpeed;
-    treesL.forEach(t => { t.y += treeSpeed * 0.12 * dtClamped; if (t.y > canvas.height + 60) t.y = -60; });
-    treesR.forEach(t => { t.y += treeSpeed * 0.12 * dtClamped; if (t.y > canvas.height + 60) t.y = -60; });
+    birds.forEach(b => {
+      b.x += b.speed * dtC;
+      if (b.x > GAME_W + 60) b.x = -60;
+      if (b.x < -60) b.x = GAME_W + 60;
+    });
   }
 
   function endGame() {
     state = 'over';
-    if (score > highScore) {
-      highScore = score;
-      localStorage.setItem('wildrun_hs', highScore);
-    }
-    if (distance > highDist) {
-      highDist = Math.floor(distance);
-      localStorage.setItem('wildrun_hd', highDist);
-    }
-    shakeTimer = 0.3;
+    if (score > highScore) { highScore = score; localStorage.setItem('wildrun_hs', highScore); }
+    if (distance > highDist) { highDist = Math.floor(distance); localStorage.setItem('wildrun_hd', highDist); }
+    shakeTimer = 0.35;
   }
 
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
   // RENDER
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
   function render() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Screen shake
     ctx.save();
     if (shakeTimer > 0) {
-      const sx = (Math.random() - 0.5) * shakeTimer * 20;
-      const sy = (Math.random() - 0.5) * shakeTimer * 20;
-      ctx.translate(sx, sy);
+      const s = shakeTimer * 22;
+      ctx.translate((Math.random() - 0.5) * s, (Math.random() - 0.5) * s);
     }
 
     drawSky();
+    drawClouds(0.016);
     drawMountains();
+    drawBirds();
 
-    // Grass sides
     drawGrass(0, scaleX(GRASS_W));
     drawGrass(scaleX(GAME_W - GRASS_W), scaleX(GRASS_W));
-
     drawRoad();
 
     // Trees
-    treesL.forEach(t => drawTree(t, speed * (nitroActive ? 1.5 : 1)));
-    treesR.forEach(t => drawTree(t, speed * (nitroActive ? 1.5 : 1)));
+    const scrSpd = speed * (nitroActive ? 1.5 : 1);
+    treesL.forEach(t => drawTree(t, scrSpd));
+    treesR.forEach(t => drawTree(t, scrSpd));
 
     // Collectibles
     collectibles.forEach(c => {
       const sx = scaleX(c.x), sy = c.y;
-      if (c.type === 'fruit') drawFruit(sx, sy, scaleV(14));
-      else drawFuelCan(sx, sy, scaleV(24), scaleV(30));
+      if (c.type === 'fruit') drawFruit(sx, sy, scaleV(15));
+      else drawFuelCan(sx, sy, scaleV(26), scaleV(32));
     });
 
     // Obstacles
@@ -1099,177 +1453,154 @@
       switch (obs.type) {
         case 'boulder': drawBoulder(sx, sy, scaleV(obs.r)); break;
         case 'log': drawLog(sx, sy, scaleV(obs.w), scaleV(obs.h)); break;
-        case 'deer': drawDeer(sx, sy, scaleV(obs.w || obs.h || 40)); break;
+        case 'deer': drawDeer(sx, sy, scaleV(obs.w || 44)); break;
         case 'puddle': drawPuddle(sx, sy, scaleV(obs.w), scaleV(obs.h)); break;
       }
     });
 
     // Player jeep
-    const jw = scaleV(50), jh = scaleV(75);
-    drawJeep(scaleX(playerX), playerY, jw, jh);
+    const jw = scaleV(54), jh = scaleV(80);
+    drawJeep(scaleX(displayX), playerY, jw, jh, tiltAngle);
 
     // Nitro flames
     if (nitroActive && nitroFuel > 0) {
-      for (let i = 0; i < 3; i++) {
-        const fx = scaleX(playerX) + rand(-10, 10);
-        const fy = playerY + jh * 0.4 + rand(0, 15);
-        ctx.fillStyle = `rgba(255,${140 + rand(0,80)},0,${0.6 + rand(0,0.4)})`;
+      for (let i = 0; i < 4; i++) {
+        const fx = scaleX(displayX) + rand(-12, 12);
+        const fy = playerY + jh * 0.38 + rand(0, 18);
+        ctx.fillStyle = `rgba(255,${140 + rand(0, 90)},0,${0.5 + rand(0, 0.5)})`;
         ctx.beginPath();
-        ctx.arc(fx, fy, rand(3, 7), 0, Math.PI * 2);
+        ctx.arc(fx, fy, rand(3, 8), 0, Math.PI * 2);
         ctx.fill();
       }
     }
 
-    // Particles
-    drawParticles();
+    // Speed lines at high speed
+    if (speed > BASE_SPEED * 1.5) {
+      const intensity = (speed - BASE_SPEED * 1.5) / (MAX_SPEED - BASE_SPEED * 1.5);
+      ctx.strokeStyle = `rgba(255,255,255,${intensity * 0.12})`;
+      ctx.lineWidth = 1;
+      const sx = scaleX(ROAD_X), sw = scaleX(ROAD_W);
+      for (let i = 0; i < 4; i++) {
+        const lx = sx + rand(10, sw - 10);
+        ctx.beginPath();
+        ctx.moveTo(lx, rand(0, canvas.height));
+        ctx.lineTo(lx - rand(10, 30), rand(0, canvas.height));
+        ctx.stroke();
+      }
+    }
 
+    drawParticles();
     ctx.restore();
 
-    // HUD (no shake)
     if (state === 'playing') drawHUD();
-
-    // Screens
     if (state === 'title') drawTitleScreen();
     if (state === 'over') drawGameOverScreen();
   }
 
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
   // GAME LOOP
-  // ──────────────────────────────────────
-  function gameLoop(timestamp) {
-    const dt = (timestamp - lastFrameTime) / 1000;
-    lastFrameTime = timestamp;
+  // ═══════════════════════════════════════
+  function gameLoop(ts) {
+    const dt = (ts - lastFrameTime) / 1000;
+    lastFrameTime = ts;
     frameCount++;
-
     update(dt);
     render();
     requestAnimationFrame(gameLoop);
   }
 
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
   // INPUT
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
   function moveLeft() {
-    if (state === 'playing' && laneSwitchCooldown <= 0) {
-      if (playerLane > 0) { playerLane--; laneSwitchCooldown = 0.08; }
+    if (state === 'playing' && laneSwitchCooldown <= 0 && playerLane > 0) {
+      playerLane--;
+      laneSwitchCooldown = 0.06;
     }
   }
-
   function moveRight() {
-    if (state === 'playing' && laneSwitchCooldown <= 0) {
-      if (playerLane < LANES - 1) { playerLane++; laneSwitchCooldown = 0.08; }
+    if (state === 'playing' && laneSwitchCooldown <= 0 && playerLane < LANES - 1) {
+      playerLane++;
+      laneSwitchCooldown = 0.06;
     }
   }
-
   function boostOn() {
-    if (state === 'playing') {
-      nitroActive = true;
-      if (nitroFuel <= 0) nitroFuel = 100;
-    }
+    if (state === 'playing') { nitroActive = true; if (nitroFuel <= 0) nitroFuel = 100; }
   }
+  function boostOff() { nitroActive = false; }
 
-  function boostOff() {
-    nitroActive = false;
-  }
-
-  // Keyboard
   window.addEventListener('keydown', e => {
     if (e.key === 'ArrowLeft' || e.key === 'a') moveLeft();
     if (e.key === 'ArrowRight' || e.key === 'd') moveRight();
     if (e.key === 'ArrowUp' || e.key === 'w') boostOn();
     if (e.key === ' ' || e.key === 'Enter') {
-      if (state === 'title') startGame();
-      if (state === 'over') startGame();
+      if (state === 'title' || state === 'over') startGame();
     }
     e.preventDefault();
   });
-
   window.addEventListener('keyup', e => {
     if (e.key === 'ArrowUp' || e.key === 'w') boostOff();
   });
 
-  // Touch
   canvas.addEventListener('touchstart', e => {
     e.preventDefault();
-    for (const touch of e.changedTouches) {
-      const tx = touch.clientX;
-      const ty = touch.clientY;
-
-      if (state === 'title') { startGame(); return; }
-      if (state === 'over') { startGame(); return; }
-
+    for (const t of e.changedTouches) {
+      const tx = t.clientX, ty = t.clientY;
+      const rect = canvas.getBoundingClientRect();
+      if (state === 'title' || state === 'over') { startGame(); return; }
       if (state === 'playing') {
-        if (tx < canvas.getBoundingClientRect().left + canvas.width / 2) {
-          moveLeft();
-        } else {
-          moveRight();
-        }
-        if (ty < canvas.getBoundingClientRect().top + canvas.height * 0.4) {
-          boostOn();
-        }
+        if (tx < rect.left + canvas.width / 2) moveLeft();
+        else moveRight();
+        if (ty < rect.top + canvas.height * 0.4) boostOn();
       }
     }
   }, { passive: false });
-
   canvas.addEventListener('touchmove', e => {
     e.preventDefault();
-    for (const touch of e.changedTouches) {
-      const ty = touch.clientY;
-      if (ty < canvas.getBoundingClientRect().top + canvas.height * 0.4) {
-        boostOn();
-      } else {
-        boostOff();
-      }
+    for (const t of e.changedTouches) {
+      if (t.clientY < canvas.getBoundingClientRect().top + canvas.height * 0.4) boostOn();
+      else boostOff();
     }
   }, { passive: false });
+  canvas.addEventListener('touchend', e => { e.preventDefault(); boostOff(); }, { passive: false });
 
-  canvas.addEventListener('touchend', e => {
-    e.preventDefault();
-    boostOff();
-  }, { passive: false });
-
-  // Mouse click for buttons
   canvas.addEventListener('click', e => {
     const rect = canvas.getBoundingClientRect();
-    const mx = e.clientX - rect.left;
-    const my = e.clientY - rect.top;
-
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top;
     if (state === 'title' && canvas._startBtn) {
-      const btn = canvas._startBtn;
-      if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
-        startGame();
-      }
+      const b = canvas._startBtn;
+      if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) startGame();
     }
-
     if (state === 'over' && canvas._restartBtn) {
-      const btn = canvas._restartBtn;
-      if (mx >= btn.x && mx <= btn.x + btn.w && my >= btn.y && my <= btn.y + btn.h) {
-        startGame();
-      }
+      const b = canvas._restartBtn;
+      if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) startGame();
     }
   });
 
-  function startGame() {
-    resetGame();
-    state = 'playing';
-    lastFrameTime = performance.now();
-  }
+  function startGame() { resetGame(); state = 'playing'; lastFrameTime = performance.now(); }
 
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
   // INIT
-  // ──────────────────────────────────────
+  // ═══════════════════════════════════════
   function init() {
     resize();
     playerY = canvas.height * PLAYER_Y_RATIO;
     playerX = LANE_CX[playerLane];
+    displayX = playerX;
 
-    // Spawn initial trees
-    for (let i = 0; i < 25; i++) {
-      treesL.push(spawnTree('L'));
-      treesR.push(spawnTree('R'));
+    for (let i = 0; i < 30; i++) { treesL.push(spawnTree('L')); treesR.push(spawnTree('R')); }
+    for (let i = 0; i < 8; i++) clouds.push(spawnCloud());
+    for (let i = 0; i < 4; i++) {
+      birds.push({
+        x: rand(-40, GAME_W + 40),
+        y: rand(canvas.height * 0.08, canvas.height * 0.22),
+        size: rand(8, 16),
+        speed: rand(15, 35) * (Math.random() < 0.5 ? 1 : -1),
+        flapSpeed: rand(8, 14),
+        phase: rand(0, Math.PI * 2),
+      });
     }
 
-    // Draw initial frame
     render();
     lastFrameTime = performance.now();
     requestAnimationFrame(gameLoop);
