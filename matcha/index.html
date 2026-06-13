@@ -94,6 +94,7 @@
       '#2D5A27', '#D49830', '#4A4A8A', '#C0392B',
       '#D49090', '#C94A5A', '#7B5EA7', '#C89828',
       '#4A90D9', '#2A8A6A', '#A06040', '#6A8A4A',
+      '#E07050', '#5090C0', '#80A040',
     ],
     peekGold: '#D4A030',
   };
@@ -102,9 +103,9 @@
   // DIFFICULTY DEFINITIONS
   // ═══════════════════════════════════════
   const DIFFICULTIES = [
-    { name: 'Easy',   cols: 4, rows: 3, pairs: 6,  label: 'EASY' },
-    { name: 'Medium', cols: 4, rows: 4, pairs: 8,  label: 'MEDIUM' },
-    { name: 'Hard',   cols: 6, rows: 4, pairs: 12, label: 'HARD' },
+    { name: 'Easy',   cols: 4, rows: 4, pairs: 8,  label: 'EASY' },
+    { name: 'Medium', cols: 6, rows: 4, pairs: 12, label: 'MEDIUM' },
+    { name: 'Hard',   cols: 6, rows: 5, pairs: 15, label: 'HARD' },
   ];
 
   // ═══════════════════════════════════════
@@ -228,7 +229,7 @@
     const d = DIFFICULTIES[difficulty];
     const symbols = [];
     for (let i = 0; i < d.pairs; i++) {
-      symbols.push(i % 12, i % 12);
+      symbols.push(i % C.symColors.length, i % C.symColors.length);
     }
     shuffle(symbols);
     return symbols.map((sym, idx) => ({
@@ -345,10 +346,36 @@
     ctx.closePath(); ctx.fill();
   }
 
+  function drawSymbol_ring(cx, cy, s, col) {
+    ctx.strokeStyle = col;
+    ctx.lineWidth = s * 0.15;
+    ctx.beginPath(); ctx.arc(cx, cy, s * 0.52, 0, Math.PI * 2); ctx.stroke();
+  }
+  function drawSymbol_dots(cx, cy, s, col) {
+    ctx.fillStyle = col;
+    const d = s * 0.28;
+    [[-d,-d],[d,-d],[-d,d],[d,d]].forEach(([dx, dy]) => {
+      ctx.beginPath(); ctx.arc(cx + dx, cy + dy, s * 0.1, 0, Math.PI*2); ctx.fill();
+    });
+  }
+  function drawSymbol_arrow(cx, cy, s, col) {
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - s*0.65);
+    ctx.lineTo(cx + s*0.5, cy);
+    ctx.lineTo(cx + s*0.15, cy);
+    ctx.lineTo(cx + s*0.15, cy + s*0.55);
+    ctx.lineTo(cx - s*0.15, cy + s*0.55);
+    ctx.lineTo(cx - s*0.15, cy);
+    ctx.lineTo(cx - s*0.5, cy);
+    ctx.closePath(); ctx.fill();
+  }
+
   const SYMBOL_DRAW = [
     drawSymbol_circle, drawSymbol_diamond, drawSymbol_star, drawSymbol_cross,
     drawSymbol_triangle, drawSymbol_heart, drawSymbol_crescent, drawSymbol_bolt,
     drawSymbol_wave, drawSymbol_spiral, drawSymbol_square, drawSymbol_hexagon,
+    drawSymbol_ring, drawSymbol_dots, drawSymbol_arrow,
   ];
 
   // Eagle eye icon (drawn on title screen)
@@ -416,7 +443,7 @@
       ctx.shadowBlur = 0;
 
       if (flipScaleY > 0.3 && sc > 0.5) {
-        const symIdx = card.symbol % 12;
+        const symIdx = card.symbol % C.symColors.length;
         const colSym = C.symColors[symIdx];
         const symSize = cs * 0.26;
         SYMBOL_DRAW[symIdx](cx, drawY, symSize, colSym);
@@ -491,7 +518,7 @@
         vy: Math.sin(angle) * speed * scaleV(1),
         life: rand(0.4, 0.8), maxLife: 0.8,
         size: rand(3, 5),
-        color: C.symColors[randInt(0, 11)],
+        color: C.symColors[randInt(0, C.symColors.length - 1)],
       });
     }
   }
