@@ -538,10 +538,12 @@
       });
     }
 
-    // Lane dashes
+    // Lane dashes — scroll with the road
     ctx.strokeStyle = C.line;
     ctx.lineWidth = scaleV(2.2);
-    ctx.setLineDash([scaleV(24), scaleV(16)]);
+    const dashLen = scaleV(24), gapLen = scaleV(16);
+    ctx.setLineDash([dashLen, gapLen]);
+    ctx.lineDashOffset = -((distance * (canvas.width / GAME_W)) % (dashLen + gapLen));
     for (let i = 1; i < LANES; i++) {
       const lx = scaleX(ROAD_X + LANE_W * i);
       ctx.beginPath();
