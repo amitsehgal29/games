@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <rect width="400" height="300" fill="#1B3A1B"/>
+  <rect x="50" y="50" width="300" height="200" rx="10" fill="#D4A96A" stroke="#8B5E3C" stroke-width="4"/>
+  <rect x="75" y="75" width="80" height="60" rx="4" fill="#E8D5B0"/>
+  <rect x="165" y="75" width="80" height="60" rx="4" fill="#D4C098"/>
+  <rect x="255" y="75" width="80" height="60" rx="4" fill="#E8D5B0"/>
+  <rect x="75" y="145" width="80" height="60" rx="4" fill="#D4C098"/>
+  <rect x="165" y="145" width="80" height="60" rx="4" fill="#E8D5B0"/>
+  <rect x="255" y="145" width="80" height="60" rx="4" fill="#D4C098"/>
+  <text x="115" y="112" text-anchor="middle" font-size="36" font-weight="bold" fill="#5C3A1E">→</text>
+  <text x="195" y="112" text-anchor="middle" font-size="36" font-weight="bold" fill="#5C3A1E">↓</text>
+  <text x="295" y="185" text-anchor="middle" font-size="36" font-weight="bold" fill="#5C3A1E">←</text>
+  <text x="115" y="185" text-anchor="middle" font-size="36" font-weight="bold" fill="#5C3A1E">↑</text>
+  <text x="200" y="35" text-anchor="middle" font-family="system-ui" font-weight="900" font-size="28" fill="#FFB300">ARROW ESCAPE</text>
+</svg>
