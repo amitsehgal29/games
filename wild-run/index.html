@@ -64,7 +64,7 @@
   const FUEL_PICKUP  = 18;
 
   const OBSTACLE_MIN_GAP = 0.50;
-  const COLLECTIBLE_CHANCE = 0.38;
+  const COLLECTIBLE_CHANCE = 0.19;
   const GAP_DIST_BASE = OBSTACLE_MIN_GAP * BASE_SPEED * 1.2;
   const LANE_SWITCH_SPEED = 14; // lerp speed for smooth lane changes
 
@@ -151,6 +151,7 @@
   let nitroFuel = 0;
   let shakeTimer = 0;
   let nearMissTimer = 0;
+  let fuelThresholds = new Set();   // which fuel thresholds have been triggered
   let lastFrameTime = performance.now();
   let laneSwitchCooldown = 0;
   let lastDt = 0.016;              // stored for render-only consumers (clouds)
@@ -349,7 +350,7 @@
       x: rand(-120, GAME_W + 60),
       y: rand(10, canvas.height * 0.2),
       w: rand(50, 110),
-      speed: rand(8, 20),
+      speed: rand(25, 60),
       opacity: rand(0.4, 0.85),
     };
   }
@@ -538,10 +539,12 @@
       });
     }
 
-    // Lane dashes
+    // Lane dashes — scroll with the road
     ctx.strokeStyle = C.line;
     ctx.lineWidth = scaleV(2.2);
-    ctx.setLineDash([scaleV(24), scaleV(16)]);
+    const dashLen = scaleV(24), gapLen = scaleV(16);
+    ctx.setLineDash([dashLen, gapLen]);
+    ctx.lineDashOffset = -((distance * (canvas.width / GAME_W)) % (dashLen + gapLen));
     for (let i = 1; i < LANES; i++) {
       const lx = scaleX(ROAD_X + LANE_W * i);
       ctx.beginPath();
@@ -1341,7 +1344,17 @@
       x: LANE_CX[lane],
       y: -30,
       lane: lane,
-      type: Math.random() < 0.10 ? 'fuel' : 'fruit',
+      type: 'fruit',
+    });
+  }
+
+  function spawnFuelCan() {
+    const lane = pickFreeLane();
+    collectibles.push({
+      x: LANE_CX[lane],
+      y: -30,
+      lane: lane,
+      type: 'fuel',
     });
   }
 
@@ -1400,20 +1413,21 @@
 
   function drawSpeakerIcon(x, y, s, isMuted) {
     ctx.fillStyle = '#FFF';
+    // Speaker body — simple rectangle
+    ctx.fillRect(x - s*0.4, y - s*0.2, s*0.22, s*0.4);
+    // Cone — triangle
     ctx.beginPath();
-    ctx.moveTo(x - s*0.2, y - s*0.15); ctx.lineTo(x - s*0.05, y - s*0.15);
-    ctx.lineTo(x + s*0.15, y - s*0.35); ctx.lineTo(x + s*0.15, y + s*0.35);
-    ctx.lineTo(x - s*0.05, y + s*0.15); ctx.lineTo(x - s*0.2, y + s*0.15);
+    ctx.moveTo(x - s*0.18, y - s*0.28); ctx.lineTo(x + s*0.14, y - s*0.45);
+    ctx.lineTo(x + s*0.14, y + s*0.45); ctx.lineTo(x - s*0.18, y + s*0.28);
     ctx.closePath(); ctx.fill();
     if (!isMuted) {
-      ctx.strokeStyle = '#FFF'; ctx.lineWidth = s*0.06; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.arc(x + s*0.22, y, s*0.2, -0.5, 0.5); ctx.stroke();
-      ctx.beginPath(); ctx.arc(x + s*0.3, y, s*0.35, -0.5, 0.5); ctx.stroke();
-      ctx.beginPath(); ctx.arc(x + s*0.38, y, s*0.5, -0.45, 0.45); ctx.stroke();
+      ctx.strokeStyle = '#FFF'; ctx.lineWidth = s*0.1; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(x + s*0.26, y, s*0.25, -0.45, 0.45); ctx.stroke();
+      ctx.beginPath(); ctx.arc(x + s*0.38, y, s*0.42, -0.45, 0.45); ctx.stroke();
     } else {
-      ctx.strokeStyle = '#FFF'; ctx.lineWidth = s*0.08; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(x + s*0.28, y - s*0.22); ctx.lineTo(x + s*0.48, y + s*0.22); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x + s*0.48, y - s*0.22); ctx.lineTo(x + s*0.28, y + s*0.22); ctx.stroke();
+      ctx.strokeStyle = '#FF4444'; ctx.lineWidth = s*0.1; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(x + s*0.28, y - s*0.3); ctx.lineTo(x + s*0.52, y + s*0.3); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + s*0.52, y - s*0.3); ctx.lineTo(x + s*0.28, y + s*0.3); ctx.stroke();
     }
   }
 
@@ -1685,15 +1699,15 @@
     ctx.fillText('Dodge bears, deer & sheep!', cx, tipY);
 
     // ── START button — big, pulsing, game-like ──
-    const btnW = scaleX(170);
-    const btnH = scaleV(50);
+    const btnW = scaleX(200);
+    const btnH = scaleV(60);
     const btnX = cx - btnW / 2;
-    const btnY = tipY + scaleV(24);
+    const btnY = tipY + scaleV(20);
     const pulse = 1 + Math.sin(frameCount * 0.06) * 0.04;
 
     // Outer glow
     ctx.shadowColor = 'rgba(255,140,0,0.5)';
-    ctx.shadowBlur = scaleV(18) * pulse;
+    ctx.shadowBlur = scaleV(22) * pulse;
 
     // Button gradient
     const btnGrad = ctx.createLinearGradient(btnX, btnY, btnX, btnY + btnH);
@@ -1706,24 +1720,24 @@
 
     // Button top shine
     ctx.fillStyle = 'rgba(255,255,255,0.2)';
-    roundRect(btnX + scaleV(4), btnY + scaleV(2), btnW - scaleV(8), btnH / 2, btnH / 3);
+    roundRect(btnX + scaleV(4), btnY + scaleV(2), btnW - scaleV(8), btnH / 2.5, btnH / 4);
     ctx.fill();
 
     ctx.shadowBlur = 0;
 
     // Button border
     ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-    ctx.lineWidth = scaleV(2);
+    ctx.lineWidth = scaleV(2.5);
     roundRect(btnX, btnY, btnW, btnH, btnH / 2);
     ctx.stroke();
 
     // Button text
     ctx.fillStyle = '#FFF';
-    ctx.font = `900 ${scaleV(20)}px 'Fredoka One', system-ui, sans-serif`;
+    ctx.font = `900 ${scaleV(24)}px 'Fredoka One', system-ui, sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    drawPlayTriangle(cx - scaleV(48), btnY + btnH / 2, scaleV(14));
-    ctx.fillText('START', cx + scaleV(8), btnY + btnH / 2);
+    drawPlayTriangle(cx - scaleV(54), btnY + btnH / 2, scaleV(16));
+    ctx.fillText('START', cx + scaleV(10), btnY + btnH / 2);
 
     // ── High score ──
     if (highScore > 0) {
@@ -1785,35 +1799,50 @@
       drawStarIcon(cx + scaleV(80), statsY + scaleV(65), scaleV(9));
     }
 
-    const btnY = statsY + scaleV(95);
-    const btnGrad = ctx.createLinearGradient(cx, btnY, cx, btnY + scaleV(44));
+    const btnW = scaleX(200), btnH = scaleV(58);
+    const btnY = statsY + scaleV(90);
+    const btnGrad = ctx.createLinearGradient(cx, btnY, cx, btnY + btnH);
     btnGrad.addColorStop(0, '#5CB860');
     btnGrad.addColorStop(1, '#3D8B40');
     ctx.fillStyle = btnGrad;
-    roundRect(cx - scaleX(82), btnY, scaleX(164), scaleV(44), scaleV(22));
+    roundRect(cx - btnW / 2, btnY, btnW, btnH, btnH / 2);
+    ctx.fill();
+
+    // Shine
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    roundRect(cx - btnW / 2 + scaleV(4), btnY + scaleV(2), btnW - scaleV(8), btnH / 2.5, btnH / 4);
     ctx.fill();
 
     ctx.fillStyle = '#FFF';
-    ctx.font = `900 ${scaleV(17)}px 'Fredoka One', system-ui, sans-serif`;
-    ctx.fillText('PLAY AGAIN', cx, btnY + scaleV(22));
+    ctx.font = `900 ${scaleV(22)}px 'Fredoka One', system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('PLAY AGAIN', cx, btnY + btnH / 2);
 
-    canvas._restartBtn = { x: cx - scaleX(82), y: btnY, w: scaleX(164), h: scaleV(44) };
+    canvas._restartBtn = { x: cx - btnW / 2, y: btnY, w: btnW, h: btnH };
   }
 
   function drawMuteButton() {
-    const r = scaleV(18);
+    const r = scaleV(28);
     const x = scaleX(GAME_W - GRASS_W - 4) - r;
-    const y = scaleV(46);
-    canvas._muteBtn = { x: x - r, y: y - r, w: r * 2, h: r * 2 };
+    const y = scaleV(52);
+    // Touch target: 44pt minimum for mobile
+    const touchR = Math.max(r, scaleV(22));
+    canvas._muteBtn = { x: x - touchR, y: y - touchR, w: touchR * 2, h: touchR * 2 };
 
     // Background circle
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
     ctx.beginPath();
     ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.fill();
 
+    // Border ring
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = scaleV(2);
+    ctx.stroke();
+
     // Speaker icon (drawn)
-    drawSpeakerIcon(x, y, r * 0.9, muted);
+    drawSpeakerIcon(x, y, r * 0.75, muted);
   }
 
   // ═══════════════════════════════════════
@@ -1839,6 +1868,7 @@
     nitroFuel = 0;
     shakeTimer = 0;
     nearMissTimer = 0;
+    fuelThresholds = new Set();
     laneSwitchCooldown = 0;
     stopEngine();
   }
@@ -1863,6 +1893,15 @@
     }
 
     distance += effectiveSpeed * dtC;
+
+    // Fuel threshold spawns: spawn a fuel can at 50%, 25%, and 5% fuel
+    const thresholds = [50, 25, 5];
+    for (const t of thresholds) {
+      if (fuel <= t && !fuelThresholds.has(t)) {
+        fuelThresholds.add(t);
+        spawnFuelCan();
+      }
+    }
 
     if (fuel <= 0) { fuel = 0; endGame(); return; }
     if (laneSwitchCooldown > 0) laneSwitchCooldown -= dtC;
@@ -1903,9 +1942,9 @@
     }
 
     // ── Spawn obstacles ──
-    // Continuous difficulty: max obstacles +1 every 700m, gap shrinks with distance
-    const maxObs = 1 + Math.floor(distance / 700);
-    const gapDist = GAP_DIST_BASE / (1 + distance / 500);
+    // Gentle continuous difficulty: +1 obstacle every 1000m, gap shrinks slowly
+    const maxObs = 1 + Math.floor(distance / 1000);
+    const gapDist = GAP_DIST_BASE / (1 + distance / 800);
 
     if (distance - lastObstacleDist > gapDist && obstacles.length < maxObs) {
       // Check which lanes are blocked near the spawn zone (top of screen)
@@ -1982,8 +2021,8 @@
     updateEngine(effectiveSpeed);
 
     // ── Move atmosphere ──
-    treesL.forEach(t => { t.y += scrollSpeed * 0.13 * dtC; if (t.y > canvas.height + 80) t.y = -80; });
-    treesR.forEach(t => { t.y += scrollSpeed * 0.13 * dtC; if (t.y > canvas.height + 80) t.y = -80; });
+    treesL.forEach(t => { t.y += scrollSpeed * 3.2 * dtC; if (t.y > canvas.height + 80) t.y = -80; });
+    treesR.forEach(t => { t.y += scrollSpeed * 3.2 * dtC; if (t.y > canvas.height + 80) t.y = -80; });
 
     birds.forEach(b => {
       b.x += b.speed * dtC;
@@ -2205,7 +2244,7 @@
         x: rand(-40, GAME_W + 40),
         y: rand(canvas.height * 0.08, canvas.height * 0.22),
         size: rand(8, 16),
-        speed: rand(15, 35) * (Math.random() < 0.5 ? 1 : -1),
+        speed: rand(35, 70) * (Math.random() < 0.5 ? 1 : -1),
         flapSpeed: rand(8, 14),
         phase: rand(0, Math.PI * 2),
       });
