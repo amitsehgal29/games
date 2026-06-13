@@ -1855,7 +1855,7 @@
   function drawMuteButton() {
     const r = scaleV(28);
     const x = scaleX(GAME_W - GRASS_W - 4) - r;
-    const y = scaleV(85);
+    const y = scaleV(100);
     // Touch target: 44pt minimum for mobile
     const touchR = Math.max(r, scaleV(22));
     canvas._muteBtn = { x: x - touchR, y: y - touchR, w: touchR * 2, h: touchR * 2 };
