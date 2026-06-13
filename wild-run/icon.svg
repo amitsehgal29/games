@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <!-- Sky background -->
+  <rect width="400" height="180" fill="#1565C0"/>
+  <rect y="120" width="400" height="60" fill="#5A8F7A"/>
+  <!-- Dirt road -->
+  <rect y="140" width="400" height="160" fill="#DEB06A"/>
+  <!-- Lane dashes -->
+  <line x1="130" y1="140" x2="130" y2="300" stroke="rgba(255,255,255,0.5)" stroke-width="3" stroke-dasharray="10,8"/>
+  <line x1="200" y1="140" x2="200" y2="300" stroke="rgba(255,255,255,0.5)" stroke-width="3" stroke-dasharray="10,8"/>
+  <line x1="270" y1="140" x2="270" y2="300" stroke="rgba(255,255,255,0.5)" stroke-width="3" stroke-dasharray="10,8"/>
+  <!-- Title -->
+  <text x="200" y="80" text-anchor="middle" font-family="system-ui,sans-serif" font-weight="900" font-size="48" fill="#FFD54F" stroke="rgba(0,0,0,0.3)" stroke-width="2">WILD RUN</text>
+  <text x="200" y="110" text-anchor="middle" font-family="system-ui,sans-serif" font-weight="600" font-size="16" fill="#C8E6A0">Race through the wilderness</text>
+  <!-- Tractor -->
+  <rect x="150" y="220" width="100" height="50" rx="8" fill="#2D7A2D"/>
+  <rect x="155" y="200" width="40" height="30" rx="4" fill="#1E5E1E"/>
+  <rect x="167" y="205" width="16" height="18" rx="2" fill="#B8D8F0"/>
+  <circle cx="170" cy="270" r="20" fill="#1A1A1A"/>
+  <circle cx="170" cy="270" r="8" fill="#888"/>
+  <circle cx="230" cy="270" r="20" fill="#1A1A1A"/>
+  <circle cx="230" cy="270" r="8" fill="#888"/>
+  <circle cx="180" cy="250" r="10" fill="#1A1A1A"/>
+  <circle cx="180" cy="250" r="4" fill="#888"/>
+  <circle cx="220" cy="250" r="10" fill="#1A1A1A"/>
+  <circle cx="220" cy="250" r="4" fill="#888"/>
+  <rect x="240" y="195" width="6" height="30" rx="2" fill="#555"/>
+</svg>

@@ -1,9 +1,9 @@
-const CACHE_NAME = 'wild-run-v1';
+const CACHE_NAME = 'wild-run-v2';
 
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache =>
-      cache.addAll(['./index.html'])
+      cache.addAll(['./index.html', './icon.svg'])
     )
   );
   self.skipWaiting();

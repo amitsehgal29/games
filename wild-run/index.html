@@ -4,6 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Wild Run</title>
+  <meta name="description" content="Race a tractor through the wilderness — dodge deer, bears & sheep!">
+  <meta property="og:title" content="🏞️ Wild Run">
+  <meta property="og:description" content="Race a tractor through the wilderness — dodge deer, bears & sheep!">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://amitsehgal29.github.io/games/wild-run/">
+  <meta property="og:image" content="https://amitsehgal29.github.io/games/wild-run/icon.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
@@ -1140,69 +1148,76 @@
   }
 
   function drawFuelCan(x, y, w, h) {
+    const s = Math.max(w, h) * 0.7; // unified scale
     // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
     ctx.beginPath();
-    ctx.ellipse(x + w * 0.06, y + h * 0.18, w / 2, h / 2.8, 0, 0, Math.PI * 2);
+    ctx.ellipse(x + s*0.05, y + s*0.35, s*0.4, s*0.12, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // Outer glow ring
+    // Outer glow
     const glowPulse = 0.35 + Math.sin(elapsedTime * 5.5) * 0.2;
     ctx.globalAlpha = glowPulse;
     ctx.fillStyle = '#8B0000';
     ctx.beginPath();
-    ctx.arc(x, y + h * 0.02, Math.max(w, h) * 0.9, 0, Math.PI * 2);
+    ctx.arc(x, y, s*1.0, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    // Body — bold red with horizontal gradient
-    const grad = ctx.createLinearGradient(x - w / 2, y, x + w / 2, y);
+    // Hose
+    ctx.fillStyle = '#222';
+    ctx.fillRect(x - s*0.08, y + s*0.28, s*0.14, s*0.22);
+
+    // Red grip body
+    const grad = ctx.createLinearGradient(x - s*0.2, y, x + s*0.2, y);
     grad.addColorStop(0, '#B22222');
     grad.addColorStop(0.3, '#E83535');
     grad.addColorStop(0.7, '#DC2626');
     grad.addColorStop(1, '#991111');
     ctx.fillStyle = grad;
-    roundRect(x - w / 2, y - h / 2, w, h, w * 0.18);
+    ctx.beginPath();
+    ctx.moveTo(x - s*0.2, y + s*0.22);
+    ctx.lineTo(x + s*0.18, y + s*0.22);
+    ctx.lineTo(x + s*0.28, y - s*0.05);
+    ctx.lineTo(x + s*0.34, y - s*0.18);
+    ctx.lineTo(x + s*0.22, y - s*0.26);
+    ctx.lineTo(x - s*0.14, y + s*0.04);
+    ctx.lineTo(x - s*0.22, y + s*0.12);
+    ctx.closePath();
     ctx.fill();
 
-    // Yellow accent stripe (horizontal band across the middle)
-    ctx.fillStyle = '#FFD700';
-    roundRect(x - w * 0.42, y - h * 0.15, w * 0.84, h * 0.18, 2);
-    ctx.fill();
-    // Yellow stripe glow
-    ctx.fillStyle = 'rgba(255,215,0,0.2)';
-    roundRect(x - w * 0.44, y - h * 0.17, w * 0.88, h * 0.22, 3);
-    ctx.fill();
-
-    // Ridges (darker red)
-    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
-    ctx.lineWidth = 1.5;
-    for (let i = 1; i <= 3; i++) {
-      const ry = y - h / 2 + (h / 4) * i;
-      ctx.beginPath();
-      ctx.moveTo(x - w / 2 + 5, ry);
-      ctx.lineTo(x + w / 2 - 5, ry);
-      ctx.stroke();
-    }
-
-    // Cap
-    ctx.fillStyle = '#222';
-    roundRect(x - w * 0.14, y - h / 2 - h * 0.14, w * 0.28, h * 0.16, 3);
-    ctx.fill();
-    ctx.fillStyle = '#555';
-    roundRect(x - w * 0.08, y - h / 2 - h * 0.1, w * 0.16, h * 0.06, 2);
-    ctx.fill();
-
-    // White reflection/shine on left side
+    // Grip highlight
     ctx.fillStyle = 'rgba(255,255,255,0.18)';
-    roundRect(x - w * 0.42, y - h * 0.4, w * 0.12, h * 0.5, 2);
-    ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.12)';
-    roundRect(x - w * 0.42, y + h * 0.15, w * 0.12, h * 0.22, 2);
+    ctx.beginPath();
+    ctx.moveTo(x - s*0.12, y + s*0.2);
+    ctx.lineTo(x + s*0.12, y + s*0.18);
+    ctx.lineTo(x + s*0.16, y + s*0.08);
+    ctx.lineTo(x - s*0.1, y + s*0.12);
     ctx.fill();
 
-    // Fuel symbol on can (drawn fuel droplet)
-    drawFuelIcon(x, y + h * 0.02, w * 0.22, '#FFF');
+    // Long metal nozzle
+    ctx.fillStyle = '#666';
+    ctx.fillRect(x + s*0.14, y - s*0.26, s*0.44, s*0.12);
+    ctx.fillStyle = '#888';
+    ctx.fillRect(x + s*0.14, y - s*0.26, s*0.44, s*0.05);
+    ctx.fillStyle = '#444';
+    ctx.fillRect(x + s*0.56, y - s*0.28, s*0.05, s*0.16);
+
+    // Rubber boot
+    ctx.fillStyle = '#333';
+    ctx.fillRect(x + s*0.32, y - s*0.2, s*0.08, s*0.12);
+
+    // Trigger + guard
+    ctx.fillStyle = '#444';
+    ctx.fillRect(x + s*0.1, y + s*0.05, s*0.08, s*0.2);
+    ctx.fillStyle = '#555';
+    ctx.fillRect(x + s*0.1, y + s*0.05, s*0.04, s*0.2);
+    ctx.strokeStyle = '#444';
+    ctx.lineWidth = s*0.05;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(x + s*0.14, y + s*0.2, s*0.16, 0, Math.PI);
+    ctx.stroke();
   }
 
   // ═══════════════════════════════════════
@@ -1388,17 +1403,60 @@
 
   function drawFuelIcon(x, y, s, color) {
     const c = color || '#D32F2F';
+    // Gas pump nozzle — angled pistol grip pointing forward-up
+
+    // Hose at bottom
+    ctx.fillStyle = '#222';
+    ctx.fillRect(x - s*0.06, y + s*0.3, s*0.12, s*0.18);
+
+    // Main red grip body — thick pistol handle
     ctx.fillStyle = c;
     ctx.beginPath();
-    ctx.moveTo(x, y - s*0.35);
-    ctx.quadraticCurveTo(x + s*0.32, y + s*0.05, x + s*0.18, y + s*0.32);
-    ctx.quadraticCurveTo(x, y + s*0.42, x - s*0.18, y + s*0.32);
-    ctx.quadraticCurveTo(x - s*0.32, y + s*0.05, x, y - s*0.35);
+    ctx.moveTo(x - s*0.18, y + s*0.25);
+    ctx.lineTo(x + s*0.16, y + s*0.25);
+    ctx.lineTo(x + s*0.25, y - s*0.02);
+    ctx.lineTo(x + s*0.3, y - s*0.15);
+    ctx.lineTo(x + s*0.2, y - s*0.22);
+    ctx.lineTo(x - s*0.12, y + s*0.08);
+    ctx.lineTo(x - s*0.2, y + s*0.15);
+    ctx.closePath();
     ctx.fill();
-    if (c !== '#FFF' && c !== '#FFFFFF') {
-      ctx.fillStyle = 'rgba(255,255,255,0.25)';
-      ctx.beginPath(); ctx.ellipse(x - s*0.06, y, s*0.08, s*0.15, -0.3, 0, Math.PI*2); ctx.fill();
-    }
+
+    // Grip highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.beginPath();
+    ctx.moveTo(x - s*0.1, y + s*0.22);
+    ctx.lineTo(x + s*0.1, y + s*0.2);
+    ctx.lineTo(x + s*0.15, y + s*0.12);
+    ctx.lineTo(x - s*0.08, y + s*0.15);
+    ctx.fill();
+
+    // Long metal nozzle
+    ctx.fillStyle = '#666';
+    ctx.fillRect(x + s*0.12, y - s*0.22, s*0.4, s*0.1);
+    ctx.fillStyle = '#888';
+    ctx.fillRect(x + s*0.12, y - s*0.22, s*0.4, s*0.04);
+    // Nozzle tip
+    ctx.fillStyle = '#444';
+    ctx.fillRect(x + s*0.5, y - s*0.24, s*0.04, s*0.14);
+
+    // Rubber boot (where nozzle meets handle)
+    ctx.fillStyle = '#333';
+    ctx.fillRect(x + s*0.3, y - s*0.18, s*0.06, s*0.1);
+
+    // Trigger lever underneath
+    ctx.fillStyle = '#444';
+    ctx.fillRect(x + s*0.1, y + s*0.08, s*0.06, s*0.18);
+    ctx.fillStyle = '#555';
+    ctx.fillRect(x + s*0.1, y + s*0.08, s*0.03, s*0.18);
+
+    // Trigger guard ring
+    ctx.strokeStyle = '#444';
+    ctx.lineWidth = s*0.04;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(x + s*0.13, y + s*0.2, s*0.13, 0, Math.PI);
+    ctx.stroke();
   }
 
   function drawSpeakerIcon(x, y, s, isMuted) {
@@ -1448,12 +1506,12 @@
   // HUD
   // ═══════════════════════════════════════
   function drawHUD() {
-    const pad = scaleV(10);
-    const fs = scaleV(14);
+    const pad = scaleV(14);
+    const fs = scaleV(20);
 
-    // Top bar — taller to fit two clean rows
+    // Top bar — 40% bigger
     ctx.fillStyle = C.hudBg;
-    roundRect(scaleX(3), 3, scaleX(GAME_W - 6), scaleV(48), scaleV(10));
+    roundRect(scaleX(3), 3, scaleX(GAME_W - 6), scaleV(67), scaleV(14));
     ctx.fill();
 
     // ─── ROW 1: Score (left) · Distance (center) ───
@@ -1462,20 +1520,20 @@
     ctx.textBaseline = 'middle';
 
     ctx.textAlign = 'left';
-    drawFruitIcon(pad + scaleV(6), scaleV(18) - scaleV(5), scaleV(12));
-    ctx.fillText(`${score}`, pad + scaleV(20), scaleV(18));
+    drawFruitIcon(pad + scaleV(10), scaleV(25) - scaleV(7), scaleV(34));
+    ctx.fillText(`${score}`, pad + scaleV(44), scaleV(25));
 
     ctx.textAlign = 'center';
-    ctx.fillText(`${Math.floor(distance)}m`, scaleX(GAME_W / 2), scaleV(18));
+    ctx.fillText(`${Math.floor(distance)}m`, scaleX(GAME_W / 2), scaleV(25));
 
     // ─── ROW 2: Fuel gauge (left) · Speed (right) ───
-    const fuelW = scaleV(80), fuelH = scaleV(10);
-    const fuelY = scaleV(34);
-    const fuelIconX = pad + scaleV(2);
-    const fuelX = fuelIconX + scaleV(18);
+    const fuelW = scaleV(112), fuelH = scaleV(14);
+    const fuelY = scaleV(48);
+    const fuelIconX = pad + scaleV(3);
+    const fuelX = fuelIconX + scaleV(38);
 
-    // Fuel icon (drawn droplet)
-    drawFuelIcon(fuelIconX + scaleV(4), fuelY + fuelH / 2, scaleV(10));
+    // Fuel icon (gas pump nozzle)
+    drawFuelIcon(fuelIconX + scaleV(8), fuelY + fuelH / 2, scaleV(28));
 
     // Fuel bar background
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
@@ -1506,7 +1564,7 @@
     ctx.fillStyle = C.hudText;
     ctx.font = `600 ${fs * 0.7}px 'Fredoka', system-ui, sans-serif`;
     ctx.textAlign = 'right';
-    ctx.fillText(`${speedKph} km/h`, scaleX(GAME_W - GRASS_W - 6), scaleV(39));
+    ctx.fillText(`${speedKph} km/h`, scaleX(GAME_W - GRASS_W - 6), scaleV(55));
   }
 
   // ═══════════════════════════════════════
@@ -1805,7 +1863,7 @@
   function drawMuteButton() {
     const r = scaleV(28);
     const x = scaleX(GAME_W - GRASS_W - 4) - r;
-    const y = scaleV(52);
+    const y = scaleV(100);
     // Touch target: 44pt minimum for mobile
     const touchR = Math.max(r, scaleV(22));
     canvas._muteBtn = { x: x - touchR, y: y - touchR, w: touchR * 2, h: touchR * 2 };
