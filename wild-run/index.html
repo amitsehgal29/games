@@ -1448,12 +1448,12 @@
   // HUD
   // ═══════════════════════════════════════
   function drawHUD() {
-    const pad = scaleV(10);
-    const fs = scaleV(14);
+    const pad = scaleV(14);
+    const fs = scaleV(20);
 
-    // Top bar — taller to fit two clean rows
+    // Top bar — 40% bigger
     ctx.fillStyle = C.hudBg;
-    roundRect(scaleX(3), 3, scaleX(GAME_W - 6), scaleV(48), scaleV(10));
+    roundRect(scaleX(3), 3, scaleX(GAME_W - 6), scaleV(67), scaleV(14));
     ctx.fill();
 
     // ─── ROW 1: Score (left) · Distance (center) ───
@@ -1462,20 +1462,20 @@
     ctx.textBaseline = 'middle';
 
     ctx.textAlign = 'left';
-    drawFruitIcon(pad + scaleV(6), scaleV(18) - scaleV(5), scaleV(12));
-    ctx.fillText(`${score}`, pad + scaleV(20), scaleV(18));
+    drawFruitIcon(pad + scaleV(8), scaleV(25) - scaleV(7), scaleV(17));
+    ctx.fillText(`${score}`, pad + scaleV(28), scaleV(25));
 
     ctx.textAlign = 'center';
-    ctx.fillText(`${Math.floor(distance)}m`, scaleX(GAME_W / 2), scaleV(18));
+    ctx.fillText(`${Math.floor(distance)}m`, scaleX(GAME_W / 2), scaleV(25));
 
     // ─── ROW 2: Fuel gauge (left) · Speed (right) ───
-    const fuelW = scaleV(80), fuelH = scaleV(10);
-    const fuelY = scaleV(34);
-    const fuelIconX = pad + scaleV(2);
-    const fuelX = fuelIconX + scaleV(18);
+    const fuelW = scaleV(112), fuelH = scaleV(14);
+    const fuelY = scaleV(48);
+    const fuelIconX = pad + scaleV(3);
+    const fuelX = fuelIconX + scaleV(25);
 
     // Fuel icon (drawn droplet)
-    drawFuelIcon(fuelIconX + scaleV(4), fuelY + fuelH / 2, scaleV(10));
+    drawFuelIcon(fuelIconX + scaleV(6), fuelY + fuelH / 2, scaleV(14));
 
     // Fuel bar background
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
@@ -1506,7 +1506,7 @@
     ctx.fillStyle = C.hudText;
     ctx.font = `600 ${fs * 0.7}px 'Fredoka', system-ui, sans-serif`;
     ctx.textAlign = 'right';
-    ctx.fillText(`${speedKph} km/h`, scaleX(GAME_W - GRASS_W - 6), scaleV(39));
+    ctx.fillText(`${speedKph} km/h`, scaleX(GAME_W - GRASS_W - 6), scaleV(55));
   }
 
   // ═══════════════════════════════════════
