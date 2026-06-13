@@ -3,7 +3,7 @@ const CACHE_NAME = 'wild-run-v1';
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache =>
-      cache.addAll(['./', './index.html'])
+      cache.addAll(['./index.html'])
     )
   );
   self.skipWaiting();
@@ -29,7 +29,7 @@ self.addEventListener('fetch', event => {
         .then(response => {
           if (response && response.status === 200) {
             const clone = response.clone();
-            caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone)).catch(() => {});
           }
           return response;
         })
