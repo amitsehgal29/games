@@ -112,6 +112,7 @@
   // GAME STATE
   // ═══════════════════════════════════════
   let state = 'title';
+  let paused = false;
   let cards = [];
   let difficulty = 0;
   let firstPick = -1, secondPick = -1;
@@ -849,8 +850,65 @@
   }
 
   // ═══════════════════════════════════════
-  // DRAWING — MUTE BUTTON
+  // DRAWING — PAUSE, HOME, MUTE BUTTONS
   // ═══════════════════════════════════════
+  function drawPauseIcon(x, y, s) {
+    ctx.fillStyle = C.text;
+    const bw = s * 0.22, bh = s * 0.55, gap = s * 0.14;
+    roundRect(x - gap/2 - bw, y - bh/2, bw, bh, s * 0.06); ctx.fill();
+    roundRect(x + gap/2, y - bh/2, bw, bh, s * 0.06); ctx.fill();
+  }
+
+  function drawHomeIcon(x, y, s) {
+    ctx.fillStyle = C.text;
+    ctx.fillRect(x - s*0.3, y + s*0.02, s*0.6, s*0.45);
+    ctx.beginPath();
+    ctx.moveTo(x, y - s*0.48);
+    ctx.lineTo(x - s*0.45, y + s*0.02);
+    ctx.lineTo(x + s*0.45, y + s*0.02);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    roundRect(x - s*0.1, y + s*0.15, s*0.2, s*0.3, s*0.04); ctx.fill();
+  }
+
+  function drawPauseOverlay() {
+    ctx.fillStyle = C.overlay; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const cx = canvas.width / 2, cy = canvas.height * 0.38;
+    ctx.fillStyle = C.text;
+    ctx.font = `900 ${scaleV(36)}px 'Outfit', system-ui, sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('PAUSED', cx, cy);
+    const btnW = scaleX(200), btnH = scaleV(52);
+    const btnX = cx - btnW/2, btnY = cy + scaleV(40);
+    const bg = ctx.createLinearGradient(btnX, btnY, btnX, btnY+btnH);
+    bg.addColorStop(0, C.accent); bg.addColorStop(1, '#5A52D5');
+    ctx.fillStyle = bg; roundRect(btnX, btnY, btnW, btnH, btnH/2); ctx.fill();
+    ctx.fillStyle = '#FFF';
+    ctx.font = `800 ${scaleV(18)}px 'Outfit', system-ui, sans-serif`;
+    ctx.fillText('RESUME', cx, btnY + btnH/2);
+    canvas._resumeBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
+  }
+
+  function drawPauseButton() {
+    if (state !== 'playing') return;
+    const r = scaleV(22), x = scaleX(GAME_W - 20) - r, y = scaleV(140);
+    canvas._pauseBtn = { x: x - r*1.5, y: y - r*1.5, w: r*3, h: r*3 };
+    ctx.fillStyle = 'rgba(255,250,242,0.7)';
+    ctx.strokeStyle = 'rgba(0,0,0,0.06)'; ctx.lineWidth = scaleV(1);
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    drawPauseIcon(x, y, r * 0.65);
+  }
+
+  function drawHomeButton() {
+    if (state !== 'title') return;
+    const r = scaleV(22), x = scaleX(20) + r, y = scaleV(85);
+    canvas._homeBtn = { x: x - r*1.5, y: y - r*1.5, w: r*3, h: r*3 };
+    ctx.fillStyle = 'rgba(255,250,242,0.7)';
+    ctx.strokeStyle = 'rgba(0,0,0,0.06)'; ctx.lineWidth = scaleV(1);
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+    drawHomeIcon(x, y, r * 0.6);
+  }
+
   function drawSpeakerIcon(x, y, s, isMuted) {
     ctx.fillStyle = C.text;
     ctx.fillRect(x - s*0.35, y - s*0.18, s*0.2, s*0.36);
@@ -1072,6 +1130,7 @@
     if (state === 'title') {
       drawTitleScreen();
       drawMuteButton();
+      drawHomeButton();
       return;
     }
 
@@ -1111,16 +1170,23 @@
     }
 
     drawMuteButton();
+    drawPauseButton();
+    if (paused && state === 'playing') drawPauseOverlay();
   }
 
   // ═══════════════════════════════════════
   // GAME LOOP
   // ═══════════════════════════════════════
+  function togglePause() {
+    if (state !== 'playing') return;
+    paused = !paused;
+    if (!paused) lastFrameTime = performance.now();
+  }
+
   function gameLoop(ts) {
     const dt = (ts - lastFrameTime) / 1000;
     lastFrameTime = ts;
-    elapsedTime += dt;
-    update(dt);
+    if (!paused) { elapsedTime += dt; update(dt); }
     render();
     requestAnimationFrame(gameLoop);
   }
@@ -1153,6 +1219,26 @@
           muteToggledByTouch = true; toggleMute(); return;
         }
       }
+
+      // Home button on title
+      if (state === 'title' && canvas._homeBtn) {
+        const b = canvas._homeBtn;
+        if (tx >= b.x && tx <= b.x + b.w && ty >= b.y && ty <= b.y + b.h) { window.location.href = '../index.html'; return; }
+      }
+
+      // Pause overlay resume
+      if (paused && canvas._resumeBtn) {
+        const b = canvas._resumeBtn;
+        if (tx >= b.x && tx <= b.x + b.w && ty >= b.y && ty <= b.y + b.h) { togglePause(); return; }
+      }
+
+      // Pause button
+      if (canvas._pauseBtn) {
+        const b = canvas._pauseBtn;
+        if (tx >= b.x && tx <= b.x + b.w && ty >= b.y && ty <= b.y + b.h) { togglePause(); return; }
+      }
+
+      if (paused) return;
 
       if (state === 'title') {
         // Difficulty tabs
@@ -1204,6 +1290,25 @@
       const b = canvas._muteBtn;
       if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) { toggleMute(); return; }
     }
+
+    // Home button on title
+    if (state === 'title' && canvas._homeBtn) {
+      const b = canvas._homeBtn;
+      if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) { window.location.href = '../index.html'; return; }
+    }
+
+    // Pause overlay resume
+    if (paused && canvas._resumeBtn) {
+      const b = canvas._resumeBtn;
+      if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) { togglePause(); return; }
+    }
+
+    // Pause button
+    if (canvas._pauseBtn) {
+      const b = canvas._pauseBtn;
+      if (mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) { togglePause(); return; }
+    }
+
     if (state === 'title') {
       if (canvas._diffTabs) {
         for (const tab of canvas._diffTabs) {
@@ -1239,8 +1344,10 @@
       else if (state === 'over') { sfxClick(); startGame(); }
     }
     if (e.key === 'Escape') {
-      if (state === 'playing') { state = 'title'; }
-      else if (state === 'over') { state = 'title'; }
+      if (state === 'playing') { togglePause(); e.preventDefault(); }
+    }
+    if (e.key === 'p' || e.key === 'P') {
+      if (state === 'playing') { togglePause(); e.preventDefault(); }
     }
   });
 
