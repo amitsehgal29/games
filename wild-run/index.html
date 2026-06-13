@@ -171,7 +171,6 @@
         const AC = window.AudioContext || window.webkitAudioContext;
         if (AC) {
           audioCtx = new AC();
-          // Immediately resume if suspended (mobile requires this from user gesture)
           if (audioCtx.state === 'suspended') {
             audioCtx.resume().catch(() => {});
           }
@@ -183,10 +182,24 @@
     return audioCtx;
   }
 
+  // Prime audio on iOS — silent switch mutes Web Audio unless a buffer is played
+  function primeAudioIOS() {
+    if (!audioCtx || muted) return;
+    try {
+      const buf = audioCtx.createBuffer(1, 1, 22050);
+      const src = audioCtx.createBufferSource();
+      src.buffer = buf;
+      src.connect(audioCtx.destination);
+      src.start(0);
+      src.stop(audioCtx.currentTime + 0.001);
+    } catch(e) { /* ignore */ }
+  }
+
   // Call on any first user interaction to unlock audio on mobile
   function unlockAudio() {
     if (!audioCtx) initAudio();
     else if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+    primeAudioIOS();
   }
 
   function playTone(freq, endFreq, duration, type, vol, rampDown) {
