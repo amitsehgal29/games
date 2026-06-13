@@ -151,6 +151,7 @@
   let nitroFuel = 0;
   let shakeTimer = 0;
   let nearMissTimer = 0;
+  let fuelThresholds = new Set();   // which fuel thresholds have been triggered
   let lastFrameTime = performance.now();
   let laneSwitchCooldown = 0;
   let lastDt = 0.016;              // stored for render-only consumers (clouds)
@@ -1343,7 +1344,17 @@
       x: LANE_CX[lane],
       y: -30,
       lane: lane,
-      type: Math.random() < 0.10 ? 'fuel' : 'fruit',
+      type: 'fruit',
+    });
+  }
+
+  function spawnFuelCan() {
+    const lane = pickFreeLane();
+    collectibles.push({
+      x: LANE_CX[lane],
+      y: -30,
+      lane: lane,
+      type: 'fuel',
     });
   }
 
@@ -1857,6 +1868,7 @@
     nitroFuel = 0;
     shakeTimer = 0;
     nearMissTimer = 0;
+    fuelThresholds = new Set();
     laneSwitchCooldown = 0;
     stopEngine();
   }
@@ -1881,6 +1893,15 @@
     }
 
     distance += effectiveSpeed * dtC;
+
+    // Fuel threshold spawns: spawn a fuel can at 50%, 25%, and 5% fuel
+    const thresholds = [50, 25, 5];
+    for (const t of thresholds) {
+      if (fuel <= t && !fuelThresholds.has(t)) {
+        fuelThresholds.add(t);
+        spawnFuelCan();
+      }
+    }
 
     if (fuel <= 0) { fuel = 0; endGame(); return; }
     if (laneSwitchCooldown > 0) laneSwitchCooldown -= dtC;
@@ -1921,9 +1942,9 @@
     }
 
     // ── Spawn obstacles ──
-    // Continuous difficulty: max obstacles +1 every 700m, gap shrinks with distance
-    const maxObs = 1 + Math.floor(distance / 700);
-    const gapDist = GAP_DIST_BASE / (1 + distance / 500);
+    // Gentle continuous difficulty: +1 obstacle every 1000m, gap shrinks slowly
+    const maxObs = 1 + Math.floor(distance / 1000);
+    const gapDist = GAP_DIST_BASE / (1 + distance / 800);
 
     if (distance - lastObstacleDist > gapDist && obstacles.length < maxObs) {
       // Check which lanes are blocked near the spawn zone (top of screen)
