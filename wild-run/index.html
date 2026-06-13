@@ -65,9 +65,7 @@
 
   const OBSTACLE_MIN_GAP = 0.50;
   const COLLECTIBLE_CHANCE = 0.38;
-  const MAX_OBSTACLES_EARLY = 1;
-  const MAX_OBSTACLES_MID   = 2;
-  const MAX_OBSTACLES_LATE  = 4;
+  const GAP_DIST_BASE = OBSTACLE_MIN_GAP * BASE_SPEED * 1.2;
   const LANE_SWITCH_SPEED = 14; // lerp speed for smooth lane changes
 
   // ═══════════════════════════════════════
@@ -1343,7 +1341,7 @@
       x: LANE_CX[lane],
       y: -30,
       lane: lane,
-      type: Math.random() < 0.18 ? 'fuel' : 'fruit',
+      type: Math.random() < 0.10 ? 'fuel' : 'fruit',
     });
   }
 
@@ -1905,13 +1903,10 @@
     }
 
     // ── Spawn obstacles ──
-    // Determine max simultaneous obstacles based on distance
-    let maxObs;
-    if (distance < 500) maxObs = MAX_OBSTACLES_EARLY;
-    else if (distance < 1500) maxObs = MAX_OBSTACLES_MID;
-    else maxObs = MAX_OBSTACLES_LATE;
+    // Continuous difficulty: max obstacles +1 every 700m, gap shrinks with distance
+    const maxObs = 1 + Math.floor(distance / 700);
+    const gapDist = GAP_DIST_BASE / (1 + distance / 500);
 
-    const gapDist = OBSTACLE_MIN_GAP * BASE_SPEED * 1.2 / Math.sqrt(speed / BASE_SPEED);
     if (distance - lastObstacleDist > gapDist && obstacles.length < maxObs) {
       // Check which lanes are blocked near the spawn zone (top of screen)
       const nearSpawn = obstacles.filter(o => o.y < canvas.height * 0.25);
