@@ -1,0 +1,1416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Sequence — Star Chart</title>
+  <meta name="description" content="Classic Sequence board game with a sci-fi space theme — play cards, place chips, get 5 in a row!">
+  <meta property="og:title" content="Sequence — Star Chart">
+  <meta property="og:description" content="Classic Sequence board game with a sci-fi space theme — play cards, place chips, get 5 in a row!">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://amitsehgal29.github.io/games/sequence/">
+  <meta property="og:image" content="https://amitsehgal29.github.io/games/sequence/icon.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden;
+      background: #080820;
+      display: flex; justify-content: center; align-items: center;
+      font-family: 'Fredoka', system-ui, sans-serif;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none; -webkit-user-select: none;
+    }
+    canvas { display: block; max-width: 480px; width: 100%; }
+  </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+(function() {
+  "use strict";
+
+  // ═══════════════════════════════════════
+  // CANVAS SETUP
+  // ═══════════════════════════════════════
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const MAX_W = 480;
+  const GAME_W = 400;
+  const BOARD_SIZE = 10;
+  const WIN_LEN = 5;
+
+  function resize() {
+    const w = Math.min(window.innerWidth, MAX_W);
+    canvas.width = w;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function scaleX(x) { return x * (canvas.width / GAME_W); }
+  function scaleV(v) { return v * (canvas.width / GAME_W); }
+  function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+  function rand(min, max) { return min + Math.random() * (max - min); }
+  function randInt(min, max) { return Math.floor(rand(min, max + 1)); }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y); ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  function safeLS(key, val) {
+    try {
+      if (val !== undefined) { localStorage.setItem(key, String(val)); return; }
+      return localStorage.getItem(key);
+    } catch(e) { return null; }
+  }
+
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  // ═══════════════════════════════════════
+  // PLAYING CARD DATA
+  // ═══════════════════════════════════════
+  const RANK_NAMES = ['A','2','3','4','5','6','7','8','9','10','Q','K']; // 12 ranks, no Jack
+  const SUITS = [
+    { name: 'Hearts',    symbol: '♥', color: '#FF4060', glow: 'rgba(255,64,96,0.3)' },
+    { name: 'Diamonds',  symbol: '♦', color: '#FF8C40', glow: 'rgba(255,140,64,0.3)' },
+    { name: 'Spades',    symbol: '♠', color: '#60C0FF', glow: 'rgba(96,192,255,0.3)' },
+    { name: 'Clubs',     symbol: '♣', color: '#40E070', glow: 'rgba(64,224,112,0.3)' },
+  ];
+
+  // Board cards: 12 ranks × 4 suits = 48 unique cards, each appears twice = 96 cells + 4 corners
+  function makeBoardCards() {
+    const cards = [];
+    for (let r = 0; r < RANK_NAMES.length; r++) {
+      for (let s = 0; s < SUITS.length; s++) {
+        cards.push({ rank: r, suit: s, name: RANK_NAMES[r] + SUITS[s].symbol });
+      }
+    }
+    return cards; // 48 cards
+  }
+
+  // ═══════════════════════════════════════
+  // COLOR PALETTE — Sci-Fi Space
+  // ═══════════════════════════════════════
+  const C = {
+    space: '#080820', spaceMid: '#0A0A2E', spaceLight: '#101038',
+    nebula1: 'rgba(0,180,220,0.03)', nebula2: 'rgba(200,60,140,0.025)',
+    cellBg: 'rgba(255,255,255,0.025)',
+    cellBorder: 'rgba(100,200,255,0.06)',
+    cellBorderHover: 'rgba(0,200,255,0.35)',
+    wormholeBg: 'rgba(160,80,220,0.1)',
+    wormholeRing: '#B060E0',
+    playerChip: '#00C8F0', playerChipDark: '#0078A0',
+    playerGlow: 'rgba(0,200,240,0.35)',
+    aiChip: '#F02080', aiChipDark: '#A01050',
+    aiGlow: 'rgba(240,32,128,0.35)',
+    winGlow: '#FFD700', winGlowAlpha: 'rgba(255,215,0,0.4)',
+    cardBg: 'rgba(15,15,40,0.9)', cardBorder: 'rgba(100,200,255,0.12)',
+    cardBorderSel: 'rgba(0,200,240,0.55)',
+    cardJack2: 'rgba(0,220,200,0.15)', cardJack1: 'rgba(220,40,60,0.15)',
+    text: '#E8F0FF', textDim: 'rgba(220,230,255,0.55)', textMuted: 'rgba(220,230,255,0.25)',
+    surface: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.07)',
+    accentCyan: '#00C8F0', accentMagenta: '#F02080', accentGold: '#FFC840',
+    highlightSelect: 'rgba(0,200,240,0.25)',
+    highlightDanger: 'rgba(240,50,80,0.25)',
+    cardFace: '#F0EDE4', cardFaceDark: '#D8D4C8',
+  };
+
+  // ═══════════════════════════════════════
+  // GAME STATE
+  // ═══════════════════════════════════════
+  let state = 'title';
+  let paused = false;
+  let turn = 'player';
+  let phase = 'idle';           // 'idle' | 'cardSelected' | 'animating' | 'aiThinking'
+  let board = [];               // board[r][c] = { cardIdx, isWormhole, occupied:null|'player'|'ai' }
+  let boardCards = [];          // 48 card definitions
+  let cardToCells = [];         // cardToCells[idx] = [{r,c},{r,c}]
+  let deck = [];
+  let playerHand = [];
+  let aiHand = [];
+  let selectedCard = -1;
+  let selectedCells = [];
+  let lastMove = null;
+  let moveCount = 0;
+  let playerWins = 0;
+  let aiWins = 0;
+  let gameResult = null;
+  let winningCells = [];
+  let winAnimTimer = 0;
+  let aiDelay = 0;
+  let placeAnim = 0;
+  let placeAnimRC = null;
+  let muteToggledByTouch = false;
+  let starField = [];
+
+  // ═══════════════════════════════════════
+  // AUDIO
+  // ═══════════════════════════════════════
+  let audioCtx = null;
+  let muted = true;
+
+  function initAudio() {
+    if (audioCtx) return;
+    try {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    } catch(e) {}
+  }
+
+  function playTone(f, e, d, t, v) {
+    if (muted || !audioCtx) return;
+    try {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = t; osc.frequency.setValueAtTime(f, audioCtx.currentTime);
+      if (e !== null) osc.frequency.linearRampToValueAtTime(e, audioCtx.currentTime + d);
+      gain.gain.setValueAtTime(v, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + d);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(); osc.stop(audioCtx.currentTime + d);
+    } catch(e) {}
+  }
+
+  function playNoise(d, v) {
+    if (muted || !audioCtx) return;
+    try {
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const sr = audioCtx.sampleRate, len = Math.floor(sr * d);
+      const buf = audioCtx.createBuffer(1, len, sr);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+      const src = audioCtx.createBufferSource(); src.buffer = buf;
+      const gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(v, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + d);
+      src.connect(gain); gain.connect(audioCtx.destination);
+      src.start();
+    } catch(e) {}
+  }
+
+  function sfxClick() { playTone(800, 600, 0.04, 'sine', 0.05); }
+  function sfxCard() { playTone(440, 880, 0.08, 'sine', 0.06); }
+  function sfxPlace() { playTone(200, 400, 0.1, 'triangle', 0.07); }
+  function sfxWin() {
+    playTone(523, 659, 0.1, 'sine', 0.08);
+    setTimeout(() => playTone(659, 784, 0.1, 'sine', 0.08), 100);
+    setTimeout(() => playTone(784, 1047, 0.15, 'sine', 0.1), 200);
+    setTimeout(() => playTone(1047, 1318, 0.2, 'sine', 0.1), 300);
+  }
+  function sfxLose() { playTone(400, 100, 0.45, 'triangle', 0.07); }
+  function sfxJack2() { playNoise(0.15, 0.05); playTone(80, 250, 0.2, 'sawtooth', 0.04); }
+  function sfxJack1() { playTone(600, 40, 0.4, 'sine', 0.05); }
+
+  function toggleMute() {
+    initAudio();
+    muted = !muted;
+    safeLS('sequence_muted', muted ? '1' : '0');
+    if (!muted && audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
+    }
+    if (!muted) {
+      const burst = () => {
+        if (!audioCtx || muted) return;
+        const b = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
+        const s = audioCtx.createBufferSource(); s.buffer = b;
+        s.connect(audioCtx.destination); s.start();
+      };
+      burst(); setTimeout(burst, 30); setTimeout(burst, 80); setTimeout(burst, 150);
+    }
+  }
+
+  // ═══════════════════════════════════════
+  // BOARD & DECK GENERATION
+  // ═══════════════════════════════════════
+  function generateBoard() {
+    boardCards = makeBoardCards(); // 48 standard cards (A-K, no J, 4 suits)
+    board = [];
+    for (let r = 0; r < BOARD_SIZE; r++) {
+      board[r] = [];
+      for (let c = 0; c < BOARD_SIZE; c++) {
+        board[r][c] = { cardIdx: -1, isWormhole: false, occupied: null };
+      }
+    }
+    // Mark wormhole corners
+    [[0,0],[0,9],[9,0],[9,9]].forEach(([r,c]) => { board[r][c].isWormhole = true; });
+
+    // Collect non-corner positions and shuffle
+    const positions = [];
+    for (let r = 0; r < BOARD_SIZE; r++)
+      for (let c = 0; c < BOARD_SIZE; c++)
+        if (!board[r][c].isWormhole) positions.push({r,c});
+    shuffle(positions);
+
+    // Place 48 cards, each twice on the board (96 cells)
+    cardToCells = [];
+    for (let i = 0; i < 48; i++) {
+      cardToCells[i] = [];
+      const p1 = positions[i * 2], p2 = positions[i * 2 + 1];
+      board[p1.r][p1.c].cardIdx = i;
+      board[p2.r][p2.c].cardIdx = i;
+      cardToCells[i].push({r: p1.r, c: p1.c}, {r: p2.r, c: p2.c});
+    }
+  }
+
+  function generateDeck() {
+    deck = [];
+    // 2 copies of each board card (96 system cards)
+    for (let i = 0; i < 48; i++) { deck.push({ type: 'system', cardIdx: i }); }
+    for (let i = 0; i < 48; i++) { deck.push({ type: 'system', cardIdx: i }); }
+    // 4 two-eyed Jacks (place anywhere) + 4 one-eyed Jacks (remove opponent)
+    for (let i = 0; i < 4; i++) { deck.push({ type: 'jack2' }); } // ♥♦ — two-eyed
+    for (let i = 0; i < 4; i++) { deck.push({ type: 'jack1' }); } // ♠♣ — one-eyed
+    shuffle(deck);
+  }
+
+  function dealHands() {
+    playerHand = []; aiHand = [];
+    for (let i = 0; i < 5; i++) {
+      if (deck.length > 0) playerHand.push(deck.pop());
+      if (deck.length > 0) aiHand.push(deck.pop());
+    }
+  }
+
+  // ═══════════════════════════════════════
+  // SEQUENCE DETECTION
+  // ═══════════════════════════════════════
+  function checkSequence(row, col, owner) {
+    const dirs = [[0,1],[1,0],[1,1],[1,-1]];
+    for (const [dr,dc] of dirs) {
+      let cells = [{r: row, c: col}];
+      let r = row + dr, c = col + dc;
+      while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE) {
+        if (board[r][c].occupied === owner || board[r][c].isWormhole) { cells.push({r, c}); r += dr; c += dc; }
+        else break;
+      }
+      r = row - dr; c = col - dc;
+      while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE) {
+        if (board[r][c].occupied === owner || board[r][c].isWormhole) { cells.push({r, c}); r -= dr; c -= dc; }
+        else break;
+      }
+      if (cells.length >= WIN_LEN) return cells;
+    }
+    return null;
+  }
+
+  function countInLine(row, col, owner) {
+    const dirs = [[0,1],[1,0],[1,1],[1,-1]];
+    let maxCount = 1;
+    for (const [dr,dc] of dirs) {
+      let count = 1;
+      let r = row + dr, c = col + dc;
+      while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE) {
+        if (board[r][c].occupied === owner || board[r][c].isWormhole) { count++; r += dr; c += dc; }
+        else break;
+      }
+      r = row - dr; c = col - dc;
+      while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE) {
+        if (board[r][c].occupied === owner || board[r][c].isWormhole) { count++; r -= dr; c -= dc; }
+        else break;
+      }
+      if (count > maxCount) maxCount = count;
+    }
+    return maxCount;
+  }
+
+  // ═══════════════════════════════════════
+  // GAME LOGIC
+  // ═══════════════════════════════════════
+  function startGame() {
+    generateBoard();
+    generateDeck();
+    dealHands();
+    selectedCard = -1;
+    selectedCells = [];
+    lastMove = null;
+    moveCount = 0;
+    gameResult = null;
+    winningCells = [];
+    winAnimTimer = 0;
+    placeAnim = 0;
+    placeAnimRC = null;
+    turn = 'player';
+    phase = 'idle';
+    state = 'playing';
+    paused = false;
+  }
+
+  function endGame(result, winCells) {
+    state = 'over';
+    gameResult = result;
+    winningCells = winCells || [];
+    winAnimTimer = 2;
+    if (result === 'player') { playerWins++; sfxWin(); safeLS('sequence_pWins', playerWins); }
+    else if (result === 'ai') { aiWins++; sfxLose(); safeLS('sequence_aWins', aiWins); }
+    else { sfxLose(); }
+  }
+
+  function getValidCellsForCard(card, owner) {
+    const cells = [];
+    if (card.type === 'jack2') {
+      for (let r = 0; r < BOARD_SIZE; r++)
+        for (let c = 0; c < BOARD_SIZE; c++)
+          if (!board[r][c].occupied) cells.push({r,c});
+    } else if (card.type === 'jack1') {
+      const targetOwner = owner === 'player' ? 'ai' : 'player';
+      for (let r = 0; r < BOARD_SIZE; r++)
+        for (let c = 0; c < BOARD_SIZE; c++)
+          if (board[r][c].occupied === targetOwner) cells.push({r,c});
+    } else {
+      for (const {r,c} of cardToCells[card.cardIdx]) {
+        if (!board[r][c].occupied) cells.push({r,c});
+      }
+    }
+    return cells;
+  }
+
+  function playCardAndPlace(hand, cardIdx, row, col, owner) {
+    const card = hand[cardIdx];
+    hand.splice(cardIdx, 1);
+    if (card.type === 'jack1') {
+      board[row][col].occupied = null;
+    } else {
+      board[row][col].occupied = owner;
+    }
+    if (deck.length > 0) hand.push(deck.pop());
+    lastMove = { r: row, c: col, owner };
+    moveCount++;
+    selectedCard = -1;
+    selectedCells = [];
+  }
+
+  function executePlayerMove(cardIdx, row, col) {
+    playCardAndPlace(playerHand, cardIdx, row, col, 'player');
+    placeAnim = 0;
+    placeAnimRC = { r: row, c: col, owner: 'player' };
+    phase = 'animating';
+    sfxCard(); setTimeout(() => sfxPlace(), 80);
+    if (board[row][col].occupied === 'player' || board[row][col].isWormhole) {
+      const seq = checkSequence(row, col, 'player');
+      if (seq) { endGame('player', seq); return; }
+    }
+    if (checkDraw()) return;
+  }
+
+  function executeAIMove(cardIdx, row, col, cardType) {
+    playCardAndPlace(aiHand, cardIdx, row, col, 'ai');
+    placeAnim = 0;
+    placeAnimRC = { r: row, c: col, owner: 'ai' };
+    phase = 'animating';
+    if (cardType === 'jack2') sfxJack2();
+    else if (cardType === 'jack1') sfxJack1();
+    else { sfxCard(); setTimeout(() => sfxPlace(), 80); }
+    if (board[row][col].occupied === 'ai' || board[row][col].isWormhole) {
+      const seq = checkSequence(row, col, 'ai');
+      if (seq) { endGame('ai', seq); return; }
+    }
+    if (checkDraw()) return;
+  }
+
+  function checkDraw() {
+    if (deck.length > 0) return false;
+    const hand = turn === 'player' ? playerHand : aiHand;
+    for (const card of hand) {
+      if (cardHasPlayableCell(card, turn)) return false;
+    }
+    endGame('draw', []);
+    return true;
+  }
+
+  function cardHasPlayableCell(card, checkingPlayer) {
+    if (card.type === 'jack2') {
+      for (let r = 0; r < BOARD_SIZE; r++)
+        for (let c = 0; c < BOARD_SIZE; c++)
+          if (!board[r][c].occupied) return true;
+      return false;
+    }
+    if (card.type === 'jack1') {
+      const opp = checkingPlayer === 'player' ? 'ai' : 'player';
+      for (let r = 0; r < BOARD_SIZE; r++)
+        for (let c = 0; c < BOARD_SIZE; c++)
+          if (board[r][c].occupied === opp) return true;
+      return false;
+    }
+    for (const {r,c} of cardToCells[card.cardIdx]) {
+      if (!board[r][c].occupied) return true;
+    }
+    return false;
+  }
+
+  // ═══════════════════════════════════════
+  // AI
+  // ═══════════════════════════════════════
+  function aiEvaluateMove(cardIdx, card, row, col) {
+    let score = 0;
+    if (card.type === 'jack1') {
+      const prev = board[row][col].occupied;
+      const playerCntBefore = countInLine(row, col, 'player');
+      board[row][col].occupied = null;
+      const playerCntAfter = countInLine(row, col, 'player');
+      board[row][col].occupied = prev;
+      if (playerCntBefore >= 4 && playerCntAfter < 4) score += 500000;
+      else if (playerCntBefore >= 3 && playerCntAfter < 3) score += 80000;
+      const centerDist = Math.abs(row - 4.5) + Math.abs(col - 4.5);
+      score += (9 - centerDist) * 20;
+    } else {
+      const prev = board[row][col].occupied;
+      board[row][col].occupied = 'ai';
+      if (checkSequence(row, col, 'ai')) score += 1000000;
+      board[row][col].occupied = 'player';
+      const oppSeq = checkSequence(row, col, 'player');
+      if (oppSeq && oppSeq.length >= WIN_LEN) score += 500000;
+      if (countInLine(row, col, 'player') >= 4) score += 400000;
+      board[row][col].occupied = 'ai';
+      const ownCnt = countInLine(row, col, 'ai');
+      if (ownCnt >= 4) score += 50000;
+      else if (ownCnt >= 3) score += 10000;
+      else if (ownCnt >= 2) score += 2000;
+      board[row][col].occupied = 'player';
+      const oppCnt = countInLine(row, col, 'player');
+      if (oppCnt >= 4) score += 80000;
+      else if (oppCnt >= 3) score += 25000;
+      board[row][col].occupied = 'ai';
+      const centerDist = Math.abs(row - 4.5) + Math.abs(col - 4.5);
+      score += (9 - centerDist) * 10;
+      let adj = 0;
+      for (let dr = -1; dr <= 1; dr++)
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const nr = row + dr, nc = col + dc;
+          if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && board[nr][nc].occupied === 'ai') adj++;
+        }
+      score += adj * 80;
+      board[row][col].occupied = prev;
+    }
+    return score;
+  }
+
+  function aiTurn() {
+    if (state !== 'playing' || turn !== 'ai') return;
+    let bestScore = -Infinity, bestMove = null;
+    for (let ci = 0; ci < aiHand.length; ci++) {
+      const card = aiHand[ci];
+      const cells = getValidCellsForCard(card, 'ai');
+      if (cells.length === 0) {
+        if (bestMove === null) bestMove = { cardIdx: ci, row: -1, col: -1, discard: true, score: -1000 };
+        continue;
+      }
+      for (const {r, c} of cells) {
+        const s = aiEvaluateMove(ci, card, r, c);
+        if (s > bestScore) { bestScore = s; bestMove = { cardIdx: ci, row: r, col: c, discard: false, score: s, cardType: card.type }; }
+      }
+    }
+    if (!bestMove) { endGame('draw', []); return; }
+    if (bestMove.discard) {
+      aiHand.splice(bestMove.cardIdx, 1);
+      if (deck.length > 0) aiHand.push(deck.pop());
+      moveCount++;
+      if (checkDraw()) return;
+      turn = 'player'; phase = 'idle';
+      return;
+    }
+    executeAIMove(bestMove.cardIdx, bestMove.row, bestMove.col, bestMove.cardType);
+  }
+
+  // ═══════════════════════════════════════
+  // DRAWING — Space Background
+  // ═══════════════════════════════════════
+  function initStarField() {
+    starField = [];
+    for (let i = 0; i < 200; i++) {
+      starField.push({
+        x: Math.random() * GAME_W, y: Math.random() * canvas.height,
+        r: rand(0.4, 1.6), phase: Math.random() * Math.PI * 2,
+        speed: rand(0.3, 1.5), brightness: rand(0.3, 0.9)
+      });
+    }
+  }
+
+  function drawBackground() {
+    const grad = ctx.createRadialGradient(canvas.width * 0.4, canvas.height * 0.3, 0,
+      canvas.width * 0.5, canvas.height * 0.5, canvas.width * 0.7);
+    grad.addColorStop(0, C.spaceLight); grad.addColorStop(0.5, C.spaceMid); grad.addColorStop(1, C.space);
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Nebula blobs
+    ctx.save();
+    const neb1 = ctx.createRadialGradient(canvas.width * 0.25, canvas.height * 0.2, 0,
+      canvas.width * 0.25, canvas.height * 0.2, canvas.width * 0.4);
+    neb1.addColorStop(0, 'rgba(0,180,220,0.025)'); neb1.addColorStop(1, 'transparent');
+    ctx.fillStyle = neb1; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    const neb2 = ctx.createRadialGradient(canvas.width * 0.7, canvas.height * 0.6, 0,
+      canvas.width * 0.7, canvas.height * 0.6, canvas.width * 0.35);
+    neb2.addColorStop(0, 'rgba(220,80,160,0.02)'); neb2.addColorStop(1, 'transparent');
+    ctx.fillStyle = neb2; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
+    // Twinkling stars
+    for (const star of starField) {
+      const alpha = star.brightness * (0.5 + 0.5 * Math.sin(elapsedTime * star.speed + star.phase));
+      ctx.fillStyle = `rgba(255,255,255,${alpha.toFixed(3)})`;
+      ctx.beginPath(); ctx.arc(scaleX(star.x), star.y, scaleV(star.r), 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  // ═══════════════════════════════════════
+  // DRAWING — Board
+  // ═══════════════════════════════════════
+  function getBoardLayout() {
+    const pad = scaleX(6);
+    const cellSize = Math.floor((canvas.width - pad * 2) / BOARD_SIZE);
+    const boardWPx = cellSize * BOARD_SIZE;
+    const bx = (canvas.width - boardWPx) / 2;
+    const hudH = scaleV(48);
+    const cardH = scaleV(80);
+    const availH = canvas.height - hudH - cardH - scaleV(16);
+    const boardHPx = cellSize * BOARD_SIZE;
+    const by = hudH + Math.max(scaleV(4), (availH - boardHPx) / 2);
+    return { bx, by, cellSize, boardWPx, boardHPx };
+  }
+
+  function drawBoardCellText(cx, cy, size, card) {
+    const suitInfo = SUITS[card.suit];
+    const rank = RANK_NAMES[card.rank];
+
+    // Rank text (top-left area)
+    ctx.fillStyle = suitInfo.color;
+    ctx.font = `700 ${Math.max(size * 0.38, scaleV(7))}px 'Fredoka'`;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText(rank, cx - size * 0.38, cy - size * 0.38);
+
+    // Suit symbol (center-right, large)
+    ctx.font = `${Math.max(size * 0.42, scaleV(8))}px 'Fredoka'`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(suitInfo.symbol, cx + size * 0.08, cy + size * 0.06);
+  }
+
+  function drawBoard() {
+    const { bx, by, cellSize } = getBoardLayout();
+
+    for (let r = 0; r < BOARD_SIZE; r++) {
+      for (let c = 0; c < BOARD_SIZE; c++) {
+        const cx = bx + c * cellSize + cellSize / 2;
+        const cy = by + r * cellSize + cellSize / 2;
+        const cell = board[r][c];
+
+        // Cell background
+        let bgColor = C.cellBg;
+        let borderColor = C.cellBorder;
+
+        if (selectedCells.some(sc => sc.r === r && sc.c === c)) {
+          bgColor = C.highlightSelect;
+          borderColor = C.cellBorderHover;
+        }
+        if (selectedCard >= 0 && playerHand[selectedCard] && playerHand[selectedCard].type === 'jack1') {
+          if (cell.occupied === 'ai') {
+            bgColor = C.highlightDanger;
+            borderColor = 'rgba(240,50,80,0.5)';
+          }
+        }
+
+        ctx.fillStyle = bgColor;
+        roundRect(bx + c * cellSize + 1, by + r * cellSize + 1, cellSize - 2, cellSize - 2, scaleV(4));
+        ctx.fill();
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = scaleV(0.5);
+        ctx.stroke();
+
+        // Cell content
+        if (cell.isWormhole) {
+          ctx.save();
+          const whAlpha = 0.3 + 0.15 * Math.sin(elapsedTime * 2 + r + c);
+          ctx.strokeStyle = C.wormholeRing;
+          ctx.globalAlpha = whAlpha;
+          ctx.lineWidth = scaleV(1.2);
+          ctx.beginPath();
+          ctx.ellipse(cx, cy, cellSize*0.28, cellSize*0.22, elapsedTime * 0.5, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.ellipse(cx, cy, cellSize*0.2, cellSize*0.15, -elapsedTime * 0.35, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+          ctx.restore();
+          ctx.fillStyle = 'rgba(180,100,220,0.3)';
+          ctx.beginPath(); ctx.arc(cx, cy, cellSize*0.1, 0, Math.PI*2); ctx.fill();
+        } else if (cell.cardIdx >= 0) {
+          ctx.save();
+          const card = boardCards[cell.cardIdx];
+          ctx.shadowColor = SUITS[card.suit].glow;
+          ctx.shadowBlur = cellSize * 0.1;
+          drawBoardCellText(cx, cy, cellSize, card);
+          ctx.shadowColor = 'transparent';
+          ctx.shadowBlur = 0;
+          ctx.restore();
+        }
+
+        // Chips
+        if (cell.occupied === 'player') drawChip(cx, cy, cellSize * 0.38, C.playerChip, C.playerChipDark, C.playerGlow);
+        if (cell.occupied === 'ai') drawChip(cx, cy, cellSize * 0.38, C.aiChip, C.aiChipDark, C.aiGlow);
+      }
+    }
+
+    // Last move pulse
+    if (lastMove && state === 'playing') {
+      const {r, c: cl, owner} = lastMove;
+      const cx = bx + cl * cellSize + cellSize / 2;
+      const cy = by + r * cellSize + cellSize / 2;
+      const glow = owner === 'player' ? C.playerGlow : C.aiGlow;
+      const alpha = 0.3 + 0.25 * Math.sin(elapsedTime * 4);
+      ctx.strokeStyle = glow.replace('0.35', alpha.toFixed(2));
+      ctx.lineWidth = scaleV(2);
+      ctx.beginPath(); ctx.arc(cx, cy, cellSize * 0.45 + Math.sin(elapsedTime * 4) * cellSize * 0.06, 0, Math.PI*2); ctx.stroke();
+    }
+
+    // Win glow
+    if (winAnimTimer > 0 && winningCells.length > 0) {
+      for (const {r, c: cl} of winningCells) {
+        const cx = bx + cl * cellSize + cellSize / 2;
+        const cy = by + r * cellSize + cellSize / 2;
+        const pulseAlpha = 0.3 + 0.3 * Math.sin(elapsedTime * 6);
+        ctx.save();
+        ctx.globalAlpha = pulseAlpha;
+        ctx.fillStyle = C.winGlow;
+        ctx.beginPath(); ctx.arc(cx, cy, cellSize * 0.5, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.restore();
+        ctx.strokeStyle = C.winGlowAlpha;
+        ctx.lineWidth = scaleV(2);
+        ctx.beginPath(); ctx.arc(cx, cy, cellSize * 0.48, 0, Math.PI*2); ctx.stroke();
+      }
+    }
+  }
+
+  function drawChip(cx, cy, r, color, darkColor, glowColor) {
+    ctx.save();
+    ctx.globalAlpha = 0.4;
+    ctx.fillStyle = glowColor;
+    ctx.beginPath(); ctx.arc(cx, cy, r * 1.2, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    const grad = ctx.createRadialGradient(cx - r*0.25, cy - r*0.3, r*0.05, cx, cy, r);
+    grad.addColorStop(0, color); grad.addColorStop(0.7, color); grad.addColorStop(1, darkColor);
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fill();
+
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.beginPath();
+    ctx.ellipse(cx - r*0.25, cy - r*0.35, r*0.4, r*0.22, -0.4, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = Math.max(0.5, scaleV(0.8));
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
+  }
+
+  // ═══════════════════════════════════════
+  // DRAWING — Player Cards (Playing Card Style)
+  // ═══════════════════════════════════════
+  function drawPlayerHand() {
+    const cardW = scaleX(62);
+    const cardH = scaleV(84);
+    const gap = scaleX(5);
+    const totalW = playerHand.length * cardW + (playerHand.length - 1) * gap;
+    const startX = (canvas.width - totalW) / 2;
+    const cardY = canvas.height - cardH - scaleV(8);
+
+    for (let i = 0; i < playerHand.length; i++) {
+      const card = playerHand[i];
+      const cx = startX + i * (cardW + gap);
+      const selected = i === selectedCard && phase === 'cardSelected';
+      const liftY = selected ? scaleV(-10) : 0;
+      drawPlayingCard(card, cx, cardY + liftY, cardW, cardH, selected);
+      canvas['_handCard' + i] = { x: cx, y: cardY + liftY, w: cardW, h: cardH };
+    }
+  }
+
+  function drawPlayingCard(card, x, y, w, h, selected) {
+    ctx.save();
+
+    // Shadow + lift
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = scaleV(8);
+    ctx.shadowOffsetY = selected ? scaleV(5) : scaleV(3);
+
+    // Card face (cream colored like real playing cards)
+    let faceColor = C.cardFace;
+    let borderClr = selected ? C.cardBorderSel : C.cardBorder;
+
+    if (card.type === 'jack2') {
+      faceColor = '#E0F8FF'; borderClr = selected ? 'rgba(0,220,200,0.7)' : 'rgba(0,200,180,0.3)';
+    } else if (card.type === 'jack1') {
+      faceColor = '#FFE8EC'; borderClr = selected ? 'rgba(240,60,80,0.7)' : 'rgba(220,40,60,0.3)';
+    }
+
+    // Card background
+    ctx.fillStyle = faceColor;
+    roundRect(x, y, w, h, scaleV(6));
+    ctx.fill();
+
+    // Card border
+    ctx.strokeStyle = borderClr;
+    ctx.lineWidth = selected ? scaleV(2.5) : scaleV(1.2);
+    ctx.stroke();
+
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetY = 0;
+
+    // Card content
+    const pad = scaleV(5);
+    const innerX = x + pad, innerY = y + pad, innerW = w - pad*2, innerH = h - pad*2;
+
+    if (card.type === 'jack2') {
+      // Two-Eyed Jack — face card
+      drawJackFace(innerX, innerY, innerW, innerH, true);
+      ctx.fillStyle = '#00A090';
+      ctx.font = `700 ${Math.max(scaleV(8), 7)}px 'Fredoka'`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillText('PLACE', x + w/2, y + h - scaleV(6));
+      ctx.fillText('ANYWHERE', x + w/2, y + h - scaleV(2) + scaleV(8));
+    } else if (card.type === 'jack1') {
+      // One-Eyed Jack — face card
+      drawJackFace(innerX, innerY, innerW, innerH, false);
+      ctx.fillStyle = '#C02040';
+      ctx.font = `700 ${Math.max(scaleV(8), 7)}px 'Fredoka'`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillText('REMOVE', x + w/2, y + h - scaleV(6));
+      ctx.fillText('OPPONENT', x + w/2, y + h - scaleV(2) + scaleV(8));
+    } else {
+      // Standard card — rank + suit
+      const cdef = boardCards[card.cardIdx];
+      const suitInfo = SUITS[cdef.suit];
+      const rank = RANK_NAMES[cdef.rank];
+
+      // Top-left rank + suit
+      ctx.fillStyle = suitInfo.color;
+      ctx.font = `700 ${Math.max(scaleV(11), 10)}px 'Fredoka'`;
+      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillText(rank, innerX + scaleV(3), innerY + scaleV(1));
+      ctx.font = `${Math.max(scaleV(9), 8)}px 'Fredoka'`;
+      ctx.fillText(suitInfo.symbol, innerX + scaleV(3), innerY + scaleV(14));
+
+      // Center large suit
+      ctx.font = `${Math.max(scaleV(22), 18)}px 'Fredoka'`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(suitInfo.symbol, x + w/2, y + h/2 - scaleV(4));
+
+      // Bottom-right rank + suit (inverted)
+      ctx.fillStyle = suitInfo.color;
+      ctx.font = `700 ${Math.max(scaleV(11), 10)}px 'Fredoka'`;
+      ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+      ctx.fillText(rank, x + w - pad - scaleV(3), y + h - pad - scaleV(1));
+      ctx.font = `${Math.max(scaleV(9), 8)}px 'Fredoka'`;
+      ctx.fillText(suitInfo.symbol, x + w - pad - scaleV(3), y + h - pad - scaleV(14));
+    }
+
+    ctx.restore();
+  }
+
+  function drawJackFace(x, y, w, h, twoEyed) {
+    // Simple stylized Jack face
+    const cxf = x + w/2, cyf = y + h*0.4;
+    const fs = h * 0.22;
+
+    // Face oval
+    ctx.fillStyle = '#F5E6D3';
+    ctx.beginPath();
+    ctx.ellipse(cxf, cyf, fs*0.6, fs*0.8, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // Eyes
+    const eyeY = cyf - fs*0.1;
+    ctx.fillStyle = '#1A1A2E';
+    if (twoEyed) {
+      // Two eyes
+      ctx.beginPath(); ctx.arc(cxf - fs*0.2, eyeY, fs*0.1, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(cxf + fs*0.2, eyeY, fs*0.1, 0, Math.PI*2); ctx.fill();
+    } else {
+      // One eye (profile)
+      ctx.beginPath(); ctx.arc(cxf - fs*0.05, eyeY, fs*0.1, 0, Math.PI*2); ctx.fill();
+      // Eye patch over right eye
+      ctx.strokeStyle = '#1A1A2E';
+      ctx.lineWidth = Math.max(1, scaleV(1.5));
+      ctx.beginPath();
+      ctx.moveTo(cxf + fs*0.1, eyeY - fs*0.15);
+      ctx.lineTo(cxf + fs*0.35, eyeY + fs*0.15);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+    }
+
+    // Smile
+    ctx.strokeStyle = '#1A1A2E';
+    ctx.lineWidth = Math.max(0.8, scaleV(1));
+    ctx.beginPath();
+    ctx.arc(cxf, cyf + fs*0.15, fs*0.25, 0.1, Math.PI - 0.1);
+    ctx.stroke();
+    ctx.lineWidth = 1;
+
+    // Hair
+    ctx.fillStyle = '#3A2A1A';
+    ctx.beginPath();
+    ctx.ellipse(cxf, cyf - fs*0.55, fs*0.7, fs*0.3, 0, Math.PI, Math.PI*2);
+    ctx.fill();
+
+    // "J" label
+    ctx.fillStyle = C.cardFace;
+    ctx.font = `700 ${Math.max(scaleV(11), 10)}px 'Fredoka'`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('J', cxf, cyf + fs*0.6);
+  }
+
+  // ═══════════════════════════════════════
+  // DRAWING — HUD
+  // ═══════════════════════════════════════
+  function drawHUD() {
+    const hudY = scaleV(4), hudW = canvas.width - scaleX(8), hudH = scaleV(42);
+    const hudX = scaleX(4);
+
+    ctx.fillStyle = 'rgba(10,10,35,0.8)';
+    roundRect(hudX, hudY, hudW, hudH, scaleV(10));
+    ctx.fill();
+    ctx.strokeStyle = C.border;
+    ctx.lineWidth = scaleV(0.8);
+    ctx.stroke();
+
+    // Turn indicator
+    const turnColor = turn === 'player' ? C.playerChip : C.aiChip;
+    const turnLabel = turn === 'player' ? 'Your Turn' : (phase === 'aiThinking' ? 'AI Thinking...' : 'AI Turn');
+    ctx.fillStyle = turnColor;
+    ctx.beginPath(); ctx.arc(hudX + scaleV(20), hudY + hudH/2, scaleV(8), 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = C.text;
+    ctx.font = `600 ${scaleV(14)}px 'Fredoka'`;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(turnLabel, hudX + scaleV(34), hudY + hudH/2);
+
+    // Score
+    ctx.fillStyle = C.text;
+    ctx.font = `600 ${scaleV(13)}px 'Fredoka'`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(`${playerWins} - ${aiWins}`, hudX + hudW * 0.58, hudY + hudH/2);
+
+    ctx.fillStyle = C.playerChip;
+    ctx.beginPath(); ctx.arc(hudX + hudW * 0.58 - scaleV(22), hudY + hudH/2, scaleV(5), 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = C.aiChip;
+    ctx.beginPath(); ctx.arc(hudX + hudW * 0.58 + scaleV(22), hudY + hudH/2, scaleV(5), 0, Math.PI*2); ctx.fill();
+
+    // Deck count
+    ctx.fillStyle = C.textDim;
+    ctx.font = `500 ${scaleV(11)}px 'Fredoka'`;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(`Deck: ${deck.length}`, hudX + hudW - scaleV(12), hudY + hudH/2);
+  }
+
+  // ═══════════════════════════════════════
+  // DRAWING — Title Screen
+  // ═══════════════════════════════════════
+  function drawTitleScreen() {
+    drawBackground();
+
+    // Floating particles
+    const numP = 30;
+    for (let i = 0; i < numP; i++) {
+      const angle = i * (Math.PI * 2 / numP) + elapsedTime * 0.3;
+      const radius = scaleV(80 + 20 * Math.sin(i * 3 + elapsedTime * 0.7));
+      const px = canvas.width / 2 + Math.cos(angle) * radius;
+      const py = canvas.height * 0.32 + Math.sin(angle) * radius * 0.5;
+      const alpha = 0.15 + 0.1 * Math.sin(elapsedTime * 2 + i);
+      ctx.fillStyle = `rgba(0,200,240,${alpha.toFixed(2)})`;
+      ctx.beginPath(); ctx.arc(px, py, scaleV(1.5), 0, Math.PI*2); ctx.fill();
+    }
+
+    // Title
+    const titleY = canvas.height * 0.17;
+    ctx.font = `${scaleV(46)}px 'Fredoka One'`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const tGrad = ctx.createLinearGradient(canvas.width/2 - scaleX(130), titleY - scaleV(20),
+      canvas.width/2 + scaleX(130), titleY + scaleV(20));
+    tGrad.addColorStop(0, C.accentCyan);
+    tGrad.addColorStop(0.5, '#60E0FF');
+    tGrad.addColorStop(1, C.accentMagenta);
+    ctx.fillStyle = tGrad;
+    ctx.fillText('SEQUENCE', canvas.width/2, titleY);
+
+    // Subtitle
+    ctx.fillStyle = C.textDim;
+    ctx.font = `500 ${scaleV(14)}px 'Fredoka'`;
+    ctx.fillText('Star Chart — A Classic Card Game', canvas.width/2, titleY + scaleV(34));
+
+    // How-to-play card
+    const cardX = scaleX(20), cardW = canvas.width - scaleX(40);
+    const cardY = canvas.height * 0.36;
+    const cardH = scaleV(140);
+
+    ctx.fillStyle = 'rgba(15,15,40,0.85)';
+    roundRect(cardX, cardY, cardW, cardH, scaleV(12));
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,200,240,0.15)';
+    ctx.lineWidth = scaleV(1);
+    ctx.stroke();
+
+    // Accent bar
+    ctx.fillStyle = C.accentCyan;
+    roundRect(cardX + scaleX(5), cardY - scaleV(1), scaleX(3), cardH + scaleV(2), scaleV(2));
+    ctx.fill();
+
+    const rules = [
+      'Play a card from your hand',
+      'Place your chip on one of its matching board spaces',
+      'Get 5 chips in a row to win!',
+    ];
+    const ruleStartY = cardY + scaleV(18);
+    const ruleGap = scaleV(28);
+
+    ctx.fillStyle = C.text;
+    ctx.font = `500 ${scaleV(12)}px 'Fredoka'`;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    for (let i = 0; i < rules.length; i++) {
+      const ry = ruleStartY + i * ruleGap;
+      // Number circle
+      ctx.fillStyle = C.accentCyan;
+      ctx.beginPath(); ctx.arc(cardX + scaleX(24), ry, scaleV(7), 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#080820';
+      ctx.font = `700 ${scaleV(10)}px 'Fredoka'`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(i + 1, cardX + scaleX(24), ry);
+      // Rule text
+      ctx.fillStyle = C.text;
+      ctx.font = `500 ${scaleV(12)}px 'Fredoka'`;
+      ctx.textAlign = 'left';
+      ctx.fillText(rules[i], cardX + scaleX(42), ry);
+    }
+
+    // Jack notes
+    ctx.fillStyle = C.textDim;
+    ctx.font = `400 ${scaleV(10.5)}px 'Fredoka'`;
+    ctx.textAlign = 'left';
+    ctx.fillText('Two-Eyed Jacks (♥♦): Place chip anywhere', cardX + scaleX(24), ruleStartY + 3 * ruleGap);
+    ctx.fillText('One-Eyed Jacks (♠♣): Remove opponent\'s chip', cardX + scaleX(24), ruleStartY + 3 * ruleGap + scaleV(15));
+
+    // START button
+    const btnW = scaleX(200), btnH = scaleV(54);
+    const btnX = canvas.width/2 - btnW/2;
+    const btnY = canvas.height * 0.78;
+
+    ctx.shadowColor = C.accentCyan;
+    ctx.shadowBlur = scaleV(16) * (0.5 + 0.5 * Math.sin(elapsedTime * 3));
+    const btnGrad = ctx.createLinearGradient(btnX, btnY, btnX, btnY + btnH);
+    btnGrad.addColorStop(0, '#00E0FF'); btnGrad.addColorStop(1, '#0088BB');
+    ctx.fillStyle = btnGrad;
+    roundRect(btnX, btnY, btnW, btnH, btnH/2);
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    roundRect(btnX + scaleX(4), btnY + scaleV(2), btnW - scaleX(8), btnH*0.45, btnH/2);
+    ctx.fill();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = `700 ${scaleV(22)}px 'Fredoka One'`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('START', canvas.width/2, btnY + btnH/2);
+    canvas._startBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
+  }
+
+  // ═══════════════════════════════════════
+  // DRAWING — Game Over Screen
+  // ═══════════════════════════════════════
+  function drawGameOverScreen() {
+    // Board underneath
+    drawGameScreen();
+
+    ctx.fillStyle = C.overlay;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const cy = canvas.height * 0.34;
+
+    let titleText = 'DRAW';
+    let titleColor = C.accentGold;
+    if (gameResult === 'player') { titleText = 'VICTORY'; titleColor = C.accentCyan; }
+    else if (gameResult === 'ai') { titleText = 'DEFEATED'; titleColor = C.accentMagenta; }
+
+    ctx.font = `700 ${scaleV(38)}px 'Fredoka One'`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = titleColor;
+    ctx.fillText(titleText, canvas.width/2, cy);
+
+    // Stats
+    const sy = cy + scaleV(48);
+    ctx.fillStyle = C.textDim;
+    ctx.font = `500 ${scaleV(14)}px 'Fredoka'`;
+    ctx.fillText(`Cards Played: ${moveCount}`, canvas.width/2, sy);
+
+    ctx.fillStyle = C.text;
+    ctx.font = `600 ${scaleV(18)}px 'Fredoka'`;
+    ctx.fillText(`${playerWins} - ${aiWins}`, canvas.width/2, sy + scaleV(40));
+
+    if (gameResult === 'player') {
+      const prevBest = parseInt(safeLS('sequence_bestWins') || '0');
+      if (playerWins > prevBest) {
+        safeLS('sequence_bestWins', playerWins);
+        ctx.fillStyle = C.accentGold;
+        ctx.font = `600 ${scaleV(14)}px 'Fredoka'`;
+        ctx.fillText('Most Wins Yet!', canvas.width/2, sy + scaleV(62));
+      }
+    }
+
+    // Play Again button
+    const btnW = scaleX(200), btnH = scaleV(50);
+    const btnX = canvas.width/2 - btnW/2;
+    const btnY = canvas.height * 0.64;
+    const btnGrad = ctx.createLinearGradient(btnX, btnY, btnX, btnY + btnH);
+    btnGrad.addColorStop(0, titleColor);
+    btnGrad.addColorStop(1, gameResult === 'ai' ? '#A01050' : '#0078A0');
+    ctx.fillStyle = btnGrad;
+    roundRect(btnX, btnY, btnW, btnH, btnH/2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    roundRect(btnX + scaleX(4), btnY + scaleV(2), btnW - scaleX(8), btnH*0.4, btnH/2); ctx.fill();
+    ctx.fillStyle = '#FFF';
+    ctx.font = `700 ${scaleV(20)}px 'Fredoka One'`;
+    ctx.fillText('PLAY AGAIN', canvas.width/2, btnY + btnH/2);
+    canvas._restartBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
+
+    // Menu button
+    const mBtnY = btnY + btnH + scaleV(14);
+    const mBtnH = scaleV(42);
+    ctx.fillStyle = C.surface;
+    roundRect(btnX + scaleX(30), mBtnY, btnW - scaleX(60), mBtnH, mBtnH/2); ctx.fill();
+    ctx.strokeStyle = C.border; ctx.lineWidth = scaleV(1); ctx.stroke();
+    ctx.fillStyle = C.textDim;
+    ctx.font = `600 ${scaleV(16)}px 'Fredoka'`;
+    ctx.fillText('MENU', canvas.width/2, mBtnY + mBtnH/2);
+    canvas._menuBtn = { x: btnX + scaleX(30), y: mBtnY, w: btnW - scaleX(60), h: mBtnH };
+  }
+
+  function drawGameScreen() {
+    drawBackground();
+    drawBoard();
+  }
+
+  // ═══════════════════════════════════════
+  // DRAWING — Buttons
+  // ═══════════════════════════════════════
+  function drawMuteButton() {
+    const r = scaleV(20);
+    const x = scaleX(GAME_W - 30);
+    const y = scaleV(100);
+    const touchR = Math.max(r, scaleV(22));
+    canvas._muteBtn = { x: x - touchR, y: y - touchR, w: touchR * 2, h: touchR * 2 };
+
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = scaleV(1.5);
+    ctx.stroke();
+
+    // Speaker cone
+    const spx = x - r * 0.3, spy = y;
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.beginPath();
+    ctx.moveTo(spx - r*0.25, spy - r*0.28);
+    ctx.lineTo(spx - r*0.25, spy + r*0.28);
+    ctx.lineTo(spx + r*0.1, spy + r*0.28);
+    ctx.lineTo(spx + r*0.35, spy + r*0.48);
+    ctx.lineTo(spx + r*0.35, spy - r*0.48);
+    ctx.lineTo(spx + r*0.1, spy - r*0.28);
+    ctx.closePath(); ctx.fill();
+
+    if (muted) {
+      ctx.strokeStyle = '#FF4040';
+      ctx.lineWidth = scaleV(2.2);
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(spx + r*0.5, spy - r*0.45);
+      ctx.lineTo(spx + r*0.85, spy + r*0.4);
+      ctx.moveTo(spx + r*0.85, spy - r*0.45);
+      ctx.lineTo(spx + r*0.5, spy + r*0.4);
+      ctx.stroke();
+      ctx.lineCap = 'butt';
+      ctx.lineWidth = 1;
+    } else {
+      ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+      ctx.lineWidth = scaleV(1.8);
+      ctx.lineCap = 'round';
+      for (let i = 0; i < 2; i++) {
+        ctx.beginPath();
+        ctx.arc(spx + r*0.5 + i * r*0.18, spy, r*0.18 + i*r*0.1, -0.6, 0.6);
+        ctx.stroke();
+      }
+      ctx.lineCap = 'butt';
+      ctx.lineWidth = 1;
+    }
+  }
+
+  function drawHomeButton() {
+    if (state !== 'title') return;
+    const r = scaleV(20);
+    const x = scaleX(28);
+    const y = scaleV(100);
+    const touchR = Math.max(r, scaleV(22));
+    canvas._homeBtn = { x: x - touchR, y: y - touchR, w: touchR * 2, h: touchR * 2 };
+
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = scaleV(1.5);
+    ctx.stroke();
+
+    const hx = x - r*0.32, hy = y + r*0.08, hw = r*0.64, hh = r*0.42;
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.fillRect(hx, hy, hw, hh);
+    ctx.beginPath();
+    ctx.moveTo(hx - r*0.08, hy);
+    ctx.lineTo(x, hy - r*0.4);
+    ctx.lineTo(hx + hw + r*0.08, hy);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(x - r*0.1, hy + hh*0.3, r*0.2, hh*0.7);
+  }
+
+  function drawPauseButton() {
+    if (state !== 'playing') return;
+    const r = scaleV(20);
+    const x = scaleX(GAME_W - 30);
+    const y = scaleV(165);
+    const touchR = Math.max(r, scaleV(22));
+    canvas._pauseBtn = { x: x - touchR, y: y - touchR, w: touchR * 2, h: touchR * 2 };
+
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = scaleV(1.5);
+    ctx.stroke();
+
+    const barW = r*0.2, barH = r*0.55;
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    roundRect(x - barW*1.5, y - barH/2, barW, barH, scaleV(2)); ctx.fill();
+    roundRect(x + barW*0.5, y - barH/2, barW, barH, scaleV(2)); ctx.fill();
+  }
+
+  function drawPauseOverlay() {
+    if (!paused) return;
+    ctx.fillStyle = C.overlay;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const cy = canvas.height * 0.4;
+    ctx.fillStyle = C.text;
+    ctx.font = `700 ${scaleV(40)}px 'Fredoka One'`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('PAUSED', canvas.width/2, cy);
+
+    const btnW = scaleX(200), btnH = scaleV(50);
+    const btnX = canvas.width/2 - btnW/2;
+    const btnY = cy + scaleV(50);
+    const btnGrad = ctx.createLinearGradient(btnX, btnY, btnX, btnY+btnH);
+    btnGrad.addColorStop(0, '#00E0FF'); btnGrad.addColorStop(1, '#0088BB');
+    ctx.fillStyle = btnGrad;
+    roundRect(btnX, btnY, btnW, btnH, btnH/2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    roundRect(btnX + scaleX(4), btnY + scaleV(2), btnW - scaleX(8), btnH*0.4, btnH/2); ctx.fill();
+    ctx.fillStyle = '#FFF';
+    ctx.font = `700 ${scaleV(20)}px 'Fredoka One'`;
+    ctx.fillText('RESUME', canvas.width/2, btnY + btnH/2);
+    canvas._resumeBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
+
+    const mBtnY = btnY + btnH + scaleV(14);
+    const mBtnH = scaleV(42);
+    ctx.fillStyle = C.surface;
+    roundRect(btnX + scaleX(30), mBtnY, btnW - scaleX(60), mBtnH, mBtnH/2); ctx.fill();
+    ctx.strokeStyle = C.border; ctx.lineWidth = scaleV(1); ctx.stroke();
+    ctx.fillStyle = C.textDim;
+    ctx.font = `600 ${scaleV(16)}px 'Fredoka'`;
+    ctx.fillText('MENU', canvas.width/2, mBtnY + mBtnH/2);
+    canvas._pauseMenuBtn = { x: btnX + scaleX(30), y: mBtnY, w: btnW - scaleX(60), h: mBtnH };
+  }
+
+  // ═══════════════════════════════════════
+  // UPDATE
+  // ═══════════════════════════════════════
+  let elapsedTime = 0;
+
+  function update(dt) {
+    const dtC = Math.max(0, Math.min(dt, 0.1));
+    elapsedTime += dtC;
+
+    if (winAnimTimer > 0) winAnimTimer = Math.max(0, winAnimTimer - dtC);
+
+    if (state === 'playing' && turn === 'ai' && phase === 'aiThinking') {
+      aiDelay -= dtC * 1000;
+      if (aiDelay <= 0) aiTurn();
+    }
+
+    if (placeAnim < 1 && placeAnimRC && phase === 'animating') {
+      placeAnim = Math.min(1, placeAnim + dtC * 5);
+      if (placeAnim >= 1 && state === 'playing') {
+        placeAnimRC = null;
+        if (turn === 'player') { turn = 'ai'; phase = 'aiThinking'; aiDelay = 700 + Math.random() * 900; }
+        else if (turn === 'ai') { turn = 'player'; phase = 'idle'; }
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════
+  function render() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (state === 'title') { drawTitleScreen(); drawMuteButton(); drawHomeButton(); }
+    else if (state === 'playing') { drawGameScreen(); drawHUD(); drawPlayerHand(); drawMuteButton(); drawPauseButton(); drawPauseOverlay(); }
+    else if (state === 'over') { drawGameOverScreen(); drawMuteButton(); }
+  }
+
+  // ═══════════════════════════════════════
+  // GAME LOOP
+  // ═══════════════════════════════════════
+  let lastFrameTime = performance.now();
+
+  function togglePause() {
+    if (state !== 'playing') return;
+    paused = !paused;
+    if (!paused) lastFrameTime = performance.now();
+  }
+
+  function gameLoop(ts) {
+    const dt = (ts - lastFrameTime) / 1000;
+    lastFrameTime = ts;
+    if (!paused) update(dt);
+    render();
+    requestAnimationFrame(gameLoop);
+  }
+
+  // ═══════════════════════════════════════
+  // INPUT
+  // ═══════════════════════════════════════
+  function hitTest(px, py, rect) {
+    if (!rect) return false;
+    return px >= rect.x && px <= rect.x + rect.w && py >= rect.y && py <= rect.y + rect.h;
+  }
+
+  function canvasCoords(e) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) * (canvas.width / rect.width),
+      y: (e.clientY - rect.top) * (canvas.height / rect.height)
+    };
+  }
+
+  function handleButtonTap(px, py) {
+    if (hitTest(px, py, canvas._muteBtn)) { toggleMute(); muteToggledByTouch = true; return true; }
+    if (state === 'title' && hitTest(px, py, canvas._homeBtn)) { window.location.href = '../index.html'; return true; }
+    if (state === 'playing' && hitTest(px, py, canvas._pauseBtn) && !paused) { togglePause(); sfxClick(); return true; }
+    if (paused) {
+      if (hitTest(px, py, canvas._resumeBtn)) { togglePause(); sfxClick(); return true; }
+      if (hitTest(px, py, canvas._pauseMenuBtn)) { paused = false; state = 'title'; sfxClick(); return true; }
+      return true;
+    }
+    if (state === 'title' && hitTest(px, py, canvas._startBtn)) { sfxClick(); startGame(); return true; }
+    if (state === 'over') {
+      if (hitTest(px, py, canvas._restartBtn)) { sfxClick(); startGame(); return true; }
+      if (hitTest(px, py, canvas._menuBtn)) { sfxClick(); state = 'title'; return true; }
+      return true;
+    }
+    return false;
+  }
+
+  function handleGameTap(px, py) {
+    if (state !== 'playing' || paused || turn !== 'player' || phase === 'animating' || phase === 'aiThinking') return;
+
+    for (let i = 0; i < playerHand.length; i++) {
+      if (hitTest(px, py, canvas['_handCard' + i])) {
+        sfxClick();
+        if (selectedCard === i && phase === 'cardSelected') {
+          selectedCard = -1; selectedCells = []; phase = 'idle';
+        } else {
+          const card = playerHand[i];
+          const cells = getValidCellsForCard(card, 'player');
+          if (cells.length === 0) {
+            // Dead card — auto-discard
+            playerHand.splice(i, 1);
+            if (deck.length > 0) playerHand.push(deck.pop());
+            selectedCard = -1; selectedCells = []; moveCount++;
+            sfxCard();
+            if (checkDraw()) return;
+            turn = 'ai'; phase = 'aiThinking'; aiDelay = 700 + Math.random() * 900;
+          } else {
+            selectedCard = i; selectedCells = cells; phase = 'cardSelected';
+          }
+        }
+        return;
+      }
+    }
+
+    if (phase === 'cardSelected' && selectedCard >= 0) {
+      const { bx, by, cellSize } = getBoardLayout();
+      const col = Math.floor((px - bx) / cellSize);
+      const row = Math.floor((py - by) / cellSize);
+      if (row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE) {
+        if (selectedCells.find(sc => sc.r === row && sc.c === col)) {
+          executePlayerMove(selectedCard, row, col);
+        }
+      }
+    }
+  }
+
+  canvas.addEventListener('touchstart', function(e) {
+    e.preventDefault();
+    muteToggledByTouch = false;
+    if (!e.changedTouches.length) return;
+    const { x, y } = canvasCoords(e.changedTouches[0]);
+    if (handleButtonTap(x, y)) return;
+    handleGameTap(x, y);
+  }, { passive: false });
+
+  canvas.addEventListener('touchcancel', function(e) { muteToggledByTouch = false; });
+
+  canvas.addEventListener('click', function(e) {
+    if (muteToggledByTouch) { muteToggledByTouch = false; return; }
+    const { x, y } = canvasCoords(e);
+    if (handleButtonTap(x, y)) return;
+    handleGameTap(x, y);
+  });
+
+  window.addEventListener('keydown', function(e) {
+    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') { if (state === 'playing') togglePause(); return; }
+    if (e.key === ' ' || e.key === 'Enter') { if (state === 'title' || state === 'over') { sfxClick(); startGame(); } return; }
+  });
+
+  // ═══════════════════════════════════════
+  // INIT
+  // ═══════════════════════════════════════
+  function init() {
+    if (safeLS('sequence_muted') === '0') { muted = false; initAudio(); }
+    playerWins = parseInt(safeLS('sequence_pWins') || '0');
+    aiWins = parseInt(safeLS('sequence_aWins') || '0');
+    initStarField();
+    resize();
+    lastFrameTime = performance.now();
+    render();
+    requestAnimationFrame(gameLoop);
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(() => {}); }
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
