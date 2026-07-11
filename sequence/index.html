@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Sequence — Star Chart</title>
-  <meta name="description" content="A sci-fi strategy board game — play cards, place chips, get 5 in a row!">
+  <meta name="description" content="Classic Sequence board game with a sci-fi space theme — play cards, place chips, get 5 in a row!">
   <meta property="og:title" content="Sequence — Star Chart">
-  <meta property="og:description" content="A sci-fi strategy board game — play cards, place chips, get 5 in a row!">
+  <meta property="og:description" content="Classic Sequence board game with a sci-fi space theme — play cards, place chips, get 5 in a row!">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://amitsehgal29.github.io/games/sequence/">
   <meta property="og:image" content="https://amitsehgal29.github.io/games/sequence/icon.svg">
@@ -87,6 +87,28 @@
   }
 
   // ═══════════════════════════════════════
+  // PLAYING CARD DATA
+  // ═══════════════════════════════════════
+  const RANK_NAMES = ['A','2','3','4','5','6','7','8','9','10','Q','K']; // 12 ranks, no Jack
+  const SUITS = [
+    { name: 'Hearts',    symbol: '♥', color: '#FF4060', glow: 'rgba(255,64,96,0.3)' },
+    { name: 'Diamonds',  symbol: '♦', color: '#FF8C40', glow: 'rgba(255,140,64,0.3)' },
+    { name: 'Spades',    symbol: '♠', color: '#60C0FF', glow: 'rgba(96,192,255,0.3)' },
+    { name: 'Clubs',     symbol: '♣', color: '#40E070', glow: 'rgba(64,224,112,0.3)' },
+  ];
+
+  // Board cards: 12 ranks × 4 suits = 48 unique cards, each appears twice = 96 cells + 4 corners
+  function makeBoardCards() {
+    const cards = [];
+    for (let r = 0; r < RANK_NAMES.length; r++) {
+      for (let s = 0; s < SUITS.length; s++) {
+        cards.push({ rank: r, suit: s, name: RANK_NAMES[r] + SUITS[s].symbol });
+      }
+    }
+    return cards; // 48 cards
+  }
+
+  // ═══════════════════════════════════════
   // COLOR PALETTE — Sci-Fi Space
   // ═══════════════════════════════════════
   const C = {
@@ -103,68 +125,43 @@
     aiGlow: 'rgba(240,32,128,0.35)',
     winGlow: '#FFD700', winGlowAlpha: 'rgba(255,215,0,0.4)',
     cardBg: 'rgba(15,15,40,0.9)', cardBorder: 'rgba(100,200,255,0.12)',
-    cardBorderSel: 'rgba(0,200,240,0.55)', cardLift: 'rgba(0,200,240,0.15)',
-    cardSN: 'rgba(255,100,50,0.15)', cardBH: 'rgba(150,60,200,0.15)',
+    cardBorderSel: 'rgba(0,200,240,0.55)',
+    cardJack2: 'rgba(0,220,200,0.15)', cardJack1: 'rgba(220,40,60,0.15)',
     text: '#E8F0FF', textDim: 'rgba(220,230,255,0.55)', textMuted: 'rgba(220,230,255,0.25)',
     surface: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.07)',
     accentCyan: '#00C8F0', accentMagenta: '#F02080', accentGold: '#FFC840',
-    btnStart: '#00C8F0', btnResume: '#00C8F0',
-    overlay: 'rgba(8,8,32,0.88)',
     highlightSelect: 'rgba(0,200,240,0.25)',
     highlightDanger: 'rgba(240,50,80,0.25)',
+    cardFace: '#F0EDE4', cardFaceDark: '#D8D4C8',
   };
-
-  const SYS_COLORS = ['#00C8F0','#F02080','#FFC840','#40E060','#FF7030','#D0E0FF'];
-  const SYS_COLORS_GLOW = ['rgba(0,200,240,0.25)','rgba(240,32,128,0.25)','rgba(255,200,64,0.25)','rgba(64,224,96,0.25)','rgba(255,112,48,0.25)','rgba(208,224,255,0.25)'];
-
-  // ═══════════════════════════════════════
-  // STAR SYSTEM DATA — 48 unique names
-  // ═══════════════════════════════════════
-  const STAR_NAMES = [
-    'Vega','Nova','Pulsar','Quasar','Nebula','Comet','Asteroid','Galaxy',
-    'Stellar','Solar','Lunar','Plasma','Photon','Hyperion','Titan','Oberon',
-    'Triton','Charon','Deimos','Europa','Kepler','Hubble','Rigel','Sirius',
-    'Polaris','Altair','Antares','Capella','Castor','Pollux','Spica','Regulus',
-    'Procyon','Canopus','Deneb','Mira','Arcturus','Lyra','Orion','Draco',
-    'Cygnus','Pegasus','Phoenix','Hydra','Vela','Carina','Lupus','Fornax'
-  ];
-
-  // Each system: shape index (0-7) and color index (0-5)
-  function makeSystems() {
-    const systems = [];
-    for (let i = 0; i < 48; i++) {
-      systems.push({ name: STAR_NAMES[i], shape: i % 8, color: Math.floor(i / 8) % 6 });
-    }
-    return systems;
-  }
 
   // ═══════════════════════════════════════
   // GAME STATE
   // ═══════════════════════════════════════
-  let state = 'title';          // 'title' | 'playing' | 'over'
+  let state = 'title';
   let paused = false;
-  let turn = 'player';          // 'player' | 'ai'
-  let phase = 'idle';           // 'idle' | 'cardSelected' | 'placing' | 'aiThinking' | 'animating'
-  let board = [];               // board[r][c] = { systemIdx, isWormhole, occupied:null|'player'|'ai' }
-  let systems = [];             // 48 system definitions
-  let systemToCells = [];       // systemToCells[idx] = [{r,c},{r,c}]
+  let turn = 'player';
+  let phase = 'idle';           // 'idle' | 'cardSelected' | 'animating' | 'aiThinking'
+  let board = [];               // board[r][c] = { cardIdx, isWormhole, occupied:null|'player'|'ai' }
+  let boardCards = [];          // 48 card definitions
+  let cardToCells = [];         // cardToCells[idx] = [{r,c},{r,c}]
   let deck = [];
   let playerHand = [];
   let aiHand = [];
   let selectedCard = -1;
-  let selectedCells = [];       // [{r,c}] highlighted for current selection
-  let lastMove = null;          // {r,c,owner}
+  let selectedCells = [];
+  let lastMove = null;
   let moveCount = 0;
   let playerWins = 0;
   let aiWins = 0;
-  let gameResult = null;        // 'player' | 'ai' | 'draw'
-  let winningCells = [];        // [{r,c}]
+  let gameResult = null;
+  let winningCells = [];
   let winAnimTimer = 0;
   let aiDelay = 0;
-  let placeAnim = 0;            // 0-1 chip placement animation
-  let placeAnimRC = null;       // {r,c,owner}
+  let placeAnim = 0;
+  let placeAnimRC = null;
   let muteToggledByTouch = false;
-  let starField = [];           // pre-generated star positions
+  let starField = [];
 
   // ═══════════════════════════════════════
   // AUDIO
@@ -222,8 +219,8 @@
     setTimeout(() => playTone(1047, 1318, 0.2, 'sine', 0.1), 300);
   }
   function sfxLose() { playTone(400, 100, 0.45, 'triangle', 0.07); }
-  function sfxSupernova() { playNoise(0.15, 0.05); playTone(80, 250, 0.2, 'sawtooth', 0.04); }
-  function sfxBlackHole() { playTone(600, 40, 0.4, 'sine', 0.05); }
+  function sfxJack2() { playNoise(0.15, 0.05); playTone(80, 250, 0.2, 'sawtooth', 0.04); }
+  function sfxJack1() { playTone(600, 40, 0.4, 'sine', 0.05); }
 
   function toggleMute() {
     initAudio();
@@ -233,7 +230,6 @@
       audioCtx.resume().catch(() => {});
     }
     if (!muted) {
-      // Aggressive iOS warmup — burst silent buffers
       const burst = () => {
         if (!audioCtx || muted) return;
         const b = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
@@ -248,17 +244,16 @@
   // BOARD & DECK GENERATION
   // ═══════════════════════════════════════
   function generateBoard() {
-    systems = makeSystems();
+    boardCards = makeBoardCards(); // 48 standard cards (A-K, no J, 4 suits)
     board = [];
     for (let r = 0; r < BOARD_SIZE; r++) {
       board[r] = [];
       for (let c = 0; c < BOARD_SIZE; c++) {
-        board[r][c] = { systemIdx: -1, isWormhole: false, occupied: null };
+        board[r][c] = { cardIdx: -1, isWormhole: false, occupied: null };
       }
     }
     // Mark wormhole corners
-    const corners = [[0,0],[0,9],[9,0],[9,9]];
-    for (const [r,c] of corners) board[r][c].isWormhole = true;
+    [[0,0],[0,9],[9,0],[9,9]].forEach(([r,c]) => { board[r][c].isWormhole = true; });
 
     // Collect non-corner positions and shuffle
     const positions = [];
@@ -267,28 +262,25 @@
         if (!board[r][c].isWormhole) positions.push({r,c});
     shuffle(positions);
 
-    // Place 48 systems, each twice
-    systemToCells = [];
+    // Place 48 cards, each twice on the board (96 cells)
+    cardToCells = [];
     for (let i = 0; i < 48; i++) {
-      systemToCells[i] = [];
-      const p1 = positions[i * 2];
-      const p2 = positions[i * 2 + 1];
-      board[p1.r][p1.c].systemIdx = i;
-      board[p2.r][p2.c].systemIdx = i;
-      systemToCells[i].push({r: p1.r, c: p1.c}, {r: p2.r, c: p2.c});
+      cardToCells[i] = [];
+      const p1 = positions[i * 2], p2 = positions[i * 2 + 1];
+      board[p1.r][p1.c].cardIdx = i;
+      board[p2.r][p2.c].cardIdx = i;
+      cardToCells[i].push({r: p1.r, c: p1.c}, {r: p2.r, c: p2.c});
     }
   }
 
   function generateDeck() {
     deck = [];
-    // 2 copies of each system card
-    for (let i = 0; i < 48; i++) {
-      deck.push({ type: 'system', systemIdx: i });
-      deck.push({ type: 'system', systemIdx: i });
-    }
-    // 4 Supernova, 4 Black Hole
-    for (let i = 0; i < 4; i++) { deck.push({ type: 'supernova' }); }
-    for (let i = 0; i < 4; i++) { deck.push({ type: 'blackhole' }); }
+    // 2 copies of each board card (96 system cards)
+    for (let i = 0; i < 48; i++) { deck.push({ type: 'system', cardIdx: i }); }
+    for (let i = 0; i < 48; i++) { deck.push({ type: 'system', cardIdx: i }); }
+    // 4 two-eyed Jacks (place anywhere) + 4 one-eyed Jacks (remove opponent)
+    for (let i = 0; i < 4; i++) { deck.push({ type: 'jack2' }); } // ♥♦ — two-eyed
+    for (let i = 0; i < 4; i++) { deck.push({ type: 'jack1' }); } // ♠♣ — one-eyed
     shuffle(deck);
   }
 
@@ -300,34 +292,6 @@
     }
   }
 
-  function drawCard(hand) {
-    if (deck.length === 0) return null;
-    const c = deck.pop();
-    hand.push(c);
-    return c;
-  }
-
-  function cardHasPlayableCell(card, checkingPlayer) {
-    if (card.type === 'supernova') {
-      for (let r = 0; r < BOARD_SIZE; r++)
-        for (let c = 0; c < BOARD_SIZE; c++)
-          if (!board[r][c].occupied) return true;
-      return false;
-    }
-    if (card.type === 'blackhole') {
-      const opp = checkingPlayer === 'player' ? 'ai' : 'player';
-      for (let r = 0; r < BOARD_SIZE; r++)
-        for (let c = 0; c < BOARD_SIZE; c++)
-          if (board[r][c].occupied === opp) return true;
-      return false;
-    }
-    // system card
-    for (const {r,c} of systemToCells[card.systemIdx]) {
-      if (!board[r][c].occupied) return true;
-    }
-    return false;
-  }
-
   // ═══════════════════════════════════════
   // SEQUENCE DETECTION
   // ═══════════════════════════════════════
@@ -335,21 +299,15 @@
     const dirs = [[0,1],[1,0],[1,1],[1,-1]];
     for (const [dr,dc] of dirs) {
       let cells = [{r: row, c: col}];
-      // Forward
       let r = row + dr, c = col + dc;
       while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE) {
-        if (board[r][c].occupied === owner || board[r][c].isWormhole) {
-          cells.push({r, c});
-          r += dr; c += dc;
-        } else break;
+        if (board[r][c].occupied === owner || board[r][c].isWormhole) { cells.push({r, c}); r += dr; c += dc; }
+        else break;
       }
-      // Backward
       r = row - dr; c = col - dc;
       while (r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE) {
-        if (board[r][c].occupied === owner || board[r][c].isWormhole) {
-          cells.push({r, c});
-          r -= dr; c -= dc;
-        } else break;
+        if (board[r][c].occupied === owner || board[r][c].isWormhole) { cells.push({r, c}); r -= dr; c -= dc; }
+        else break;
       }
       if (cells.length >= WIN_LEN) return cells;
     }
@@ -357,8 +315,6 @@
   }
 
   function countInLine(row, col, owner) {
-    // Count max consecutive (including wormholes) in any direction through this cell
-    // Used for AI evaluation — returns max consecutive count achievable
     const dirs = [[0,1],[1,0],[1,1],[1,-1]];
     let maxCount = 1;
     for (const [dr,dc] of dirs) {
@@ -376,15 +332,6 @@
       if (count > maxCount) maxCount = count;
     }
     return maxCount;
-  }
-
-  function wouldCompleteLength(row, col, owner, targetLen) {
-    // If owner places at (row,col), would they complete 'targetLen' in a row?
-    const prev = board[row][col].occupied;
-    board[row][col].occupied = owner;
-    const cnt = countInLine(row, col, owner);
-    board[row][col].occupied = prev;
-    return cnt >= targetLen;
   }
 
   // ═══════════════════════════════════════
@@ -414,32 +361,24 @@
     gameResult = result;
     winningCells = winCells || [];
     winAnimTimer = 2;
-    if (result === 'player') {
-      playerWins++;
-      sfxWin();
-      safeLS('sequence_pWins', playerWins);
-    } else if (result === 'ai') {
-      aiWins++;
-      sfxLose();
-      safeLS('sequence_aWins', aiWins);
-    } else {
-      sfxLose();
-    }
+    if (result === 'player') { playerWins++; sfxWin(); safeLS('sequence_pWins', playerWins); }
+    else if (result === 'ai') { aiWins++; sfxLose(); safeLS('sequence_aWins', aiWins); }
+    else { sfxLose(); }
   }
 
   function getValidCellsForCard(card, owner) {
     const cells = [];
-    if (card.type === 'supernova') {
+    if (card.type === 'jack2') {
       for (let r = 0; r < BOARD_SIZE; r++)
         for (let c = 0; c < BOARD_SIZE; c++)
           if (!board[r][c].occupied) cells.push({r,c});
-    } else if (card.type === 'blackhole') {
+    } else if (card.type === 'jack1') {
       const targetOwner = owner === 'player' ? 'ai' : 'player';
       for (let r = 0; r < BOARD_SIZE; r++)
         for (let c = 0; c < BOARD_SIZE; c++)
           if (board[r][c].occupied === targetOwner) cells.push({r,c});
     } else {
-      for (const {r,c} of systemToCells[card.systemIdx]) {
+      for (const {r,c} of cardToCells[card.cardIdx]) {
         if (!board[r][c].occupied) cells.push({r,c});
       }
     }
@@ -448,18 +387,13 @@
 
   function playCardAndPlace(hand, cardIdx, row, col, owner) {
     const card = hand[cardIdx];
-    // Remove card from hand
     hand.splice(cardIdx, 1);
-    // Handle Black Hole: remove opponent chip
-    if (card.type === 'blackhole') {
+    if (card.type === 'jack1') {
       board[row][col].occupied = null;
     } else {
-      // Place chip
       board[row][col].occupied = owner;
     }
-    // Draw replacement
     if (deck.length > 0) hand.push(deck.pop());
-    // Record last move
     lastMove = { r: row, c: col, owner };
     moveCount++;
     selectedCard = -1;
@@ -471,15 +405,11 @@
     placeAnim = 0;
     placeAnimRC = { r: row, c: col, owner: 'player' };
     phase = 'animating';
-    sfxCard();
-    setTimeout(() => sfxPlace(), 80);
-
-    // Check for win
+    sfxCard(); setTimeout(() => sfxPlace(), 80);
     if (board[row][col].occupied === 'player' || board[row][col].isWormhole) {
       const seq = checkSequence(row, col, 'player');
       if (seq) { endGame('player', seq); return; }
     }
-    // Check draw — if drawn, endGame sets state='over', animation still plays out
     if (checkDraw()) return;
   }
 
@@ -488,16 +418,13 @@
     placeAnim = 0;
     placeAnimRC = { r: row, c: col, owner: 'ai' };
     phase = 'animating';
-    if (cardType === 'supernova') sfxSupernova();
-    else if (cardType === 'blackhole') sfxBlackHole();
+    if (cardType === 'jack2') sfxJack2();
+    else if (cardType === 'jack1') sfxJack1();
     else { sfxCard(); setTimeout(() => sfxPlace(), 80); }
-
-    // Check for win
     if (board[row][col].occupied === 'ai' || board[row][col].isWormhole) {
       const seq = checkSequence(row, col, 'ai');
       if (seq) { endGame('ai', seq); return; }
     }
-    // Check draw
     if (checkDraw()) return;
   }
 
@@ -511,64 +438,61 @@
     return true;
   }
 
+  function cardHasPlayableCell(card, checkingPlayer) {
+    if (card.type === 'jack2') {
+      for (let r = 0; r < BOARD_SIZE; r++)
+        for (let c = 0; c < BOARD_SIZE; c++)
+          if (!board[r][c].occupied) return true;
+      return false;
+    }
+    if (card.type === 'jack1') {
+      const opp = checkingPlayer === 'player' ? 'ai' : 'player';
+      for (let r = 0; r < BOARD_SIZE; r++)
+        for (let c = 0; c < BOARD_SIZE; c++)
+          if (board[r][c].occupied === opp) return true;
+      return false;
+    }
+    for (const {r,c} of cardToCells[card.cardIdx]) {
+      if (!board[r][c].occupied) return true;
+    }
+    return false;
+  }
+
   // ═══════════════════════════════════════
   // AI
   // ═══════════════════════════════════════
   function aiEvaluateMove(cardIdx, card, row, col) {
     let score = 0;
-
-    if (card.type === 'blackhole') {
-      // Removing opponent chip — check value BEFORE removal
+    if (card.type === 'jack1') {
       const prev = board[row][col].occupied;
-      // Count player's sequence through this cell before removal
       const playerCntBefore = countInLine(row, col, 'player');
       board[row][col].occupied = null;
       const playerCntAfter = countInLine(row, col, 'player');
       board[row][col].occupied = prev;
-
-      // If removal broke a player sequence of 4+ (count drops below 4), highly valuable
       if (playerCntBefore >= 4 && playerCntAfter < 4) score += 500000;
       else if (playerCntBefore >= 3 && playerCntAfter < 3) score += 80000;
-      // Prefer removing chips near center
       const centerDist = Math.abs(row - 4.5) + Math.abs(col - 4.5);
       score += (9 - centerDist) * 20;
     } else {
-      // Placing AI chip
       const prev = board[row][col].occupied;
       board[row][col].occupied = 'ai';
-
-      // PRIORITY 1: Win (5 in a row)
-      if (checkSequence(row, col, 'ai')) { score += 1000000; }
-
-      // PRIORITY 2: Block opponent's 4-in-a-row
-      // Simulate: if opponent were here
+      if (checkSequence(row, col, 'ai')) score += 1000000;
       board[row][col].occupied = 'player';
       const oppSeq = checkSequence(row, col, 'player');
       if (oppSeq && oppSeq.length >= WIN_LEN) score += 500000;
-      // Check if opponent would reach 4
       if (countInLine(row, col, 'player') >= 4) score += 400000;
-
-      // Reset to AI
       board[row][col].occupied = 'ai';
-
-      // PRIORITY 3: Extend own line toward 5
       const ownCnt = countInLine(row, col, 'ai');
       if (ownCnt >= 4) score += 50000;
       else if (ownCnt >= 3) score += 10000;
       else if (ownCnt >= 2) score += 2000;
-
-      // PRIORITY 4: Block opponent's 3-in-a-row
       board[row][col].occupied = 'player';
       const oppCnt = countInLine(row, col, 'player');
       if (oppCnt >= 4) score += 80000;
       else if (oppCnt >= 3) score += 25000;
       board[row][col].occupied = 'ai';
-
-      // Strategic: prefer center
       const centerDist = Math.abs(row - 4.5) + Math.abs(col - 4.5);
       score += (9 - centerDist) * 10;
-
-      // Strategic: prefer adjacent to own chips
       let adj = 0;
       for (let dr = -1; dr <= 1; dr++)
         for (let dc = -1; dc <= 1; dc++) {
@@ -577,60 +501,35 @@
           if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE && board[nr][nc].occupied === 'ai') adj++;
         }
       score += adj * 80;
-
       board[row][col].occupied = prev;
     }
-
     return score;
   }
 
   function aiTurn() {
     if (state !== 'playing' || turn !== 'ai') return;
-
-    let bestScore = -Infinity;
-    let bestMove = null;
-    let shouldPlay = false;
-
+    let bestScore = -Infinity, bestMove = null;
     for (let ci = 0; ci < aiHand.length; ci++) {
       const card = aiHand[ci];
       const cells = getValidCellsForCard(card, 'ai');
       if (cells.length === 0) {
-        // Can't play this card — it's a dead card
-        // But we might still want to discard it
-        if (bestMove === null) {
-          bestMove = { cardIdx: ci, row: -1, col: -1, discard: true, score: -1000 };
-        }
+        if (bestMove === null) bestMove = { cardIdx: ci, row: -1, col: -1, discard: true, score: -1000 };
         continue;
       }
       for (const {r, c} of cells) {
         const s = aiEvaluateMove(ci, card, r, c);
-        if (s > bestScore) {
-          bestScore = s;
-          bestMove = { cardIdx: ci, row: r, col: c, discard: false, score: s, cardType: card.type };
-          shouldPlay = true;
-        }
+        if (s > bestScore) { bestScore = s; bestMove = { cardIdx: ci, row: r, col: c, discard: false, score: s, cardType: card.type }; }
       }
     }
-
-    if (!bestMove) {
-      // No moves at all — draw
-      endGame('draw', []);
-      return;
-    }
-
+    if (!bestMove) { endGame('draw', []); return; }
     if (bestMove.discard) {
-      // Dead card — discard and draw
       aiHand.splice(bestMove.cardIdx, 1);
       if (deck.length > 0) aiHand.push(deck.pop());
       moveCount++;
-      // Check draw after discard
       if (checkDraw()) return;
-      // Still AI's turn (effectively passed)
-      turn = 'player';
-      phase = 'idle';
+      turn = 'player'; phase = 'idle';
       return;
     }
-
     executeAIMove(bestMove.cardIdx, bestMove.row, bestMove.col, bestMove.cardType);
   }
 
@@ -641,111 +540,34 @@
     starField = [];
     for (let i = 0; i < 200; i++) {
       starField.push({
-        x: Math.random() * GAME_W,
-        y: Math.random() * canvas.height,
-        r: rand(0.4, 1.6),
-        phase: Math.random() * Math.PI * 2,
-        speed: rand(0.3, 1.5),
-        brightness: rand(0.3, 0.9)
+        x: Math.random() * GAME_W, y: Math.random() * canvas.height,
+        r: rand(0.4, 1.6), phase: Math.random() * Math.PI * 2,
+        speed: rand(0.3, 1.5), brightness: rand(0.3, 0.9)
       });
     }
   }
 
   function drawBackground() {
-    // Deep space gradient
     const grad = ctx.createRadialGradient(canvas.width * 0.4, canvas.height * 0.3, 0,
       canvas.width * 0.5, canvas.height * 0.5, canvas.width * 0.7);
-    grad.addColorStop(0, C.spaceLight);
-    grad.addColorStop(0.5, C.spaceMid);
-    grad.addColorStop(1, C.space);
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
+    grad.addColorStop(0, C.spaceLight); grad.addColorStop(0.5, C.spaceMid); grad.addColorStop(1, C.space);
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, canvas.width, canvas.height);
     // Nebula blobs
     ctx.save();
     const neb1 = ctx.createRadialGradient(canvas.width * 0.25, canvas.height * 0.2, 0,
       canvas.width * 0.25, canvas.height * 0.2, canvas.width * 0.4);
-    neb1.addColorStop(0, C.nebula1); neb1.addColorStop(1, 'transparent');
+    neb1.addColorStop(0, 'rgba(0,180,220,0.025)'); neb1.addColorStop(1, 'transparent');
     ctx.fillStyle = neb1; ctx.fillRect(0, 0, canvas.width, canvas.height);
-
     const neb2 = ctx.createRadialGradient(canvas.width * 0.7, canvas.height * 0.6, 0,
       canvas.width * 0.7, canvas.height * 0.6, canvas.width * 0.35);
-    neb2.addColorStop(0, C.nebula2); neb2.addColorStop(1, 'transparent');
+    neb2.addColorStop(0, 'rgba(220,80,160,0.02)'); neb2.addColorStop(1, 'transparent');
     ctx.fillStyle = neb2; ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.restore();
-
     // Twinkling stars
     for (const star of starField) {
       const alpha = star.brightness * (0.5 + 0.5 * Math.sin(elapsedTime * star.speed + star.phase));
       ctx.fillStyle = `rgba(255,255,255,${alpha.toFixed(3)})`;
-      ctx.beginPath();
-      ctx.arc(scaleX(star.x), star.y, scaleV(star.r), 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  // ═══════════════════════════════════════
-  // DRAWING — Star Shape Icons
-  // ═══════════════════════════════════════
-  function drawShapeIcon(cx, cy, size, shapeIdx, color) {
-    ctx.fillStyle = color;
-    ctx.strokeStyle = color;
-    const s = size * 0.45;
-
-    switch (shapeIdx) {
-      case 0: // Circle
-        ctx.beginPath(); ctx.arc(cx, cy, s, 0, Math.PI * 2); ctx.fill();
-        // Highlight dot
-        ctx.fillStyle = 'rgba(255,255,255,0.4)';
-        ctx.beginPath(); ctx.arc(cx - s*0.25, cy - s*0.3, s*0.22, 0, Math.PI * 2); ctx.fill();
-        break;
-      case 1: // Diamond
-        ctx.beginPath();
-        ctx.moveTo(cx, cy - s); ctx.lineTo(cx + s*0.7, cy);
-        ctx.lineTo(cx, cy + s); ctx.lineTo(cx - s*0.7, cy);
-        ctx.closePath(); ctx.fill();
-        break;
-      case 2: // Triangle
-        ctx.beginPath();
-        ctx.moveTo(cx, cy - s*0.85);
-        ctx.lineTo(cx + s*0.75, cy + s*0.5);
-        ctx.lineTo(cx - s*0.75, cy + s*0.5);
-        ctx.closePath(); ctx.fill();
-        break;
-      case 3: // Square
-        roundRect(cx - s*0.65, cy - s*0.65, s*1.3, s*1.3, s*0.11);
-        ctx.fill();
-        break;
-      case 4: // Hexagon
-        ctx.beginPath();
-        for (let i = 0; i < 6; i++) {
-          const a = Math.PI / 3 * i - Math.PI / 6;
-          const px = cx + s * 0.75 * Math.cos(a);
-          const py = cy + s * 0.75 * Math.sin(a);
-          i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-        }
-        ctx.closePath(); ctx.fill();
-        break;
-      case 5: // 5-point star
-        ctx.beginPath();
-        for (let i = 0; i < 10; i++) {
-          const a = Math.PI / 2 + Math.PI * i / 5;
-          const r = i % 2 === 0 ? s * 0.85 : s * 0.35;
-          const px = cx + r * Math.cos(a);
-          const py = cy - r * Math.sin(a);
-          i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
-        }
-        ctx.closePath(); ctx.fill();
-        break;
-      case 6: // Cross
-        ctx.fillRect(cx - s*0.22, cy - s*0.7, s*0.44, s*1.4);
-        ctx.fillRect(cx - s*0.7, cy - s*0.22, s*1.4, s*0.44);
-        break;
-      case 7: // Ring
-        ctx.lineWidth = Math.max(1, size * 0.08);
-        ctx.beginPath(); ctx.arc(cx, cy, s*0.7, 0, Math.PI * 2); ctx.stroke();
-        ctx.lineWidth = 1;
-        break;
+      ctx.beginPath(); ctx.arc(scaleX(star.x), star.y, scaleV(star.r), 0, Math.PI * 2); ctx.fill();
     }
   }
 
@@ -757,7 +579,6 @@
     const cellSize = Math.floor((canvas.width - pad * 2) / BOARD_SIZE);
     const boardWPx = cellSize * BOARD_SIZE;
     const bx = (canvas.width - boardWPx) / 2;
-    // Y: below HUD area
     const hudH = scaleV(48);
     const cardH = scaleV(80);
     const availH = canvas.height - hudH - cardH - scaleV(16);
@@ -766,35 +587,46 @@
     return { bx, by, cellSize, boardWPx, boardHPx };
   }
 
+  function drawBoardCellText(cx, cy, size, card) {
+    const suitInfo = SUITS[card.suit];
+    const rank = RANK_NAMES[card.rank];
+
+    // Rank text (top-left area)
+    ctx.fillStyle = suitInfo.color;
+    ctx.font = `700 ${Math.max(size * 0.38, scaleV(7))}px 'Fredoka'`;
+    ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText(rank, cx - size * 0.38, cy - size * 0.38);
+
+    // Suit symbol (center-right, large)
+    ctx.font = `${Math.max(size * 0.42, scaleV(8))}px 'Fredoka'`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(suitInfo.symbol, cx + size * 0.08, cy + size * 0.06);
+  }
+
   function drawBoard() {
     const { bx, by, cellSize } = getBoardLayout();
-    const bd = board;
 
     for (let r = 0; r < BOARD_SIZE; r++) {
       for (let c = 0; c < BOARD_SIZE; c++) {
         const cx = bx + c * cellSize + cellSize / 2;
         const cy = by + r * cellSize + cellSize / 2;
-        const cell = bd[r][c];
+        const cell = board[r][c];
 
         // Cell background
         let bgColor = C.cellBg;
         let borderColor = C.cellBorder;
 
-        // Highlight for selectable cells
         if (selectedCells.some(sc => sc.r === r && sc.c === c)) {
           bgColor = C.highlightSelect;
           borderColor = C.cellBorderHover;
         }
-
-        // Highlight for black hole targets
-        if (selectedCard >= 0 && playerHand[selectedCard] && playerHand[selectedCard].type === 'blackhole') {
+        if (selectedCard >= 0 && playerHand[selectedCard] && playerHand[selectedCard].type === 'jack1') {
           if (cell.occupied === 'ai') {
             bgColor = C.highlightDanger;
             borderColor = 'rgba(240,50,80,0.5)';
           }
         }
 
-        // Draw cell
         ctx.fillStyle = bgColor;
         roundRect(bx + c * cellSize + 1, by + r * cellSize + 1, cellSize - 2, cellSize - 2, scaleV(4));
         ctx.fill();
@@ -802,7 +634,7 @@
         ctx.lineWidth = scaleV(0.5);
         ctx.stroke();
 
-        // Wormhole
+        // Cell content
         if (cell.isWormhole) {
           ctx.save();
           const whAlpha = 0.3 + 0.15 * Math.sin(elapsedTime * 2 + r + c);
@@ -817,30 +649,22 @@
           ctx.stroke();
           ctx.globalAlpha = 1;
           ctx.restore();
-          // Draw wormhole marker
           ctx.fillStyle = 'rgba(180,100,220,0.3)';
           ctx.beginPath(); ctx.arc(cx, cy, cellSize*0.1, 0, Math.PI*2); ctx.fill();
-        } else if (cell.systemIdx >= 0) {
-          // Star system icon
-          const sys = systems[cell.systemIdx];
-          const iconSize = cellSize * 0.55;
+        } else if (cell.cardIdx >= 0) {
           ctx.save();
-          ctx.shadowColor = SYS_COLORS_GLOW[sys.color];
-          ctx.shadowBlur = iconSize * 0.15;
-          drawShapeIcon(cx, cy, iconSize, sys.shape, SYS_COLORS[sys.color]);
+          const card = boardCards[cell.cardIdx];
+          ctx.shadowColor = SUITS[card.suit].glow;
+          ctx.shadowBlur = cellSize * 0.1;
+          drawBoardCellText(cx, cy, cellSize, card);
           ctx.shadowColor = 'transparent';
           ctx.shadowBlur = 0;
           ctx.restore();
         }
 
-        // Player chip
-        if (cell.occupied === 'player') {
-          drawChip(cx, cy, cellSize * 0.38, C.playerChip, C.playerChipDark, C.playerGlow);
-        }
-        // AI chip
-        if (cell.occupied === 'ai') {
-          drawChip(cx, cy, cellSize * 0.38, C.aiChip, C.aiChipDark, C.aiGlow);
-        }
+        // Chips
+        if (cell.occupied === 'player') drawChip(cx, cy, cellSize * 0.38, C.playerChip, C.playerChipDark, C.playerGlow);
+        if (cell.occupied === 'ai') drawChip(cx, cy, cellSize * 0.38, C.aiChip, C.aiChipDark, C.aiGlow);
       }
     }
 
@@ -851,13 +675,12 @@
       const cy = by + r * cellSize + cellSize / 2;
       const glow = owner === 'player' ? C.playerGlow : C.aiGlow;
       const alpha = 0.3 + 0.25 * Math.sin(elapsedTime * 4);
-      const ringR = cellSize * 0.45 + Math.sin(elapsedTime * 4) * cellSize * 0.06;
       ctx.strokeStyle = glow.replace('0.35', alpha.toFixed(2));
       ctx.lineWidth = scaleV(2);
-      ctx.beginPath(); ctx.arc(cx, cy, ringR, 0, Math.PI*2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx, cy, cellSize * 0.45 + Math.sin(elapsedTime * 4) * cellSize * 0.06, 0, Math.PI*2); ctx.stroke();
     }
 
-    // Win cells glow
+    // Win glow
     if (winAnimTimer > 0 && winningCells.length > 0) {
       for (const {r, c: cl} of winningCells) {
         const cx = bx + cl * cellSize + cellSize / 2;
@@ -877,7 +700,6 @@
   }
 
   function drawChip(cx, cy, r, color, darkColor, glowColor) {
-    // Outer glow
     ctx.save();
     ctx.globalAlpha = 0.4;
     ctx.fillStyle = glowColor;
@@ -885,75 +707,68 @@
     ctx.globalAlpha = 1;
     ctx.restore();
 
-    // Main disc
     const grad = ctx.createRadialGradient(cx - r*0.25, cy - r*0.3, r*0.05, cx, cy, r);
-    grad.addColorStop(0, color);
-    grad.addColorStop(0.7, color);
-    grad.addColorStop(1, darkColor);
+    grad.addColorStop(0, color); grad.addColorStop(0.7, color); grad.addColorStop(1, darkColor);
     ctx.fillStyle = grad;
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.fill();
 
-    // Shine
     ctx.fillStyle = 'rgba(255,255,255,0.15)';
     ctx.beginPath();
     ctx.ellipse(cx - r*0.25, cy - r*0.35, r*0.4, r*0.22, -0.4, 0, Math.PI*2);
     ctx.fill();
 
-    // Border
     ctx.strokeStyle = 'rgba(255,255,255,0.2)';
     ctx.lineWidth = Math.max(0.5, scaleV(0.8));
     ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2); ctx.stroke();
   }
 
   // ═══════════════════════════════════════
-  // DRAWING — Player Cards
+  // DRAWING — Player Cards (Playing Card Style)
   // ═══════════════════════════════════════
   function drawPlayerHand() {
-    const cardW = scaleX(68);
-    const cardH = scaleV(78);
-    const gap = scaleX(6);
+    const cardW = scaleX(62);
+    const cardH = scaleV(84);
+    const gap = scaleX(5);
     const totalW = playerHand.length * cardW + (playerHand.length - 1) * gap;
     const startX = (canvas.width - totalW) / 2;
-    const cardY = canvas.height - cardH - scaleV(6);
+    const cardY = canvas.height - cardH - scaleV(8);
 
     for (let i = 0; i < playerHand.length; i++) {
       const card = playerHand[i];
       const cx = startX + i * (cardW + gap);
       const selected = i === selectedCard && phase === 'cardSelected';
-      const liftY = selected ? scaleV(-8) : 0;
-
-      drawCard(card, cx, cardY + liftY, cardW, cardH, selected);
-      // Store hit rect for tap detection
+      const liftY = selected ? scaleV(-10) : 0;
+      drawPlayingCard(card, cx, cardY + liftY, cardW, cardH, selected);
       canvas['_handCard' + i] = { x: cx, y: cardY + liftY, w: cardW, h: cardH };
     }
   }
 
-  function drawCard(card, x, y, w, h, selected) {
+  function drawPlayingCard(card, x, y, w, h, selected) {
     ctx.save();
 
-    // Shadow
-    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    ctx.shadowBlur = scaleV(6);
-    ctx.shadowOffsetY = selected ? scaleV(4) : scaleV(2);
+    // Shadow + lift
+    ctx.shadowColor = 'rgba(0,0,0,0.6)';
+    ctx.shadowBlur = scaleV(8);
+    ctx.shadowOffsetY = selected ? scaleV(5) : scaleV(3);
 
-    // Card background
-    let bg = C.cardBg;
+    // Card face (cream colored like real playing cards)
+    let faceColor = C.cardFace;
     let borderClr = selected ? C.cardBorderSel : C.cardBorder;
 
-    if (card.type === 'supernova') {
-      bg = C.cardSN; borderClr = selected ? 'rgba(255,100,50,0.6)' : 'rgba(255,100,50,0.25)';
-    } else if (card.type === 'blackhole') {
-      bg = C.cardBH; borderClr = selected ? 'rgba(200,100,240,0.6)' : 'rgba(200,100,240,0.25)';
-    } else if (selected) {
-      bg = C.cardLift;
+    if (card.type === 'jack2') {
+      faceColor = '#E0F8FF'; borderClr = selected ? 'rgba(0,220,200,0.7)' : 'rgba(0,200,180,0.3)';
+    } else if (card.type === 'jack1') {
+      faceColor = '#FFE8EC'; borderClr = selected ? 'rgba(240,60,80,0.7)' : 'rgba(220,40,60,0.3)';
     }
 
-    ctx.fillStyle = bg;
-    roundRect(x, y, w, h, scaleV(8));
+    // Card background
+    ctx.fillStyle = faceColor;
+    roundRect(x, y, w, h, scaleV(6));
     ctx.fill();
 
+    // Card border
     ctx.strokeStyle = borderClr;
-    ctx.lineWidth = selected ? scaleV(2) : scaleV(1);
+    ctx.lineWidth = selected ? scaleV(2.5) : scaleV(1.2);
     ctx.stroke();
 
     ctx.shadowColor = 'transparent';
@@ -961,63 +776,106 @@
     ctx.shadowOffsetY = 0;
 
     // Card content
-    if (card.type === 'supernova') {
-      // Supernova icon — burst
-      const icx = x + w/2, icy = y + h*0.38;
-      ctx.fillStyle = '#FF7030';
-      // Burst rays
-      for (let i = 0; i < 8; i++) {
-        const a = Math.PI * 2 / 8 * i;
-        ctx.fillRect(icx + Math.cos(a) * scaleV(5) - scaleV(1.2),
-          icy + Math.sin(a) * scaleV(5) - scaleV(1.2),
-          scaleV(8), scaleV(2.4));
-      }
-      ctx.beginPath(); ctx.arc(icx, icy, scaleV(5), 0, Math.PI*2);
-      ctx.fill();
-      // Label
-      ctx.fillStyle = C.text;
-      ctx.font = `600 ${scaleV(9)}px 'Fredoka'`;
-      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-      ctx.fillText('SUPER', x + w/2, y + h*0.62);
-      ctx.fillText('NOVA', x + w/2, y + h*0.62 + scaleV(10));
-    } else if (card.type === 'blackhole') {
-      // Black Hole icon — dark circle with ring
-      const icx = x + w/2, icy = y + h*0.38;
-      ctx.strokeStyle = '#B060E0';
-      ctx.lineWidth = scaleV(2.5);
-      ctx.beginPath(); ctx.ellipse(icx, icy, scaleV(7), scaleV(4), -0.3, 0, Math.PI*1.6);
-      ctx.stroke();
-      ctx.fillStyle = '#3A1050';
-      ctx.beginPath(); ctx.arc(icx, icy, scaleV(5), 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = '#080820';
-      ctx.beginPath(); ctx.arc(icx, icy, scaleV(2.5), 0, Math.PI*2); ctx.fill();
-      ctx.lineWidth = 1;
-      // Label
-      ctx.fillStyle = C.text;
-      ctx.font = `600 ${scaleV(9)}px 'Fredoka'`;
-      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-      ctx.fillText('BLACK', x + w/2, y + h*0.62);
-      ctx.fillText('HOLE', x + w/2, y + h*0.62 + scaleV(10));
+    const pad = scaleV(5);
+    const innerX = x + pad, innerY = y + pad, innerW = w - pad*2, innerH = h - pad*2;
+
+    if (card.type === 'jack2') {
+      // Two-Eyed Jack — face card
+      drawJackFace(innerX, innerY, innerW, innerH, true);
+      ctx.fillStyle = '#00A090';
+      ctx.font = `700 ${Math.max(scaleV(8), 7)}px 'Fredoka'`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillText('PLACE', x + w/2, y + h - scaleV(6));
+      ctx.fillText('ANYWHERE', x + w/2, y + h - scaleV(2) + scaleV(8));
+    } else if (card.type === 'jack1') {
+      // One-Eyed Jack — face card
+      drawJackFace(innerX, innerY, innerW, innerH, false);
+      ctx.fillStyle = '#C02040';
+      ctx.font = `700 ${Math.max(scaleV(8), 7)}px 'Fredoka'`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.fillText('REMOVE', x + w/2, y + h - scaleV(6));
+      ctx.fillText('OPPONENT', x + w/2, y + h - scaleV(2) + scaleV(8));
     } else {
-      // System card
-      const sys = systems[card.systemIdx];
-      const iconSize = scaleV(18);
-      const icx = x + w/2, icy = y + h*0.37;
-      ctx.save();
-      ctx.shadowColor = SYS_COLORS_GLOW[sys.color];
-      ctx.shadowBlur = iconSize * 0.2;
-      drawShapeIcon(icx, icy, iconSize, sys.shape, SYS_COLORS[sys.color]);
-      ctx.shadowColor = 'transparent';
-      ctx.shadowBlur = 0;
-      ctx.restore();
-      // Name
-      ctx.fillStyle = C.text;
-      ctx.font = `500 ${scaleV(8.5)}px 'Fredoka'`;
-      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-      ctx.fillText(sys.name, x + w/2, y + h*0.64);
+      // Standard card — rank + suit
+      const cdef = boardCards[card.cardIdx];
+      const suitInfo = SUITS[cdef.suit];
+      const rank = RANK_NAMES[cdef.rank];
+
+      // Top-left rank + suit
+      ctx.fillStyle = suitInfo.color;
+      ctx.font = `700 ${Math.max(scaleV(11), 10)}px 'Fredoka'`;
+      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillText(rank, innerX + scaleV(3), innerY + scaleV(1));
+      ctx.font = `${Math.max(scaleV(9), 8)}px 'Fredoka'`;
+      ctx.fillText(suitInfo.symbol, innerX + scaleV(3), innerY + scaleV(14));
+
+      // Center large suit
+      ctx.font = `${Math.max(scaleV(22), 18)}px 'Fredoka'`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(suitInfo.symbol, x + w/2, y + h/2 - scaleV(4));
+
+      // Bottom-right rank + suit (inverted)
+      ctx.fillStyle = suitInfo.color;
+      ctx.font = `700 ${Math.max(scaleV(11), 10)}px 'Fredoka'`;
+      ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+      ctx.fillText(rank, x + w - pad - scaleV(3), y + h - pad - scaleV(1));
+      ctx.font = `${Math.max(scaleV(9), 8)}px 'Fredoka'`;
+      ctx.fillText(suitInfo.symbol, x + w - pad - scaleV(3), y + h - pad - scaleV(14));
     }
 
     ctx.restore();
+  }
+
+  function drawJackFace(x, y, w, h, twoEyed) {
+    // Simple stylized Jack face
+    const cxf = x + w/2, cyf = y + h*0.4;
+    const fs = h * 0.22;
+
+    // Face oval
+    ctx.fillStyle = '#F5E6D3';
+    ctx.beginPath();
+    ctx.ellipse(cxf, cyf, fs*0.6, fs*0.8, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // Eyes
+    const eyeY = cyf - fs*0.1;
+    ctx.fillStyle = '#1A1A2E';
+    if (twoEyed) {
+      // Two eyes
+      ctx.beginPath(); ctx.arc(cxf - fs*0.2, eyeY, fs*0.1, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(cxf + fs*0.2, eyeY, fs*0.1, 0, Math.PI*2); ctx.fill();
+    } else {
+      // One eye (profile)
+      ctx.beginPath(); ctx.arc(cxf - fs*0.05, eyeY, fs*0.1, 0, Math.PI*2); ctx.fill();
+      // Eye patch over right eye
+      ctx.strokeStyle = '#1A1A2E';
+      ctx.lineWidth = Math.max(1, scaleV(1.5));
+      ctx.beginPath();
+      ctx.moveTo(cxf + fs*0.1, eyeY - fs*0.15);
+      ctx.lineTo(cxf + fs*0.35, eyeY + fs*0.15);
+      ctx.stroke();
+      ctx.lineWidth = 1;
+    }
+
+    // Smile
+    ctx.strokeStyle = '#1A1A2E';
+    ctx.lineWidth = Math.max(0.8, scaleV(1));
+    ctx.beginPath();
+    ctx.arc(cxf, cyf + fs*0.15, fs*0.25, 0.1, Math.PI - 0.1);
+    ctx.stroke();
+    ctx.lineWidth = 1;
+
+    // Hair
+    ctx.fillStyle = '#3A2A1A';
+    ctx.beginPath();
+    ctx.ellipse(cxf, cyf - fs*0.55, fs*0.7, fs*0.3, 0, Math.PI, Math.PI*2);
+    ctx.fill();
+
+    // "J" label
+    ctx.fillStyle = C.cardFace;
+    ctx.font = `700 ${Math.max(scaleV(11), 10)}px 'Fredoka'`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('J', cxf, cyf + fs*0.6);
   }
 
   // ═══════════════════════════════════════
@@ -1050,7 +908,6 @@
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(`${playerWins} - ${aiWins}`, hudX + hudW * 0.58, hudY + hudH/2);
 
-    // Player + AI mini score markers
     ctx.fillStyle = C.playerChip;
     ctx.beginPath(); ctx.arc(hudX + hudW * 0.58 - scaleV(22), hudY + hudH/2, scaleV(5), 0, Math.PI*2); ctx.fill();
     ctx.fillStyle = C.aiChip;
@@ -1069,7 +926,7 @@
   function drawTitleScreen() {
     drawBackground();
 
-    // Decorative floating particles
+    // Floating particles
     const numP = 30;
     for (let i = 0; i < numP; i++) {
       const angle = i * (Math.PI * 2 / numP) + elapsedTime * 0.3;
@@ -1082,13 +939,11 @@
     }
 
     // Title
-    const titleY = canvas.height * 0.18;
-    ctx.font = `${scaleV(48)}px 'Fredoka One'`;
+    const titleY = canvas.height * 0.17;
+    ctx.font = `${scaleV(46)}px 'Fredoka One'`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-
-    // Gradient title
-    const tGrad = ctx.createLinearGradient(canvas.width/2 - scaleX(120), titleY - scaleV(20),
-      canvas.width/2 + scaleX(120), titleY + scaleV(20));
+    const tGrad = ctx.createLinearGradient(canvas.width/2 - scaleX(130), titleY - scaleV(20),
+      canvas.width/2 + scaleX(130), titleY + scaleV(20));
     tGrad.addColorStop(0, C.accentCyan);
     tGrad.addColorStop(0.5, '#60E0FF');
     tGrad.addColorStop(1, C.accentMagenta);
@@ -1097,13 +952,13 @@
 
     // Subtitle
     ctx.fillStyle = C.textDim;
-    ctx.font = `500 ${scaleV(15)}px 'Fredoka'`;
-    ctx.fillText('Star Chart', canvas.width/2, titleY + scaleV(36));
+    ctx.font = `500 ${scaleV(14)}px 'Fredoka'`;
+    ctx.fillText('Star Chart — A Classic Card Game', canvas.width/2, titleY + scaleV(34));
 
     // How-to-play card
-    const cardX = scaleX(30), cardW = canvas.width - scaleX(60);
-    const cardY = canvas.height * 0.38;
-    const cardH = scaleV(130);
+    const cardX = scaleX(20), cardW = canvas.width - scaleX(40);
+    const cardY = canvas.height * 0.36;
+    const cardH = scaleV(140);
 
     ctx.fillStyle = 'rgba(15,15,40,0.85)';
     roundRect(cardX, cardY, cardW, cardH, scaleV(12));
@@ -1114,56 +969,48 @@
 
     // Accent bar
     ctx.fillStyle = C.accentCyan;
-    roundRect(cardX + scaleX(6), cardY - scaleV(1), scaleX(3), cardH + scaleV(2), scaleV(2));
+    roundRect(cardX + scaleX(5), cardY - scaleV(1), scaleX(3), cardH + scaleV(2), scaleV(2));
     ctx.fill();
 
-    // Rules
     const rules = [
-      { icon: 'card', text: 'Play a Star System card from your hand' },
-      { icon: 'chip', text: 'Place your chip on a matching board space' },
-      { icon: 'win', text: 'Get 5 in a row to win — watch for' },
+      'Play a card from your hand',
+      'Place your chip on one of its matching board spaces',
+      'Get 5 chips in a row to win!',
     ];
-    const ruleStartY = cardY + scaleV(14);
-    const ruleGap = scaleV(34);
+    const ruleStartY = cardY + scaleV(18);
+    const ruleGap = scaleV(28);
 
     ctx.fillStyle = C.text;
-    ctx.font = `500 ${scaleV(13)}px 'Fredoka'`;
+    ctx.font = `500 ${scaleV(12)}px 'Fredoka'`;
     ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-
     for (let i = 0; i < rules.length; i++) {
       const ry = ruleStartY + i * ruleGap;
-      // Mini icon
-      const ix = cardX + scaleX(24);
-      if (rules[i].icon === 'card') {
-        ctx.fillStyle = C.cardBorderSel;
-        roundRect(ix - scaleX(8), ry - scaleV(8), scaleX(16), scaleV(16), scaleV(3));
-        ctx.fill();
-        ctx.fillStyle = C.accentCyan;
-        ctx.beginPath(); ctx.arc(ix, ry, scaleV(3), 0, Math.PI*2); ctx.fill();
-      } else if (rules[i].icon === 'chip') {
-        ctx.fillStyle = C.playerChip;
-        ctx.beginPath(); ctx.arc(ix, ry, scaleV(8), 0, Math.PI*2); ctx.fill();
-      } else {
-        ctx.fillStyle = C.accentGold;
-        ctx.beginPath(); ctx.arc(ix, ry, scaleV(6), 0, Math.PI*2); ctx.fill();
-      }
+      // Number circle
+      ctx.fillStyle = C.accentCyan;
+      ctx.beginPath(); ctx.arc(cardX + scaleX(24), ry, scaleV(7), 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#080820';
+      ctx.font = `700 ${scaleV(10)}px 'Fredoka'`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(i + 1, cardX + scaleX(24), ry);
+      // Rule text
       ctx.fillStyle = C.text;
-      ctx.fillText(rules[i].text, cardX + scaleX(44), ry);
+      ctx.font = `500 ${scaleV(12)}px 'Fredoka'`;
+      ctx.textAlign = 'left';
+      ctx.fillText(rules[i], cardX + scaleX(42), ry);
     }
 
-    // Supernova / Black Hole note
+    // Jack notes
     ctx.fillStyle = C.textDim;
-    ctx.font = `400 ${scaleV(11)}px 'Fredoka'`;
-    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-    ctx.fillText('Supernova: place anywhere', cardX + scaleX(24), ruleStartY + 3 * ruleGap);
-    ctx.fillText('Black Hole: remove opponent chip', cardX + scaleX(24), ruleStartY + 3 * ruleGap + scaleV(16));
+    ctx.font = `400 ${scaleV(10.5)}px 'Fredoka'`;
+    ctx.textAlign = 'left';
+    ctx.fillText('Two-Eyed Jacks (♥♦): Place chip anywhere', cardX + scaleX(24), ruleStartY + 3 * ruleGap);
+    ctx.fillText('One-Eyed Jacks (♠♣): Remove opponent\'s chip', cardX + scaleX(24), ruleStartY + 3 * ruleGap + scaleV(15));
 
     // START button
     const btnW = scaleX(200), btnH = scaleV(54);
     const btnX = canvas.width/2 - btnW/2;
-    const btnY = canvas.height * 0.76;
+    const btnY = canvas.height * 0.78;
 
-    const glowAlpha = 0.3 + 0.2 * Math.sin(elapsedTime * 3);
     ctx.shadowColor = C.accentCyan;
     ctx.shadowBlur = scaleV(16) * (0.5 + 0.5 * Math.sin(elapsedTime * 3));
     const btnGrad = ctx.createLinearGradient(btnX, btnY, btnX, btnY + btnH);
@@ -1174,17 +1021,14 @@
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
 
-    // Button shine
     ctx.fillStyle = 'rgba(255,255,255,0.12)';
     roundRect(btnX + scaleX(4), btnY + scaleV(2), btnW - scaleX(8), btnH*0.45, btnH/2);
     ctx.fill();
 
-    // Button text
     ctx.fillStyle = '#FFFFFF';
     ctx.font = `700 ${scaleV(22)}px 'Fredoka One'`;
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('START', canvas.width/2, btnY + btnH/2);
-
     canvas._startBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
   }
 
@@ -1192,17 +1036,14 @@
   // DRAWING — Game Over Screen
   // ═══════════════════════════════════════
   function drawGameOverScreen() {
-    // Draw board behind overlay
-    if (state === 'over') {
-      drawGameScreen();
-    }
+    // Board underneath
+    drawGameScreen();
 
     ctx.fillStyle = C.overlay;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    const cy = canvas.height * 0.35;
+    const cy = canvas.height * 0.34;
 
-    // Result title
     let titleText = 'DRAW';
     let titleColor = C.accentGold;
     if (gameResult === 'player') { titleText = 'VICTORY'; titleColor = C.accentCyan; }
@@ -1214,45 +1055,36 @@
     ctx.fillText(titleText, canvas.width/2, cy);
 
     // Stats
-    const sy = cy + scaleV(50);
+    const sy = cy + scaleV(48);
     ctx.fillStyle = C.textDim;
-    ctx.font = `500 ${scaleV(15)}px 'Fredoka'`;
+    ctx.font = `500 ${scaleV(14)}px 'Fredoka'`;
     ctx.fillText(`Cards Played: ${moveCount}`, canvas.width/2, sy);
-    if (deck.length >= 0) {
-      ctx.fillText(`Cards Remaining: ${deck.length}`, canvas.width/2, sy + scaleV(22));
-    }
 
-    // Score
     ctx.fillStyle = C.text;
     ctx.font = `600 ${scaleV(18)}px 'Fredoka'`;
-    ctx.fillText(`${playerWins} - ${aiWins}`, canvas.width/2, sy + scaleV(50));
+    ctx.fillText(`${playerWins} - ${aiWins}`, canvas.width/2, sy + scaleV(40));
 
-    // New best check
     if (gameResult === 'player') {
       const prevBest = parseInt(safeLS('sequence_bestWins') || '0');
       if (playerWins > prevBest) {
         safeLS('sequence_bestWins', playerWins);
         ctx.fillStyle = C.accentGold;
         ctx.font = `600 ${scaleV(14)}px 'Fredoka'`;
-        ctx.fillText('Most Wins Yet!', canvas.width/2, sy + scaleV(72));
+        ctx.fillText('Most Wins Yet!', canvas.width/2, sy + scaleV(62));
       }
     }
 
     // Play Again button
     const btnW = scaleX(200), btnH = scaleV(50);
     const btnX = canvas.width/2 - btnW/2;
-    const btnY = canvas.height * 0.66;
+    const btnY = canvas.height * 0.64;
     const btnGrad = ctx.createLinearGradient(btnX, btnY, btnX, btnY + btnH);
     btnGrad.addColorStop(0, titleColor);
     btnGrad.addColorStop(1, gameResult === 'ai' ? '#A01050' : '#0078A0');
     ctx.fillStyle = btnGrad;
-    roundRect(btnX, btnY, btnW, btnH, btnH/2);
-    ctx.fill();
-
+    roundRect(btnX, btnY, btnW, btnH, btnH/2); ctx.fill();
     ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    roundRect(btnX + scaleX(4), btnY + scaleV(2), btnW - scaleX(8), btnH*0.4, btnH/2);
-    ctx.fill();
-
+    roundRect(btnX + scaleX(4), btnY + scaleV(2), btnW - scaleX(8), btnH*0.4, btnH/2); ctx.fill();
     ctx.fillStyle = '#FFF';
     ctx.font = `700 ${scaleV(20)}px 'Fredoka One'`;
     ctx.fillText('PLAY AGAIN', canvas.width/2, btnY + btnH/2);
@@ -1262,27 +1094,21 @@
     const mBtnY = btnY + btnH + scaleV(14);
     const mBtnH = scaleV(42);
     ctx.fillStyle = C.surface;
-    roundRect(btnX + scaleX(30), mBtnY, btnW - scaleX(60), mBtnH, mBtnH/2);
-    ctx.fill();
-    ctx.strokeStyle = C.border;
-    ctx.lineWidth = scaleV(1);
-    ctx.stroke();
+    roundRect(btnX + scaleX(30), mBtnY, btnW - scaleX(60), mBtnH, mBtnH/2); ctx.fill();
+    ctx.strokeStyle = C.border; ctx.lineWidth = scaleV(1); ctx.stroke();
     ctx.fillStyle = C.textDim;
     ctx.font = `600 ${scaleV(16)}px 'Fredoka'`;
     ctx.fillText('MENU', canvas.width/2, mBtnY + mBtnH/2);
     canvas._menuBtn = { x: btnX + scaleX(30), y: mBtnY, w: btnW - scaleX(60), h: mBtnH };
   }
 
-  // ═══════════════════════════════════════
-  // DRAWING — Game Screen
-  // ═══════════════════════════════════════
   function drawGameScreen() {
     drawBackground();
     drawBoard();
   }
 
   // ═══════════════════════════════════════
-  // DRAWING — Buttons (Mute, Pause, Home)
+  // DRAWING — Buttons
   // ═══════════════════════════════════════
   function drawMuteButton() {
     const r = scaleV(20);
@@ -1310,7 +1136,6 @@
     ctx.closePath(); ctx.fill();
 
     if (muted) {
-      // Red X
       ctx.strokeStyle = '#FF4040';
       ctx.lineWidth = scaleV(2.2);
       ctx.lineCap = 'round';
@@ -1323,14 +1148,12 @@
       ctx.lineCap = 'butt';
       ctx.lineWidth = 1;
     } else {
-      // Sound waves
       ctx.strokeStyle = 'rgba(255,255,255,0.7)';
       ctx.lineWidth = scaleV(1.8);
       ctx.lineCap = 'round';
       for (let i = 0; i < 2; i++) {
-        const wx = spx + r*0.5 + i * r*0.18;
         ctx.beginPath();
-        ctx.arc(wx, spy, r*0.18 + i*r*0.1, -0.6, 0.6);
+        ctx.arc(spx + r*0.5 + i * r*0.18, spy, r*0.18 + i*r*0.1, -0.6, 0.6);
         ctx.stroke();
       }
       ctx.lineCap = 'butt';
@@ -1352,17 +1175,14 @@
     ctx.lineWidth = scaleV(1.5);
     ctx.stroke();
 
-    // House body
     const hx = x - r*0.32, hy = y + r*0.08, hw = r*0.64, hh = r*0.42;
     ctx.fillStyle = 'rgba(255,255,255,0.75)';
     ctx.fillRect(hx, hy, hw, hh);
-    // Roof
     ctx.beginPath();
     ctx.moveTo(hx - r*0.08, hy);
     ctx.lineTo(x, hy - r*0.4);
     ctx.lineTo(hx + hw + r*0.08, hy);
     ctx.closePath(); ctx.fill();
-    // Door
     ctx.fillStyle = 'rgba(0,0,0,0.4)';
     ctx.fillRect(x - r*0.1, hy + hh*0.3, r*0.2, hh*0.7);
   }
@@ -1381,7 +1201,6 @@
     ctx.lineWidth = scaleV(1.5);
     ctx.stroke();
 
-    // Two vertical bars
     const barW = r*0.2, barH = r*0.55;
     ctx.fillStyle = 'rgba(255,255,255,0.75)';
     roundRect(x - barW*1.5, y - barH/2, barW, barH, scaleV(2)); ctx.fill();
@@ -1399,7 +1218,6 @@
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText('PAUSED', canvas.width/2, cy);
 
-    // Resume button
     const btnW = scaleX(200), btnH = scaleV(50);
     const btnX = canvas.width/2 - btnW/2;
     const btnY = cy + scaleV(50);
@@ -1414,7 +1232,6 @@
     ctx.fillText('RESUME', canvas.width/2, btnY + btnH/2);
     canvas._resumeBtn = { x: btnX, y: btnY, w: btnW, h: btnH };
 
-    // Menu button
     const mBtnY = btnY + btnH + scaleV(14);
     const mBtnH = scaleV(42);
     ctx.fillStyle = C.surface;
@@ -1435,35 +1252,19 @@
     const dtC = Math.max(0, Math.min(dt, 0.1));
     elapsedTime += dtC;
 
-    // Win animation timer
-    if (winAnimTimer > 0) {
-      winAnimTimer = Math.max(0, winAnimTimer - dtC);
-    }
+    if (winAnimTimer > 0) winAnimTimer = Math.max(0, winAnimTimer - dtC);
 
-    // AI thinking delay
     if (state === 'playing' && turn === 'ai' && phase === 'aiThinking') {
       aiDelay -= dtC * 1000;
-      if (aiDelay <= 0) {
-        aiTurn();
-      }
+      if (aiDelay <= 0) aiTurn();
     }
 
-    // Placement animation — advance toward 1.0
     if (placeAnim < 1 && placeAnimRC && phase === 'animating') {
       placeAnim = Math.min(1, placeAnim + dtC * 5);
       if (placeAnim >= 1 && state === 'playing') {
         placeAnimRC = null;
-        // After player's animation completes, start AI turn
-        if (turn === 'player') {
-          turn = 'ai';
-          phase = 'aiThinking';
-          aiDelay = 700 + Math.random() * 900;
-        }
-        // After AI's animation completes, back to player
-        else if (turn === 'ai') {
-          turn = 'player';
-          phase = 'idle';
-        }
+        if (turn === 'player') { turn = 'ai'; phase = 'aiThinking'; aiDelay = 700 + Math.random() * 900; }
+        else if (turn === 'ai') { turn = 'player'; phase = 'idle'; }
       }
     }
   }
@@ -1473,22 +1274,9 @@
   // ═══════════════════════════════════════
   function render() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    if (state === 'title') {
-      drawTitleScreen();
-      drawMuteButton();
-      drawHomeButton();
-    } else if (state === 'playing') {
-      drawGameScreen();
-      drawHUD();
-      drawPlayerHand();
-      drawMuteButton();
-      drawPauseButton();
-      drawPauseOverlay();
-    } else if (state === 'over') {
-      drawGameOverScreen();
-      drawMuteButton();
-    }
+    if (state === 'title') { drawTitleScreen(); drawMuteButton(); drawHomeButton(); }
+    else if (state === 'playing') { drawGameScreen(); drawHUD(); drawPlayerHand(); drawMuteButton(); drawPauseButton(); drawPauseOverlay(); }
+    else if (state === 'over') { drawGameOverScreen(); drawMuteButton(); }
   }
 
   // ═══════════════════════════════════════
@@ -1527,116 +1315,56 @@
   }
 
   function handleButtonTap(px, py) {
-    // Mute button — always active
-    if (hitTest(px, py, canvas._muteBtn)) {
-      toggleMute();
-      muteToggledByTouch = true;
-      return true;
-    }
-
-    // Home button — title screen only
-    if (state === 'title' && hitTest(px, py, canvas._homeBtn)) {
-      window.location.href = '../index.html';
-      return true;
-    }
-
-    // Pause button — playing state
-    if (state === 'playing' && hitTest(px, py, canvas._pauseBtn) && !paused) {
-      togglePause();
-      sfxClick();
-      return true;
-    }
-
-    // Pause overlay buttons
+    if (hitTest(px, py, canvas._muteBtn)) { toggleMute(); muteToggledByTouch = true; return true; }
+    if (state === 'title' && hitTest(px, py, canvas._homeBtn)) { window.location.href = '../index.html'; return true; }
+    if (state === 'playing' && hitTest(px, py, canvas._pauseBtn) && !paused) { togglePause(); sfxClick(); return true; }
     if (paused) {
-      if (hitTest(px, py, canvas._resumeBtn)) {
-        togglePause();
-        sfxClick();
-        return true;
-      }
-      if (hitTest(px, py, canvas._pauseMenuBtn)) {
-        paused = false;
-        state = 'title';
-        sfxClick();
-        return true;
-      }
-      return true; // absorb all input while paused
-    }
-
-    // Title screen START button
-    if (state === 'title' && hitTest(px, py, canvas._startBtn)) {
-      sfxClick();
-      startGame();
+      if (hitTest(px, py, canvas._resumeBtn)) { togglePause(); sfxClick(); return true; }
+      if (hitTest(px, py, canvas._pauseMenuBtn)) { paused = false; state = 'title'; sfxClick(); return true; }
       return true;
     }
-
-    // Game over screen buttons
+    if (state === 'title' && hitTest(px, py, canvas._startBtn)) { sfxClick(); startGame(); return true; }
     if (state === 'over') {
-      if (hitTest(px, py, canvas._restartBtn)) {
-        sfxClick();
-        startGame();
-        return true;
-      }
-      if (hitTest(px, py, canvas._menuBtn)) {
-        sfxClick();
-        state = 'title';
-        return true;
-      }
-      return true; // absorb all input on game over screen
+      if (hitTest(px, py, canvas._restartBtn)) { sfxClick(); startGame(); return true; }
+      if (hitTest(px, py, canvas._menuBtn)) { sfxClick(); state = 'title'; return true; }
+      return true;
     }
-
     return false;
   }
 
   function handleGameTap(px, py) {
     if (state !== 'playing' || paused || turn !== 'player' || phase === 'animating' || phase === 'aiThinking') return;
 
-    // Check card taps
     for (let i = 0; i < playerHand.length; i++) {
       if (hitTest(px, py, canvas['_handCard' + i])) {
         sfxClick();
         if (selectedCard === i && phase === 'cardSelected') {
-          // Deselect
-          selectedCard = -1;
-          selectedCells = [];
-          phase = 'idle';
+          selectedCard = -1; selectedCells = []; phase = 'idle';
         } else {
-          // Check if this card has valid cells
           const card = playerHand[i];
           const cells = getValidCellsForCard(card, 'player');
           if (cells.length === 0) {
-            // Dead card — auto-discard and draw replacement
+            // Dead card — auto-discard
             playerHand.splice(i, 1);
             if (deck.length > 0) playerHand.push(deck.pop());
-            selectedCard = -1;
-            selectedCells = [];
-            moveCount++;
+            selectedCard = -1; selectedCells = []; moveCount++;
             sfxCard();
             if (checkDraw()) return;
-            // Pass turn to AI
-            turn = 'ai';
-            phase = 'aiThinking';
-            aiDelay = 700 + Math.random() * 900;
+            turn = 'ai'; phase = 'aiThinking'; aiDelay = 700 + Math.random() * 900;
           } else {
-            // Select this card, highlight valid cells
-            selectedCard = i;
-            selectedCells = cells;
-            phase = 'cardSelected';
+            selectedCard = i; selectedCells = cells; phase = 'cardSelected';
           }
         }
         return;
       }
     }
 
-    // If a card is selected, check board cell taps
     if (phase === 'cardSelected' && selectedCard >= 0) {
       const { bx, by, cellSize } = getBoardLayout();
       const col = Math.floor((px - bx) / cellSize);
       const row = Math.floor((py - by) / cellSize);
       if (row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE) {
-        // Check if this cell is in selectedCells
-        const match = selectedCells.find(sc => sc.r === row && sc.c === col);
-        if (match) {
+        if (selectedCells.find(sc => sc.r === row && sc.c === col)) {
           executePlayerMove(selectedCard, row, col);
         }
       }
@@ -1647,16 +1375,12 @@
     e.preventDefault();
     muteToggledByTouch = false;
     if (!e.changedTouches.length) return;
-    const t = e.changedTouches[0];
-    const { x, y } = canvasCoords(t);
-
+    const { x, y } = canvasCoords(e.changedTouches[0]);
     if (handleButtonTap(x, y)) return;
     handleGameTap(x, y);
   }, { passive: false });
 
-  canvas.addEventListener('touchcancel', function(e) {
-    muteToggledByTouch = false;
-  });
+  canvas.addEventListener('touchcancel', function(e) { muteToggledByTouch = false; });
 
   canvas.addEventListener('click', function(e) {
     if (muteToggledByTouch) { muteToggledByTouch = false; return; }
@@ -1666,39 +1390,23 @@
   });
 
   window.addEventListener('keydown', function(e) {
-    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
-      if (state === 'playing') { togglePause(); }
-      return;
-    }
-    if (e.key === ' ' || e.key === 'Enter') {
-      if (state === 'title') { sfxClick(); startGame(); }
-      else if (state === 'over') { sfxClick(); startGame(); }
-      return;
-    }
+    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') { if (state === 'playing') togglePause(); return; }
+    if (e.key === ' ' || e.key === 'Enter') { if (state === 'title' || state === 'over') { sfxClick(); startGame(); } return; }
   });
 
   // ═══════════════════════════════════════
   // INIT
   // ═══════════════════════════════════════
   function init() {
-    // Load persisted state
-    if (safeLS('sequence_muted') === '0') {
-      muted = false;
-      initAudio();
-    }
+    if (safeLS('sequence_muted') === '0') { muted = false; initAudio(); }
     playerWins = parseInt(safeLS('sequence_pWins') || '0');
     aiWins = parseInt(safeLS('sequence_aWins') || '0');
-
     initStarField();
     resize();
     lastFrameTime = performance.now();
     render();
     requestAnimationFrame(gameLoop);
-
-    // Service worker
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
-    }
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js').catch(() => {}); }
   }
 
   init();
