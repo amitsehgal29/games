@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Happy House Warming, Monty!</title>
+  <meta name="description" content="A warm house warming wish for Monty — with fortune cookies!">
+  <meta property="og:title" content="Happy House Warming, Monty!">
+  <meta property="og:description" content="A warm house warming wish, with fortune cookies to crack open.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://amitsehgal29.github.io/games/warming/">
+  <meta property="og:image" content="https://amitsehgal29.github.io/games/warming/icon.svg">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Fredoka:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin:0;padding:0;box-sizing:border-box; }
+    html,body {
+      width:100%;min-height:100vh;overflow-x:hidden;
+      font-family:'Fredoka',system-ui,sans-serif;
+      background:#FFF8F0;
+      -webkit-tap-highlight-color:transparent;
+      user-select:none;-webkit-user-select:none;
+      scroll-behavior:smooth;
+    }
+    body {
+      display:flex;flex-direction:column;align-items:center;
+      background:
+        radial-gradient(ellipse 50% 40% at 50% 20%, rgba(255,180,120,0.25), transparent),
+        radial-gradient(ellipse 40% 50% at 80% 80%, rgba(255,160,100,0.2), transparent),
+        radial-gradient(ellipse 30% 30% at 20% 60%, rgba(200,140,100,0.15), transparent),
+        #FFF8F0;
+    }
+    .container {
+      max-width:500px;width:100%;padding:40px 24px 60px;
+      display:flex;flex-direction:column;align-items:center;
+    }
+    canvas#house { display:block;width:180px;height:180px;margin-bottom:8px; }
+    .title {
+      font-family:'Fredoka One',cursive;
+      font-size:clamp(24px,6vw,34px);
+      color:#5C3D2E;text-align:center;line-height:1.2;
+      margin-bottom:6px;
+    }
+    .subtitle {
+      font-size:clamp(14px,3.5vw,17px);color:#8B6B5A;
+      text-align:center;font-weight:400;margin-bottom:4px;
+      max-width:380px;
+    }
+    .from {
+      font-size:clamp(12px,3vw,14px);color:#B09080;
+      text-align:center;font-weight:400;margin-bottom:32px;
+    }
+    .section-label {
+      font-family:'Fredoka One',cursive;
+      font-size:clamp(14px,3.5vw,17px);color:#7A5030;
+      text-align:center;margin-bottom:14px;margin-top:8px;
+    }
+    .cookies-grid {
+      display:flex;flex-wrap:wrap;justify-content:center;
+      gap:16px;max-width:420px;margin-bottom:12px;
+    }
+    .cookie-wrapper {
+      display:flex;flex-direction:column;align-items:center;gap:8px;
+      cursor:pointer;transition:transform 0.2s;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .cookie-wrapper:active { transform:scale(0.94); }
+    .cookie-wrapper.opened { cursor:default; pointer-events:none; }
+    .cookie-wrapper.opened:active { transform:none; }
+    canvas.cookie-canvas { display:block;width:72px;height:72px; }
+    .fortune-tag {
+      font-size:10px;color:#8B6B5A;text-align:center;font-weight:500;
+      max-width:80px;line-height:1.3;
+      opacity:0;transform:translateY(-6px);
+      transition:all 0.5s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    .cookie-wrapper.opened .fortune-tag { opacity:1;transform:translateY(0); }
+    .fortune-reveal {
+      background:#FFFBF5;border-radius:14px;padding:18px 22px;
+      margin:16px 0;max-width:400px;width:100%;text-align:center;
+      box-shadow:0 2px 16px rgba(0,0,0,0.06);
+      border:1px solid rgba(180,140,100,0.15);
+      display:none;
+    }
+    .fortune-reveal.show { display:block;animation: fadeUp 0.5s ease-out; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(12px);} to{opacity:1;transform:translateY(0);} }
+    .fortune-text {
+      font-size:clamp(16px,4vw,20px);color:#5C3D2E;
+      font-weight:500;line-height:1.5;font-style:italic;
+    }
+    .fortune-close {
+      margin-top:12px;font-size:13px;color:#B09080;
+      cursor:pointer;font-weight:500;
+      padding:6px 18px;border-radius:20px;
+      background:rgba(180,140,100,0.08);
+      display:inline-block;transition:background 0.2s;
+    }
+    .fortune-close:hover { background:rgba(180,140,100,0.15); }
+    .cracked-count {
+      font-size:12px;color:#B09080;text-align:center;margin-top:8px;
+      font-weight:400;transition:all 0.3s;
+    }
+    .final-message {
+      background:linear-gradient(135deg,#FFF5EC,#FFECD2);
+      border-radius:16px;padding:24px 20px;margin:20px 0;
+      max-width:400px;width:100%;text-align:center;
+      border:1px solid rgba(200,150,100,0.2);
+      display:none;animation:fadeUp 0.6s ease-out;
+    }
+    .final-message.show { display:block; }
+    .final-message .emoji-row { font-size:28px;margin-bottom:10px; }
+    .final-message .msg {
+      font-size:clamp(15px,3.8vw,18px);color:#5C3D2E;
+      font-weight:500;line-height:1.5;
+    }
+    .final-message .signature {
+      margin-top:14px;font-size:14px;color:#8B6B5A;
+      font-weight:600;
+    }
+    footer {
+      margin-top:24px;font-size:11px;color:rgba(140,100,70,0.3);
+      text-align:center;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <!-- Animated House -->
+  <canvas id="house" width="360" height="360" aria-label="A warm, cozy home"></canvas>
+
+  <h1 class="title">Happy House Warming, Monty!</h1>
+  <p class="subtitle">A new home is a new chapter — may yours be filled with love, laughter, and endless happy moments.</p>
+  <p class="from">— from Amit</p>
+
+  <h2 class="section-label">Crack Open a Fortune Cookie</h2>
+
+  <div class="cookies-grid" id="cookiesGrid"></div>
+  <p class="cracked-count" id="crackedCount">0 of 8 fortunes revealed</p>
+
+  <div class="fortune-reveal" id="fortuneReveal">
+    <p class="fortune-text" id="fortuneText"></p>
+    <span class="fortune-close" id="fortuneClose">Continue →</span>
+  </div>
+
+  <div class="final-message" id="finalMessage">
+    <div class="emoji-row">&#127968; &#10024; &#128150;</div>
+    <p class="msg">Monty — every fortune I tucked into these cookies is a wish I'm sending your way. May your new home be everything you've dreamed of and more. Here's to new beginnings, warm evenings, and a space that's truly, wonderfully <em>yours</em>.</p>
+    <p class="signature">With love,<br>Amit</p>
+  </div>
+
+  <footer>Made with warmth &middot; Open on any device</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ═══════════════════════════════════════
+  // ANIMATED HOUSE — Canvas
+  // ═══════════════════════════════════════
+  const houseCanvas = document.getElementById('house');
+  const hctx = houseCanvas.getContext('2d');
+  const HW = 360, HH = 360;
+
+  let houseTime = 0;
+  let smokeParticles = [];
+  for (let i=0;i<12;i++) smokeParticles.push({x:0,y:0,r:0,life:0,speed:0,phase:Math.random()*Math.PI*2});
+
+  function drawHouse() {
+    hctx.clearRect(0,0,HW,HH);
+    const cx=HW/2;
+
+    // Sky glow (warm sunset)
+    const skyG = hctx.createRadialGradient(cx,140,20,cx,180,240);
+    skyG.addColorStop(0,'#FFF2E0');skyG.addColorStop(0.5,'#FFE4C8');skyG.addColorStop(1,'#FFD4B0');
+    hctx.fillStyle=skyG;hctx.fillRect(0,0,HW,HH);
+
+    // Ground
+    hctx.fillStyle='#C8A882';
+    hctx.beginPath();hctx.ellipse(cx,310,190,60,0,Math.PI,Math.PI*2);hctx.fill();
+    hctx.fillStyle='#D4B896';
+    hctx.beginPath();hctx.ellipse(cx,318,170,50,0,Math.PI,Math.PI*2);hctx.fill();
+
+    // House body
+    const hx=cx-72,hy=175,hw=144,hh=115;
+    hctx.fillStyle='#F5E6D3';
+    hctx.beginPath();hctx.roundRect(hx,hy,hw,hh,6);hctx.fill();
+    hctx.strokeStyle='#D4C0A8';hctx.lineWidth=2;
+    hctx.beginPath();hctx.roundRect(hx,hy,hw,hh,6);hctx.stroke();
+
+    // Roof
+    hctx.fillStyle='#C06040';
+    hctx.beginPath();
+    hctx.moveTo(hx-16,hy+4);hctx.lineTo(cx,hy-56);
+    hctx.lineTo(hx+hw+16,hy+4);hctx.closePath();hctx.fill();
+    hctx.strokeStyle='#A04830';hctx.lineWidth=2;
+    hctx.stroke();
+
+    // Door
+    hctx.fillStyle='#8B5A3C';
+    hctx.beginPath();hctx.roundRect(cx-16,hy+55,32,58,14);hctx.fill();
+    hctx.fillStyle='#C8A040';
+    hctx.beginPath();hctx.arc(cx+8,hy+84,3,0,Math.PI*2);hctx.fill();
+
+    // Windows (warm lit)
+    const winGlow = (alpha) => `rgba(255,200,100,${alpha})`;
+    const pulse = 0.6+0.25*Math.sin(houseTime*2);
+
+    // Left window
+    drawWindow(cx-46,hy+20,28,32,pulse);
+    // Right window
+    drawWindow(cx+18,hy+20,28,32,pulse*0.85);
+
+    // Chimney
+    hctx.fillStyle='#D4B896';
+    hctx.fillRect(cx+32,hy-42,22,58);
+    hctx.strokeStyle='#C0A080';hctx.lineWidth=1.5;
+    hctx.strokeRect(cx+32,hy-42,22,58);
+
+    // Smoke
+    for(const s of smokeParticles){
+      const sx=cx+43+s.x, sy=hy-50+s.y;
+      const a=s.life*0.4;
+      hctx.fillStyle=`rgba(200,180,160,${a.toFixed(2)})`;
+      hctx.beginPath();hctx.arc(sx,sy,s.r,0,Math.PI*2);hctx.fill();
+    }
+
+    // Heart above house
+    const heartY=hy-72+Math.sin(houseTime*1.5)*4;
+    drawHeart(cx,heartY,10,pulse);
+
+    // Warm light glow from windows onto ground
+    hctx.fillStyle=`rgba(255,180,100,${(0.08+0.04*Math.sin(houseTime*2)).toFixed(2)})`;
+    hctx.beginPath();hctx.ellipse(cx,hy+hh+20,70,18,0,0,Math.PI*2);hctx.fill();
+  }
+
+  function drawWindow(wx,wy,ww,wh,glow){
+    hctx.fillStyle='#3A2A1A';
+    hctx.beginPath();hctx.roundRect(wx,wy,ww,wh,5);hctx.fill();
+    hctx.fillStyle=`rgba(255,200,110,${glow.toFixed(2)})`;
+    hctx.beginPath();hctx.roundRect(wx+2,wy+2,ww-4,wh-4,4);hctx.fill();
+    // Cross frame
+    hctx.strokeStyle='#5C3D2E';hctx.lineWidth=1.5;
+    hctx.beginPath();hctx.moveTo(wx+ww/2,wy+2);hctx.lineTo(wx+ww/2,wy+wh-2);hctx.stroke();
+    hctx.beginPath();hctx.moveTo(wx+2,wy+wh/2);hctx.lineTo(wx+ww-2,wy+wh/2);hctx.stroke();
+  }
+
+  function drawHeart(cx,cy,s,a){
+    hctx.save();hctx.globalAlpha=a;hctx.fillStyle='#E05050';
+    hctx.beginPath();
+    hctx.moveTo(cx,cy+s*0.6);
+    hctx.bezierCurveTo(cx-s*1.2,cy-s*0.3,cx-s*0.6,cy-s*1.2,cx,cy-s*0.4);
+    hctx.bezierCurveTo(cx+s*0.6,cy-s*1.2,cx+s*1.2,cy-s*0.3,cx,cy+s*0.6);
+    hctx.fill();hctx.restore();
+  }
+
+  function updateHouse(dt){
+    houseTime+=dt;
+    for(const s of smokeParticles){
+      s.life-=dt*0.35;
+      if(s.life<=0){s.x=(Math.random()-0.5)*8;s.y=0;s.r=rand(3,9);s.life=0.8+Math.random()*0.4;s.speed=rand(8,20);s.phase=Math.random()*Math.PI*2;}
+      else{s.y-=s.speed*dt;s.x+=Math.sin(houseTime*3+s.phase)*dt*3;s.r+=dt*1.5;}
+    }
+  }
+
+  function rand(a,b){return a+Math.random()*(b-a);}
+
+  // ═══════════════════════════════════════
+  // FORTUNE COOKIES
+  // ═══════════════════════════════════════
+  const FORTUNES = [
+    "May your new home be filled with endless laughter and the warmth of people you love.",
+    "Every sunrise through your window brings a fresh chapter of joy and possibility.",
+    "The walls of this home will echo with stories worth telling for years to come.",
+    "Home is where love settles in, memories bloom, and friends always find a seat at the table.",
+    "New beginnings thrive in spaces filled with love — and yours is already blooming beautifully.",
+    "May prosperity knock gently on your door and happiness settle into every single corner.",
+    "This isn't just a house — it's the setting for the most beautiful chapters of your story.",
+    "Wherever you plant your roots, Monty, flowers of joy will always find their way to you."
+  ];
+
+  let openedCookies = new Set();
+  let currentFortune = -1;
+
+  const cookiesGrid = document.getElementById('cookiesGrid');
+  const fortuneReveal = document.getElementById('fortuneReveal');
+  const fortuneText = document.getElementById('fortuneText');
+  const fortuneClose = document.getElementById('fortuneClose');
+  const crackedCount = document.getElementById('crackedCount');
+  const finalMessage = document.getElementById('finalMessage');
+
+  // Build cookie canvases
+  for(let i=0;i<8;i++){
+    const wrap = document.createElement('div');
+    wrap.className='cookie-wrapper';
+    wrap.id='cookieWrap'+i;
+
+    const cvs = document.createElement('canvas');
+    cvs.className='cookie-canvas';
+    cvs.width=144;cvs.height=144;
+    wrap.appendChild(cvs);
+
+    const tag = document.createElement('div');
+    tag.className='fortune-tag';
+    tag.textContent='Tap to crack';
+    wrap.appendChild(tag);
+
+    wrap.addEventListener('click',()=>crackCookie(i));
+    cookiesGrid.appendChild(wrap);
+
+    // Draw initial cookie
+    drawCookie(cvs.getContext('2d'),i,0);
+  }
+
+  function drawCookie(ctx,idx,crackProgress){
+    const cx=72,cy=72;
+    ctx.clearRect(0,0,144,144);
+
+    if(openedCookies.has(idx)){
+      // Draw broken cookie halves
+      const sep=crackProgress*18;
+      // Left half
+      ctx.save();
+      ctx.translate(-sep*0.7,sep*0.3);
+      ctx.fillStyle='#D4A050';
+      ctx.beginPath();ctx.ellipse(cx-14,cy-6,28,24,-0.4,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#C08838';
+      ctx.beginPath();ctx.ellipse(cx-16,cy-8,26,22,-0.35,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+      // Right half
+      ctx.save();
+      ctx.translate(sep*0.7,sep*0.3);
+      ctx.fillStyle='#D4A050';
+      ctx.beginPath();ctx.ellipse(cx+14,cy-6,28,24,Math.PI+0.4,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#C08838';
+      ctx.beginPath();ctx.ellipse(cx+16,cy-8,26,22,Math.PI+0.35,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+      // Paper slip peeking out
+      ctx.fillStyle='#FFFBF0';
+      ctx.fillRect(cx-12,cy-30-sep*2,24,40);
+      ctx.strokeStyle='#E0D0B8';ctx.lineWidth=1;
+      ctx.strokeRect(cx-12,cy-30-sep*2,24,40);
+      // Tiny text lines on paper
+      ctx.fillStyle='#D0C0A0';
+      for(let j=0;j<4;j++)ctx.fillRect(cx-7,cy-24-sep*2+j*8,14,1.5);
+    }else{
+      // Whole cookie
+      ctx.fillStyle='#D4A050';
+      ctx.beginPath();ctx.ellipse(cx,cy,30,25,0,0,Math.PI*2);ctx.fill();
+      // Fold/crease
+      ctx.strokeStyle='#B87830';ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.arc(cx,cy-2,26,Math.PI*0.2,Math.PI*0.8);ctx.stroke();
+      // Highlight
+      ctx.fillStyle='rgba(255,255,255,0.2)';
+      ctx.beginPath();ctx.ellipse(cx-8,cy-10,12,8,-0.3,0,Math.PI*2);ctx.fill();
+      // Two small dots (cookie texture)
+      ctx.fillStyle='#B87830';
+      ctx.beginPath();ctx.arc(cx-10,cy+6,2,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(cx+14,cy-4,1.5,0,Math.PI*2);ctx.fill();
+      ctx.beginPath();ctx.arc(cx+6,cy+10,1.8,0,Math.PI*2);ctx.fill();
+    }
+  }
+
+  function crackCookie(idx){
+    if(openedCookies.has(idx)) return;
+    openedCookies.add(idx);
+    currentFortune=idx;
+
+    // Animate crack
+    const wrap=document.getElementById('cookieWrap'+idx);
+    wrap.classList.add('opened');
+    wrap.querySelector('.fortune-tag').textContent='Cracked!';
+
+    const cvs=wrap.querySelector('canvas');
+    const ctx=cvs.getContext('2d');
+    let progress=0;
+    const anim=setInterval(()=>{
+      progress+=0.07;
+      if(progress>=1){progress=1;clearInterval(anim);}
+      drawCookie(ctx,idx,progress);
+    },16);
+
+    // Show fortune
+    fortuneText.textContent=FORTUNES[idx];
+    fortuneReveal.classList.add('show');
+    crackedCount.textContent=openedCookies.size+' of 8 fortunes revealed';
+
+    // Play gentle sound
+    playChime();
+
+    // Check if all opened
+    if(openedCookies.size===8){
+      setTimeout(()=>{finalMessage.classList.add('show');},800);
+      crackedCount.textContent='All 8 fortunes revealed!';
+    }
+  }
+
+  fortuneClose.addEventListener('click',()=>{
+    fortuneReveal.classList.remove('show');
+    currentFortune=-1;
+  });
+
+  // ═══════════════════════════════════════
+  // AUDIO — subtle chime
+  // ═══════════════════════════════════════
+  let audioCtx=null;
+  function playChime(){
+    try{
+      if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+      if(audioCtx.state==='suspended') audioCtx.resume();
+      const now=audioCtx.currentTime;
+      [523,659,784].forEach((f,i)=>{
+        const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+        o.type='sine';o.frequency.setValueAtTime(f,now+i*0.08);
+        g.gain.setValueAtTime(0.06,now+i*0.08);
+        g.gain.exponentialRampToValueAtTime(0.001,now+i*0.08+0.35);
+        o.connect(g);g.connect(audioCtx.destination);
+        o.start(now+i*0.08);o.stop(now+i*0.08+0.35);
+      });
+    }catch(e){}
+  }
+
+  // ═══════════════════════════════════════
+  // ANIMATION LOOP — House
+  // ═══════════════════════════════════════
+  let lastT=performance.now();
+  function loop(ts){
+    const dt=Math.min((ts-lastT)/1000,0.1);
+    lastT=ts;
+    updateHouse(dt);
+    drawHouse();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // Register Service Worker
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
+})();
+</script>
+</body>
+</html>
